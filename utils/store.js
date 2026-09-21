@@ -332,6 +332,52 @@ const putAICache = (key, result) => {
 };
 const clearAICache = () => { try { wx.removeStorageSync(KEYS.AI_CACHE); } catch (e) {} };
 
+// ---------- 内置书种子（四级/考研分级阅读） ----------
+// seed-data.js 体积较大，惰性 require：仅首次注入时加载
+// SEED_VER 已达标则跳过（用户删除内置书后不会复活）
+const seedBuiltIns = () => {
+  const SEED_KEY = 'seed_ver';
+  const seed = require('./seed-data');
+  if (Number(get(SEED_KEY, 0)) >= seed.SEED_VER) return;
+  const { tokenizeArticle } = require('./tokenize');
+  seed.books.forEach((sb) => {
+    if (getBook(sb.id)) return; // 已存在（如恢复过备份）则不重复注入
+    const book = {
+      id: sb.id,
+      title: sb.title,
+      author: sb.author,
+      hue: sb.hue,
+      chapterCount: 0,
+      createdAt: Date.now(),
+      lastReadAt: 0,
+      lastChapterId: '',
+      chapters: []
+    };
+    // 先注册书籍再逐章保存，saveChapter 才能把章节元信息挂到 book.chapters
+    set(KEYS.BOOKS, [book].concat(listBooks()));
+    sb.chapters.forEach((sc) => {
+      const t = tokenizeArticle(sc.title, sc.text);
+      if (!t.paragraphs.length) return;
+      // 翻译数组与分句结果按 sid 严格对齐（长度兜底）
+      const translations = t.sentences.map((_, i) => (sc.translations || [])[i] || '');
+      const ch = {
+        id: sc.id,
+        bookId: sb.id,
+        title: sc.title,
+        rawText: sc.text,
+        tokens: { paragraphs: t.paragraphs, sentences: t.sentences, tokenCount: t.tokenCount },
+        words: (sc.words || []).map((w) => ({ word: w[0], meaning: w[1] })),
+        translations,
+        translatedAt: translations.some(Boolean) ? Date.now() : 0,
+        quizDone: false,
+        createdAt: Date.now()
+      };
+      saveChapter(sb.id, ch);
+    });
+  });
+  set(SEED_KEY, seed.SEED_VER);
+};
+
 // ---------- 备份 / 恢复 ----------
 const exportAll = () => {
   const data = { version: DATA_VER, exportedAt: new Date().toISOString(), data: {} };
@@ -349,7 +395,7 @@ const importAll = (backup) => {
 };
 
 module.exports = {
-  KEYS, DATA_VER, hash, get, set, evictCaches, newId, migrate,
+  KEYS, DATA_VER, hash, get, set, evictCaches, newId, migrate, seedBuiltIns,
   listBooks, getBook, createBook, saveBook, touchBook, deleteBook,
   getChapter, saveChapter, patchChapter, deleteChapter, chapterIds,
   getMarks, addMark, removeMark,

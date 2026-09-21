@@ -7,6 +7,9 @@ App({
     // v3 数据迁移：清空旧"单篇文章"模型数据（生词本/设置/主题/字体保留）
     store.migrate();
 
+    // 首次启动注入内置书（四级/考研分级阅读，翻译已预缓存）
+    store.seedBuiltIns();
+
     // 初始化默认设置（大模型 API 配置 + 主题 + 字体）
     const s = store.getSettings();
     store.setSettings(s);
