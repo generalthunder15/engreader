@@ -197,3 +197,86 @@
 }
 .rs-import { margin-top: 6rpx; }
 .rs-hint { font-size: 24rpx; color: var(--c-text-hint, #9AA0AA); line-height: 1.7; margin-top: 20rpx; }
+
+/* ---------- 句译（缓存展示） ---------- */
+.para-trans {
+  margin: 8rpx 0 0 var(--read-indent, 34rpx);
+  font-size: 26rpx; line-height: 1.7;
+  color: var(--c-text-hint, #8A8F99);
+  font-family: var(--font-ui);
+  border-left: 4rpx solid var(--c-border, #F0F1F4);
+  padding-left: 14rpx;
+}
+
+/* ---------- 自定义顶栏（小说式沉浸） ---------- */
+.topbar {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 90;
+  display: flex; align-items: center;
+  height: auto; box-sizing: content-box;
+  background: var(--c-card, #FFFFFF);
+  border-bottom: 1rpx solid var(--c-border, #F0F1F4);
+  padding-bottom: 12rpx;
+  font-family: var(--font-ui);
+}
+.tb-back {
+  width: 88rpx; text-align: center;
+  font-size: 56rpx; line-height: 64rpx; color: var(--c-text, #1A1D24);
+}
+.tb-mid { flex: 1; min-width: 0; }
+.tb-title {
+  font-size: 30rpx; font-weight: 600; color: var(--c-text-strong, #22242A);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tb-sub { font-size: 20rpx; color: var(--c-text-hint, #9AA0AA); margin-top: 2rpx; }
+.tb-fav { width: 88rpx; text-align: center; font-size: 40rpx; color: var(--c-text-hint, #9AA0AA); }
+.tb-fav.on { color: var(--c-mark-line, #E3B04B); }
+
+/* ---------- 底部控制条 ---------- */
+.ctlbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
+  background: var(--c-card, #FFFFFF);
+  border-top: 1rpx solid var(--c-border, #F0F1F4);
+  padding-bottom: env(safe-area-inset-bottom);
+  font-family: var(--font-ui);
+}
+.ctl-nav {
+  display: flex; align-items: center; gap: 8rpx;
+  padding: 18rpx 24rpx 6rpx;
+}
+.ctl-nav-btn {
+  flex-shrink: 0; font-size: 26rpx; color: var(--c-text, #1A1D24);
+  padding: 10rpx 18rpx; border-radius: var(--r-btn, 14rpx);
+  background: var(--c-sunken, #FAFBFC);
+}
+.ctl-nav-btn.dim { color: var(--c-text-faint, #C3C8D0); }
+.ctl-slider { flex: 1; margin: 0 6rpx; }
+.ctl-menu { display: flex; padding: 10rpx 0 16rpx; }
+.ctl-item { flex: 1; text-align: center; }
+.ctl-ico { font-size: 40rpx; line-height: 56rpx; color: var(--c-text, #1A1D24); }
+.ctl-ico.on { color: var(--c-primary, #2B6CB0); }
+.ctl-txt { font-size: 22rpx; color: var(--c-text-hint, #8A8F99); margin-top: 2rpx; }
+
+/* ---------- 目录抽屉 ---------- */
+.toc-wrap { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 100; font-family: var(--font-ui); }
+.toc-mask { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--c-mask, rgba(0, 0, 0, 0.35)); }
+.toc-panel {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 70vh; box-sizing: border-box;
+  background: var(--c-card, #FFFFFF);
+  border-radius: var(--r-sheet, 28rpx) var(--r-sheet, 28rpx) 0 0;
+  display: flex; flex-direction: column;
+}
+.toc-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 24rpx 30rpx; border-bottom: 1rpx solid var(--c-border, #F0F1F4);
+}
+.toc-title { font-size: 32rpx; font-weight: 700; color: var(--c-text-strong, #22242A); }
+.toc-close { font-size: 34rpx; color: var(--c-text-hint, #9AA0AA); padding: 0 10rpx; }
+.toc-body { flex: 1; height: 0; }
+.toc-item {
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 26rpx 34rpx; border-bottom: 1rpx solid var(--c-border, #F0F1F4);
+}
+.toc-item.on .toc-name { color: var(--c-primary, #2B6CB0); font-weight: 700; }
+.toc-idx { font-size: 26rpx; color: var(--c-text-faint, #C3C8D0); width: 44rpx; flex-shrink: 0; }
+.toc-name { font-size: 30rpx; color: var(--c-text, #1A1D24); flex: 1; }

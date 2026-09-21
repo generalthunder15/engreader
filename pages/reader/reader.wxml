@@ -1,15 +1,23 @@
 <view class="page" style="{{themeStyle}}">
   <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+
+  <!-- 自定义顶栏（小说式沉浸）：返回 + 章节名/进度 + 收藏 -->
+  <view class="topbar {{ctl.show ? 'on' : ''}}" style="padding-top:{{statusBarH}}px" wx:if="{{ctl.show}}">
+    <view class="tb-back" bindtap="onBack">‹</view>
+    <view class="tb-mid">
+      <view class="tb-title">{{article.title}}</view>
+      <view class="tb-sub">{{book.title}} · {{chIndex + 1}}/{{chTotal}} · {{progressPct}}%</view>
+    </view>
+    <view class="tb-fav {{favored ? 'on' : ''}}" bindtap="toggleFavor">{{favored ? '★' : '☆'}}</view>
+  </view>
+
   <view class="page-body">
   <view class="reader">
   <view class="art-title">{{article.title}}</view>
 
   <view class="paragraph" wx:for="{{paragraphs}}" wx:key="pid" wx:for-item="para">
-    <!-- 首行缩进（两个字母宽）：独立元素撑开，不承载文字、不参与选中 -->
     <text class="indent"></text>
     <block wx:for="{{para.tokens}}" wx:key="id" wx:for-item="tk">
-      <!-- 末尾的 sel-cont / mark-cont：该词后面还有同一选区的词，底色向右多铺一个词距（不占布局），
-           使高亮连续；选区末尾的词不加，避免多选中一个空格 -->
       <text
         id="tok-{{tk.id}}"
         class="tok {{marksMap[tk.id] ? 'marked' : ''}} {{spaceMarks[tk.id] ? 'mark-cont' : ''}} {{tk.id >= selStart && tk.id <= selEnd ? 'sel' : ''}} {{tk.id >= selStart && tk.id < selEnd ? 'sel-cont' : ''}}"
@@ -18,7 +26,6 @@
         bindtouchend="onTouchEnd"
         bindlongpress="onLongPress"
       >{{tk.w}}</text>
-      <!-- 词间距：独立元素，不参与文字与选中，仅撑开宽度 -->
       <text
         wx:if="{{tk.sp}}"
         class="sp"
@@ -28,19 +35,79 @@
         bindlongpress="onLongPress"
       ></text>
     </block>
-    <!-- 段落笔记角标：记过笔记的段落显示，点击查看本段笔记 -->
     <view
       wx:if="{{noteCounts[para.pid]}}"
       class="note-badge"
       data-pid="{{para.pid}}"
       catchtap="onNoteBadge"
     >{{noteCounts[para.pid]}}</view>
+    <!-- 句译：保存章节时批量翻译并缓存，这里零成本展示 -->
+    <view class="para-trans" wx:if="{{showTrans && transMap[para.pid]}}">{{transMap[para.pid]}}</view>
   </view>
 
-  <view class="reader-foot-tip">双击选词 · 长按选整句 · 单击呼出设置</view>
+  <view class="reader-foot-tip">双击选词 · 长按选整句 · 单击呼出菜单</view>
 </view>
 
-<!-- 段落笔记弹层：与 AI 翻译面板同款底部抽屉 -->
+<!-- 底部控制条（小说式）：上一章/进度/下一章 + 目录/夜间/设置/翻译 -->
+<view class="ctlbar {{ctl.show ? 'on' : ''}}" wx:if="{{ctl.show}}">
+  <view class="ctl-nav">
+    <view class="ctl-nav-btn {{chIndex <= 0 ? 'dim' : ''}}" bindtap="prevChapter">上一章</view>
+    <slider
+      class="ctl-slider"
+      min="0"
+      max="{{chTotal - 1}}"
+      value="{{chIndex}}"
+      activeColor="{{themePrimary}}"
+      block-size="20"
+      bindchange="onSlider"
+    />
+    <view class="ctl-nav-btn {{chIndex >= chTotal - 1 ? 'dim' : ''}}" bindtap="nextChapter">下一章</view>
+  </view>
+  <view class="ctl-menu">
+    <view class="ctl-item" bindtap="openToc">
+      <view class="ctl-ico">☰</view>
+      <view class="ctl-txt">目录</view>
+    </view>
+    <view class="ctl-item" bindtap="toggleNight">
+      <view class="ctl-ico">{{rsTheme === 'night' ? '☀' : '☾'}}</view>
+      <view class="ctl-txt">{{rsTheme === 'night' ? '白天' : '夜间'}}</view>
+    </view>
+    <view class="ctl-item" bindtap="openRS">
+      <view class="ctl-ico">⚙</view>
+      <view class="ctl-txt">设置</view>
+    </view>
+    <view class="ctl-item" bindtap="toggleTrans">
+      <view class="ctl-ico {{showTrans ? 'on' : ''}}">译</view>
+      <view class="ctl-txt">{{showTrans ? '关句译' : '显示翻译'}}</view>
+    </view>
+  </view>
+</view>
+
+<!-- 目录抽屉 -->
+<view class="toc-wrap" wx:if="{{toc.show}}" catchtouchmove="noop">
+  <view class="toc-mask" bindtap="closeToc"></view>
+  <view class="toc-panel">
+    <view class="toc-head">
+      <view class="toc-title">{{book.title}}</view>
+      <view class="toc-close" bindtap="closeToc">✕</view>
+    </view>
+    <scroll-view scroll-y class="toc-body" scroll-into-view="toc-cur">
+      <view
+        wx:for="{{toc.list}}"
+        wx:key="id"
+        id="{{toc.current === item.id ? 'toc-cur' : ''}}"
+        class="toc-item {{toc.current === item.id ? 'on' : ''}}"
+        bindtap="pickChapter"
+        data-id="{{item.id}}"
+      >
+        <text class="toc-idx">{{item.idx}}</text>
+        <text class="toc-name">{{item.title}}</text>
+      </view>
+    </scroll-view>
+  </view>
+</view>
+
+<!-- 段落笔记弹层 -->
 <view class="np-wrap" wx:if="{{noteView.show}}" catchtouchmove="noop">
   <view class="np-mask" bindtap="closeNoteView"></view>
   <view class="np-panel">
@@ -69,7 +136,7 @@
   </view>
 </view>
 
-<!-- 阅读设置抽屉：单击正文呼出（主题 / 字体 / 排版，与 AI 面板同款底部抽屉样式） -->
+<!-- 阅读设置抽屉 -->
 <view class="rs-wrap" wx:if="{{rs.show}}" catchtouchmove="noop">
   <view class="rs-mask" bindtap="closeRS"></view>
   <view class="rs-panel">

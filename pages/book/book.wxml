@@ -1,0 +1,46 @@
+<view class="page" style="{{themeStyle}}">
+  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+  <view class="page-body" wx:if="{{book}}">
+    <view class="book-head">
+      <view class="mini-cover" style="{{coverStyle}}">书</view>
+      <view class="book-info">
+        <view class="book-title">{{book.title}}</view>
+        <view class="book-sub" wx:if="{{book.author}}">{{book.author}}</view>
+        <view class="book-sub">{{book.chapterCount}} 章</view>
+      </view>
+      <view class="read-btn" bindtap="continueRead">继续阅读</view>
+    </view>
+
+    <view class="sec-bar">
+      <view class="sec-title">章节</view>
+      <view class="sec-add" bindtap="addChapter">＋ 添加章节</view>
+    </view>
+
+    <view class="ch-list" wx:if="{{chapters.length}}">
+      <view
+        class="ch-item"
+        wx:for="{{chapters}}"
+        wx:key="id"
+        bindtap="openChapter"
+        bindlongpress="removeChapter"
+        data-id="{{item.id}}"
+        data-title="{{item.title}}"
+      >
+        <view class="ch-idx">{{index + 1}}</view>
+        <view class="ch-main">
+          <view class="ch-title">{{item.title}}</view>
+          <view class="ch-meta">
+            <text>{{item.wordCount}} 词</text>
+            <text class="ch-tag" wx:if="{{item.translated}}">已译</text>
+            <text class="ch-tag {{item.quizDone ? 'ok' : ''}}">{{item.quizDone ? '闯关完成' : '未闯关'}}</text>
+          </view>
+        </view>
+        <view class="ch-edit" catchtap="editChapter" data-id="{{item.id}}" data-title="{{item.title}}">编辑</view>
+      </view>
+    </view>
+
+    <view class="empty" wx:else>
+      <view class="empty-hint">还没有章节，点右上「＋ 添加章节」创建第一章</view>
+    </view>
+  </view>
+</view>

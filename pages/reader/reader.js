@@ -1,4 +1,5 @@
-// pages/reader/reader.js —— 划词阅读器（核心页）
+// pages/reader/reader.js —— 小说式阅读器（以书/章为单位）
+// 交互：双击选词 · 长按选整句 · 跨词拖选 · 单击呼出「顶栏 + 底部控制条」（目录/夜间/设置/翻译）
 const store = require('../../utils/store');
 const theme = require('../../utils/theme');
 const font = require('../../utils/font');
@@ -20,9 +21,9 @@ const LINE_OPTIONS = [
   { v: 2.1, t: '标准' },
   { v: 2.4, t: '宽松' }
 ];
-const INDENT_ON = 34; // 首行缩进两个字母（正文字号 34rpx 时约两个字母宽）
+const INDENT_ON = 34; // 首行缩进两个字母
 
-// 从生效后的主题变量里反推当前阅读排版（用户没调过时就是主题默认值）
+// 从生效后的主题变量里反推当前阅读排版
 const readEff = (t) => ({
   size: parseInt(t.vars['read-font'], 10) || 34,
   line: parseFloat(t.vars['read-line']) || 2.1,
@@ -38,7 +39,8 @@ const fmtTime = (ts) => {
 
 Page({
   data: {
-    article: { id: '', title: '' },
+    book: { id: '', title: '' },
+    article: { id: '', title: '' },   // article 即当前章节
     paragraphs: [],
     marksMap: {},
     spaceMarks: {},
@@ -49,7 +51,7 @@ Page({
     selectedText: '',
     bar: { show: false, left: 0, top: 0 },
     panel: { show: false, loading: false, type: 'word', tab: 'trans', result: null, playing: false, detailLoading: false, detailResult: null, qaLoading: false, qaResult: '', qaSuggestions: [] },
-    // 阅读设置抽屉（单击呼出）：主题 / 字体 / 排版
+    // 阅读设置抽屉（底部控制条「设置」呼出）
     rs: { show: false },
     rsThemes: [],
     rsTheme: 'default',
@@ -58,130 +60,185 @@ Page({
     rsUiSame: false,
     rsEff: { size: 34, line: 2.1, indent: true },
     sizeOptions: SIZE_OPTIONS,
-    lineOptions: LINE_OPTIONS
+    lineOptions: LINE_OPTIONS,
+    // 小说式框架：自定义顶栏 + 底部控制条 + 目录抽屉
+    statusBarH: 24,
+    ctl: { show: true },
+    toc: { show: false, list: [], current: '' },
+    chIndex: 0,
+    chTotal: 0,
+    progressPct: 0,
+    showTrans: false,
+    transMap: {},       // pid -> 句译
+    favored: false
   },
 
   onLoad(options) {
-    this.articleId = options.id;
+    this.bookId = options.bookId;
+    this.chapterId = options.chapterId;
     this.touchStartId = null;
-    this.longPressed = false;                 // 长按后 touchend 不覆盖整句选区
-    this.lastTap = { id: null, time: 0 };     // 双击判定：上一次点按的词与时间
-    this.tapTimer = null;                     // 单击延迟定时器（等可能的第二次点按）
-    theme.bindPage(this, -1);                 // 主题变量注入 + 导航栏配色
-    const art = store.getArticle(this.articleId);
-    if (!art) {
-      wx.showToast({ title: '文章不存在', icon: 'none' });
+    this.longPressed = false;
+    this.lastTap = { id: null, time: 0 };
+    this.tapTimer = null;
+    this.dayThemeId = 'default'; // 夜间切换前记住白天主题
+    try {
+      const win = wx.getWindowInfo();
+      this.setData({ statusBarH: win.statusBarHeight || 24 });
+    } catch (e) {}
+    theme.bindPage(this, -1);
+    const cur = theme.currentId();
+    if (cur !== 'night') this.dayThemeId = cur;
+    const book = store.getBook(this.bookId);
+    if (!book) {
+      wx.showToast({ title: '书籍不存在', icon: 'none' });
       setTimeout(() => wx.navigateBack(), 800);
       return;
     }
-    this.article = art;
-    this.marks = store.getMarks(this.articleId);
-    wx.setNavigationBarTitle({ title: art.title });
-    // decorateSpacing：为每个词标注其后是否有空格，空格由渲染层独立承担（不参与选中/高亮）
-    this.paraTexts = art.paragraphs.map((p) => normText(joinTokens(p.tokens)));
-    this.paraRawTexts = art.paragraphs.map((p) => joinTokens(p.tokens)); // 弹层里展示原文用（保留大小写）
-    this.notes = store.getNotes(this.articleId);
-    this.setData({
-      article: { id: art.id, title: art.title },
-      paragraphs: decorateSpacing(art.paragraphs),
-      marksMap: this.buildMarksMap(),
-      spaceMarks: this.buildSpaceMarks(),
-      noteCounts: this.buildNoteCounts()
-    });
+    this.book = book;
+    this.setData({ book: { id: book.id, title: book.title }, showTrans: !!store.getSettings().showTrans });
+    this.loadChapter(this.chapterId);
   },
 
   onShow() {
-    theme.bindPage(this, -1); // 从后台/设置页回来时重刷主题与导航栏
-  },
-
-  buildMarksMap() {
-    const m = {};
-    this.marks.forEach((r) => {
-      for (let i = r.start; i <= r.end; i++) m[i] = true;
-    });
-    return m;
-  },
-
-  // 词间空格是否需要跟随划线着色：仅当空格两侧的词都在同一划线区间内
-  buildSpaceMarks() {
-    const m = {};
-    this.marks.forEach((r) => {
-      for (let i = r.start; i < r.end; i++) m[i] = true;
-    });
-    return m;
-  },
-
-  refreshMarks() {
-    this.setData({ marksMap: this.buildMarksMap(), spaceMarks: this.buildSpaceMarks() });
-  },
-
-  // ---------- 段落笔记角标 ----------
-  // 笔记存的是「选中文本」，按文本匹配归到所属段落（一句一段后即句子级评论）
-  refreshNotes() {
-    this.notes = store.getNotes(this.articleId);
-    this.setData({ noteCounts: this.buildNoteCounts() });
-  },
-
-  buildNoteCounts() {
-    const counts = {};
-    (this.notes || []).forEach((n) => {
-      const pid = this.findNotePara(n.sel);
-      if (pid >= 0) counts[pid] = (counts[pid] || 0) + 1;
-    });
-    return counts;
-  },
-
-  findNotePara(sel) {
-    const s = normText(sel);
-    if (!s) return -1;
-    let hit = this.paraTexts.findIndex((t) => t.indexOf(s) !== -1);
-    if (hit < 0) {
-      // 跨段选区等匹配不到整段时，退化为用开头一段文本找
-      const head = s.slice(0, Math.max(12, Math.ceil(s.length / 3)));
-      hit = this.paraTexts.findIndex((t) => t.indexOf(head) !== -1);
-    }
-    return hit;
-  },
-
-  onNoteBadge(e) {
-    const pid = e.currentTarget.dataset.pid;
-    const list = (this.notes || [])
-      .map((n) => ({ n, p: this.findNotePara(n.sel) }))
-      .filter((x) => x.p === pid)
-      .map((x) => ({ sel: x.n.sel, note: x.n.note, createdAt: x.n.createdAt, timeText: fmtTime(x.n.createdAt) }));
-    this.clearSelection();
-    this.setData({
-      noteView: { show: true, pid, list, paraText: (this.paraRawTexts || [])[pid] || '' }
-    });
-  },
-
-  noop() {},
-
-  closeNoteView() {
-    this.setData({ 'noteView.show': false });
-  },
-
-  delParaNote(e) {
-    const item = this.data.noteView.list[e.currentTarget.dataset.idx];
-    if (!item) return;
-    wx.showModal({
-      title: '删除笔记',
-      content: '确定删除这条笔记吗？',
-      confirmText: '删除',
-      confirmColor: '#E24B4A',
-      success: (res) => {
-        if (!res.confirm) return;
-        this.notes = store.removeNote(this.articleId, item);
-        const list = this.data.noteView.list.filter((x) => x.createdAt !== item.createdAt);
-        this.setData({ 'noteView.list': list, noteCounts: this.buildNoteCounts() });
-        if (!list.length) this.setData({ 'noteView.show': false });
-        wx.showToast({ title: '已删除', icon: 'none' });
+    theme.bindPage(this, -1);
+    // 从书籍详情/编辑页回来时章节列表可能变化
+    if (this.bookId && this.chapterId && store.getChapter(this.bookId, this.chapterId)) {
+      const b = store.getBook(this.bookId);
+      if (b) {
+        this.book = b;
+        this.setData({ 'toc.list': this.buildTocList(b) });
       }
+    }
+  },
+
+  buildTocList(book) {
+    return (book.chapters || []).map((c, i) => ({ id: c.id, title: c.title || '第' + (i + 1) + '章', idx: i + 1 }));
+  },
+
+  // ---------- 章节装载 ----------
+  loadChapter(chapterId) {
+    const ch = store.getChapter(this.bookId, chapterId);
+    if (!ch) {
+      wx.showToast({ title: '章节不存在', icon: 'none' });
+      setTimeout(() => wx.navigateBack(), 800);
+      return;
+    }
+    this.chapterId = chapterId;
+    this.article = { id: ch.id, title: ch.title };
+    this.marks = store.getMarks(chapterId);
+    this.notes = store.getNotes(chapterId);
+    this.paraTexts = (ch.tokens.paragraphs || []).map((p) => normText(joinTokens(p.tokens)));
+    this.paraRawTexts = (ch.tokens.paragraphs || []).map((p) => joinTokens(p.tokens));
+    // pid -> 句译（一句一段：取段内第一个 token 的 sid）
+    const transMap = {};
+    (ch.tokens.paragraphs || []).forEach((p) => {
+      const sid = p.tokens && p.tokens[0] && p.tokens[0].sid;
+      const tr = (ch.translations || [])[sid];
+      if (tr) transMap[p.pid] = tr;
     });
+    const chs = (this.book.chapters || []);
+    const idx = chs.findIndex((c) => c.id === chapterId);
+    const chIndex = idx >= 0 ? idx : 0;
+    const pct = chs.length ? Math.round(((chIndex + 1) / chs.length) * 100) : 0;
+    store.touchBook(this.bookId, chapterId);
+    this.setData({
+      article: { id: ch.id, title: ch.title },
+      paragraphs: decorateSpacing(ch.tokens.paragraphs || []),
+      marksMap: this.buildMarksMap(),
+      spaceMarks: this.buildSpaceMarks(),
+      noteCounts: this.buildNoteCounts(),
+      transMap,
+      chIndex,
+      chTotal: chs.length,
+      progressPct: pct,
+      favored: store.isFavored(this.bookId, chapterId),
+      'toc.list': this.buildTocList(this.book),
+      'toc.current': chapterId,
+      selStart: -1,
+      selEnd: -1,
+      selectedText: '',
+      'bar.show': false
+    });
+    wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+  },
+
+  // ---------- 顶栏 / 底部控制条 ----------
+  onBack() {
+    wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/shelf/shelf' }) });
+  },
+
+  toggleCtl() {
+    this.setData({ 'ctl.show': !this.data.ctl.show });
+  },
+
+  openToc() {
+    this.setData({ ctl: { show: false }, 'toc.show': true });
+  },
+  closeToc() {
+    this.setData({ 'toc.show': false });
+  },
+  pickChapter(e) {
+    const id = e.currentTarget.dataset.id;
+    this.setData({ 'toc.show': false });
+    if (id && id !== this.chapterId) this.loadChapter(id);
+  },
+
+  onSlider(e) {
+    const i = Number(e.detail.value);
+    const ch = (this.book.chapters || [])[i];
+    if (ch) this.loadChapter(ch.id);
+  },
+
+  prevChapter() {
+    const i = this.data.chIndex;
+    if (i <= 0) return wx.showToast({ title: '已经是第一章', icon: 'none' });
+    this.loadChapter(this.book.chapters[i - 1].id);
+  },
+
+  nextChapter() {
+    const i = this.data.chIndex;
+    if (i >= this.data.chTotal - 1) return wx.showToast({ title: '已经是最后一章', icon: 'none' });
+    this.loadChapter(this.book.chapters[i + 1].id);
+  },
+
+  // 夜间：与白天主题一键互换
+  toggleNight() {
+    const target = theme.currentId() === 'night' ? this.dayThemeId || 'default' : 'night';
+    if (target !== 'night') this.dayThemeId = target;
+    theme.use(target);
+    theme.bindPage(this, -1);
+    this.setData({ rsTheme: target });
+    if (this.data.rs.show) this.refreshRSFonts();
+  },
+
+  toggleTrans() {
+    const v = !this.data.showTrans;
+    const s = store.getSettings();
+    s.showTrans = v;
+    store.setSettings(s);
+    this.setData({ showTrans: v });
+    wx.showToast({ title: v ? '已显示句译' : '已隐藏句译', icon: 'none' });
+  },
+
+  toggleFavor() {
+    const on = store.toggleFavor({
+      bookId: this.bookId,
+      chapterId: this.chapterId,
+      title: this.data.article.title,
+      bookTitle: this.book.title
+    });
+    this.setData({ favored: on });
+    wx.showToast({ title: on ? '已收藏本章' : '已取消收藏', icon: 'none' });
   },
 
   // ---------- 选择 ----------
   onTouchStart(e) {
+    if (this.data.ctl.show) {
+      // 正文上的点击优先用于收起控制条
+      this.setData({ 'ctl.show': false });
+      this.clearSelection();
+      return;
+    }
     if (this.data.bar.show || this.data.panel.show) {
       this.clearSelection();
       return;
@@ -195,18 +252,15 @@ Page({
     const a = this.touchStartId;
     this.touchStartId = null;
     if (this.longPressed) {
-      // 长按已选中整句，松开时保持不变
       this.longPressed = false;
       this.cancelTap();
       return;
     }
     if (a == null || endId == null) return;
-    // 起止词不同 = 跨词拖选
     if (a !== endId) {
       this.cancelTap();
       return this.selectRange(Math.min(a, endId), Math.max(a, endId));
     }
-    // 同词：双击选中该单词；单击（等待期内无第二击）呼出阅读设置
     this.handleTap(a);
   },
 
@@ -219,7 +273,6 @@ Page({
     if (!this.lastTap) this.lastTap = { id: null, time: 0 };
     const now = Date.now();
     if (this.lastTap.id === id && now - this.lastTap.time < 300) {
-      // 双击：选中单词
       this.cancelTap();
       return this.selectRange(id, id);
     }
@@ -228,9 +281,8 @@ Page({
     this.tapTimer = setTimeout(() => {
       this.tapTimer = null;
       this.lastTap = { id: null, time: 0 };
-      // 单击：开/关阅读设置抽屉（小说软件式）
-      if (this.data.rs.show) this.closeRS();
-      else this.openRS();
+      // 单击：开/关小说式控制条（顶栏 + 底部控制）
+      this.toggleCtl();
     }, 280);
   },
 
@@ -280,7 +332,6 @@ Page({
     this.setData({ 'bar.show': false });
   },
 
-  // 操作栏定位到选区下方（放不下则移到上方）
   positionBar(start, end) {
     const q = wx.createSelectorQuery().in(this);
     q.select('#tok-' + start).boundingClientRect();
@@ -288,8 +339,8 @@ Page({
     q.exec((res) => {
       const first = res[0], last = res[1];
       if (!first || !last) return;
-      const win = wx.getSystemInfoSync();
-      const barW = 300, barH = 46; // 6 个操作项
+      const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      const barW = 350, barH = 46; // 7 个操作项
       let left = (first.left + last.right) / 2 - barW / 2;
       left = Math.max(8, Math.min(left, win.windowWidth - barW - 8));
       let top = last.bottom + 8;
@@ -312,6 +363,19 @@ Page({
       return;
     }
     if (act === 'mark') return this.addMark();
+    if (act === 'fav') {
+      this.hideBar();
+      store.addSentence({
+        text,
+        translation: this.sentenceTransOf(text),
+        bookId: this.bookId,
+        chapterId: this.chapterId,
+        bookTitle: this.book.title,
+        chapterTitle: this.data.article.title
+      });
+      wx.showToast({ title: '已收藏到句集', icon: 'success' });
+      return;
+    }
     if (act === 'play') {
       this.hideBar();
       const play = dict.isWord(text)
@@ -338,24 +402,35 @@ Page({
       this.loadSuggestions();
       return;
     }
-    // translate：单词走词典、句子走 AI（语法解析在面板的「语法解析」Tab 查看）
     this.hideBar();
     this.runAI(singleWord ? 'word' : 'sentence');
+  },
+
+  // 收藏句子时尽量带上已缓存的句译
+  sentenceTransOf(text) {
+    const key = normText(text);
+    let best = '';
+    this.paraTexts.forEach((pt, pid) => {
+      if (pt === key || pt.indexOf(key) !== -1 || key.indexOf(pt) !== -1) {
+        const tr = this.data.transMap[pid];
+        if (tr && !best) best = tr;
+      }
+    });
+    return best;
   },
 
   addMark() {
     const { selStart: start, selEnd: end } = this.data;
     if (start < 0) return;
-    // 选区已被现有划线完全覆盖 → 取消该划线（可切换）
     const hit = this.marks.find((m) => m.start <= start && m.end >= end);
     if (hit) {
-      this.marks = store.removeMark(this.articleId, hit);
+      this.marks = store.removeMark(this.chapterId, hit);
       this.refreshMarks();
       this.clearSelection();
       wx.showToast({ title: '已取消划线', icon: 'none' });
       return;
     }
-    this.marks = store.addMark(this.articleId, {
+    this.marks = store.addMark(this.chapterId, {
       start, end, text: this.data.selectedText, createdAt: Date.now()
     });
     this.refreshMarks();
@@ -367,7 +442,7 @@ Page({
   runAI(type) {
     const text = this.data.selectedText;
     if (!text) return;
-    const qa = { qaLoading: false, qaResult: this.data.panel.qaResult || '' }; // 保留本选区的提问记录
+    const qa = { qaLoading: false, qaResult: this.data.panel.qaResult || '' };
     this.setData({
       panel: Object.assign({ show: true, loading: true, type, tab: 'trans', result: null, playing: false, detailLoading: false, detailResult: null }, qa)
     });
@@ -381,13 +456,18 @@ Page({
     };
 
     if (type === 'word') {
-      // 单词优先走词典 API（快、免 AI 费用），失败降级 AI
-      // 注意：llm.ask 返回 {result} 包装对象，需取 .result；dict.lookup 直接返回结果对象
       dict.lookup(text)
         .then(finish)
         .catch(() => llm.ask({ type, text }).then((r) => finish(r.result)).catch(fail));
     } else {
-      llm.ask({ type, text }).then((r) => finish(r.result)).catch(fail);
+      // 句子优先用已缓存的句译（免费零延迟），缓存缺失才走 AI 语法解析
+      const cached = this.sentenceTransOf(text);
+      llm.ask({ type, text })
+        .then((r) => {
+          if (cached && r.result) r.result.cachedTranslation = cached;
+          finish(r.result);
+        })
+        .catch(fail);
     }
   },
 
@@ -409,7 +489,6 @@ Page({
     if (this.data.panel.loading) return;
     this.runAI(this.data.panel.type);
   },
-  // 详细语法拆解：从单词、短语到语法逐层（结果独立缓存）
   onPanelDetail() {
     if (this.data.panel.detailLoading) return;
     const text = this.data.selectedText;
@@ -430,7 +509,10 @@ Page({
       phonetic: r.phonetic || '',
       pos: r.pos || '',
       translation: r.translation || '',
-      fromArticle: this.article.title,
+      fromBook: this.book.title,
+      fromChapter: this.data.article.title,
+      bookId: this.bookId,
+      chapterId: this.chapterId,
       createdAt: Date.now()
     });
     wx.showToast({ title: '已加入生词本', icon: 'success' });
@@ -438,7 +520,7 @@ Page({
   onSaveNote(e) {
     const note = (e.detail.note || '').trim();
     if (!note) return wx.showToast({ title: '笔记内容为空', icon: 'none' });
-    this.notes = store.addNote(this.articleId, {
+    this.notes = store.addNote(this.chapterId, {
       note, sel: this.data.selectedText, createdAt: Date.now()
     });
     wx.showToast({ title: '笔记已保存', icon: 'success' });
@@ -447,7 +529,6 @@ Page({
     this.clearSelection();
   },
 
-  // 推荐问题：针对选中文本生成 3 个常见问题（静默失败，不影响手动提问）
   loadSuggestions() {
     const text = this.data.selectedText;
     if (!text) return;
@@ -459,7 +540,6 @@ Page({
       .catch(() => {});
   },
 
-  // 划词提问：针对选中文本的自由问答（纯文本回答，独立缓存）
   onPanelAsk(e) {
     if (this.data.panel.qaLoading) return;
     const question = (e.detail.question || '').trim();
@@ -474,7 +554,6 @@ Page({
       });
   },
 
-  // 详细拆解卡片小喇叭：单词用词典真人发音，短语/例句走 TTS
   onPanelSpeak(e) {
     const text = (e.detail.text || '').trim();
     if (!text) return;
@@ -488,7 +567,6 @@ Page({
 
   doPlay() {
     const text = this.data.selectedText;
-    // 单词用词典真人发音，失败降级 TTS 合成
     const play = dict.isWord(text)
       ? tts.playUrl(dict.audioUrl(text)).catch(() => tts.play(text))
       : tts.play(text);
@@ -501,12 +579,76 @@ Page({
     this.setData({ 'panel.playing': true });
   },
 
-  // ---------- 阅读设置抽屉（主题 / 字体 / 排版，从「我的」页迁入） ----------
+  // ---------- 段落笔记角标 ----------
+  refreshNotes() {
+    this.notes = store.getNotes(this.chapterId);
+    this.setData({ noteCounts: this.buildNoteCounts() });
+  },
+
+  buildNoteCounts() {
+    const counts = {};
+    (this.notes || []).forEach((n) => {
+      const pid = this.findNotePara(n.sel);
+      if (pid >= 0) counts[pid] = (counts[pid] || 0) + 1;
+    });
+    return counts;
+  },
+
+  findNotePara(sel) {
+    const s = normText(sel);
+    if (!s) return -1;
+    let hit = this.paraTexts.findIndex((t) => t.indexOf(s) !== -1);
+    if (hit < 0) {
+      const head = s.slice(0, Math.max(12, Math.ceil(s.length / 3)));
+      hit = this.paraTexts.findIndex((t) => t.indexOf(head) !== -1);
+    }
+    return hit;
+  },
+
+  onNoteBadge(e) {
+    const pid = e.currentTarget.dataset.pid;
+    const list = (this.notes || [])
+      .map((n) => ({ n, p: this.findNotePara(n.sel) }))
+      .filter((x) => x.p === pid)
+      .map((x) => ({ sel: x.n.sel, note: x.n.note, createdAt: x.n.createdAt, timeText: fmtTime(x.n.createdAt) }));
+    this.clearSelection();
+    this.setData({
+      noteView: { show: true, pid, list, paraText: (this.paraRawTexts || [])[pid] || '' }
+    });
+  },
+
+  noop() {},
+
+  closeNoteView() {
+    this.setData({ 'noteView.show': false });
+  },
+
+  delParaNote(e) {
+    const item = this.data.noteView.list[e.currentTarget.dataset.idx];
+    if (!item) return;
+    wx.showModal({
+      title: '删除笔记',
+      content: '确定删除这条笔记吗？',
+      confirmText: '删除',
+      confirmColor: '#E24B4A',
+      success: (res) => {
+        if (!res.confirm) return;
+        this.notes = store.removeNote(this.chapterId, item);
+        const list = this.data.noteView.list.filter((x) => x.createdAt !== item.createdAt);
+        this.setData({ 'noteView.list': list, noteCounts: this.buildNoteCounts() });
+        if (!list.length) this.setData({ 'noteView.show': false });
+        wx.showToast({ title: '已删除', icon: 'none' });
+      }
+    });
+  },
+
+  // ---------- 阅读设置抽屉 ----------
   openRS() {
     this.clearSelection();
     const t = theme.current();
     this.setData({
       'rs.show': true,
+      'ctl.show': false,
       rsThemes: theme.list().map((x) => ({ id: x.id, name: x.name, desc: x.desc, cover: x.cover })),
       rsTheme: t.id
     });
@@ -531,11 +673,9 @@ Page({
       rsUiSame: th.fontUiId === th.fontReadId && th.fontReadId !== 'system',
       rsEff: readEff(th)
     });
-    // 让每个字体卡片用自己的字体渲染预览（未加载过的会在这里真正加载）
     font.preloadAll();
   },
 
-  // 重新注入样式 + 刷新字体列表（切换字体 / 导入 / 删除后统一走这里）
   applyRS() {
     theme.bindPage(this, -1);
     this.refreshRSFonts();
@@ -545,7 +685,6 @@ Page({
     const id = e.currentTarget.dataset.id;
     if (id === this.data.rsTheme) return;
     const t = theme.use(id);
-    // 主题会带来推荐的字体与排版，所以这里要连字体一起刷新
     theme.bindPage(this, -1);
     this.setData({ rsTheme: t.id });
     this.refreshRSFonts();
@@ -557,7 +696,7 @@ Page({
     if (id === this.data.rsFont) return;
     const s = store.getSettings();
     s.fontRead = id;
-    if (this.data.rsUiSame) s.fontUi = id; // 「同时用到界面文字」开着时一起换
+    if (this.data.rsUiSame) s.fontUi = id;
     store.setSettings(s);
     this.applyRS();
     const def = font.find(id);
@@ -571,14 +710,14 @@ Page({
         wx.hideLoading();
         const s = store.getSettings();
         s.fontRead = rec.id;
-        if (s.fontUi && s.fontUi !== 'system') s.fontUi = rec.id; // 界面字体也是自备字体时跟着换
+        if (s.fontUi && s.fontUi !== 'system') s.fontUi = rec.id;
         store.setSettings(s);
         this.applyRS();
         wx.showToast({ title: '已安装「' + rec.name + '」', icon: 'none' });
       })
       .catch((err) => {
         wx.hideLoading();
-        if (err && err.errMsg && err.errMsg.indexOf('cancel') !== -1) return; // 用户取消选择
+        if (err && err.errMsg && err.errMsg.indexOf('cancel') !== -1) return;
         wx.showModal({
           title: '导入失败',
           content: (err && err.message) || '字体文件无法使用，请换一个 ttf / otf 文件试试。',

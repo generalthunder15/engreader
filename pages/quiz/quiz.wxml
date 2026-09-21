@@ -1,0 +1,65 @@
+<view class="page" style="{{themeStyle}}">
+  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+  <view class="page-body">
+    <view class="head">
+      <view class="head-title">{{headTitle}}</view>
+      <view class="head-sub" wx:if="{{phase === 'running'}}">剩余 {{remain}} / {{total}} 词</view>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="loading" wx:if="{{loading}}">
+      <view class="loading-text">正在准备单词…</view>
+    </view>
+
+    <!-- 闯关中 -->
+    <block wx:if="{{phase === 'running' && cur}}">
+      <view class="progress-bar"><view class="progress-in" style="width:{{total ? (total - remain + 1) * 100 / total : 0}}%"></view></view>
+
+      <view class="q-word" bindtap="speak">{{cur.word}}</view>
+      <view class="q-hint">点击单词可朗读 · 选出正确释义</view>
+
+      <view class="opts">
+        <view
+          class="opt {{result && index === cur.answer ? 'right' : ''}} {{result === 'wrong' && picked === index ? 'wrong' : ''}}"
+          wx:for="{{cur.options}}"
+          wx:key="index"
+          data-i="{{index}}"
+          bindtap="pick"
+        >
+          <view class="opt-key">{{['A','B','C','D'][index]}}</view>
+          <view class="opt-text">{{item}}</view>
+        </view>
+      </view>
+
+      <view class="verdict" wx:if="{{result}}">
+        <text wx:if="{{result === 'right'}}" class="v-right">✓ 回答正确</text>
+        <block wx:else>
+          <text class="v-wrong">✗ 答错了，稍后会重新出现在队列里</text>
+        </block>
+      </view>
+
+      <view class="stats">
+        <text>答对 {{right}}</text>
+        <text>答错 {{wrong}}</text>
+      </view>
+    </block>
+
+    <!-- 完成 -->
+    <view class="done" wx:if="{{phase === 'done' && !loading}}">
+      <view class="done-icon">🎉</view>
+      <view class="done-title" wx:if="{{total}}">闯关完成！</view>
+      <view class="done-title" wx:else>暂无可闯关的单词</view>
+      <view class="done-sub" wx:if="{{total}}">
+        共 {{total}} 词 · 一次通过 {{passed}} 词
+        · 正确率 {{right + wrong ? (right * 100 / (right + wrong)) : 0}}%
+      </view>
+      <view class="done-hint" wx:if="{{mode === 'chapter'}}">本章闯关已完成，学习任务进度已更新</view>
+      <view class="done-hint" wx:else>继续阅读把生词攒起来吧</view>
+      <view class="done-btns">
+        <view class="d-btn primary" wx:if="{{total}}" bindtap="restart">再测一轮</view>
+        <view class="d-btn" wx:if="{{mode === 'vocab'}}" bindtap="goVocab">去生词本</view>
+        <view class="d-btn" wx:if="{{mode === 'chapter'}}" bindtap="goStudy">回学习页</view>
+      </view>
+    </view>
+  </view>
+</view>

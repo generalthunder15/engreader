@@ -1,0 +1,77 @@
+<view class="page" style="{{themeStyle}}">
+  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+  <view class="page-body">
+    <!-- 精读 AI（DeepSeek） -->
+    <view class="card">
+      <view class="sec">精读 AI（DeepSeek · 划词问答 / 学习教练）</view>
+      <view class="field">
+        <view class="label">API 地址（OpenAI 兼容）</view>
+        <input class="ipt" value="{{form.baseUrl}}" bindinput="onInput" data-k="baseUrl" placeholder="https://api.deepseek.com" placeholder-class="ph" />
+      </view>
+      <view class="field">
+        <view class="label">模型</view>
+        <input class="ipt" value="{{form.model}}" bindinput="onInput" data-k="model" placeholder="deepseek-v4-flash" placeholder-class="ph" />
+      </view>
+      <view class="field">
+        <view class="label">API Key</view>
+        <input class="ipt" password value="{{form.apiKey}}" bindinput="onInput" data-k="apiKey" placeholder="sk-..." placeholder-class="ph" />
+      </view>
+    </view>
+
+    <!-- 硅基流动（批量任务） -->
+    <view class="card">
+      <view class="sec">硅基流动（章节词表提取 / 批量句译 / 学习引擎）</view>
+      <view class="field">
+        <view class="label">API 地址</view>
+        <input class="ipt" value="{{form.sfBaseUrl}}" bindinput="onInput" data-k="sfBaseUrl" placeholder="https://api.siliconflow.cn" placeholder-class="ph" />
+      </view>
+      <view class="field">
+        <view class="label">模型（轻量即可）</view>
+        <input class="ipt" value="{{form.sfModel}}" bindinput="onInput" data-k="sfModel" placeholder="Qwen/Qwen2.5-7B-Instruct" placeholder-class="ph" />
+      </view>
+      <view class="field">
+        <view class="label">API Key</view>
+        <input class="ipt" password value="{{form.sfApiKey}}" bindinput="onInput" data-k="sfApiKey" placeholder="sk-..." placeholder-class="ph" />
+      </view>
+    </view>
+
+    <!-- 学习与朗读 -->
+    <view class="card">
+      <view class="sec">学习与朗读</view>
+      <view class="field">
+        <view class="label">单词闯关每次取生词本最近 {{form.quizCount}} 个</view>
+        <slider min="5" max="100" step="5" value="{{form.quizCount}}" show-value activeColor="{{themePrimary}}" bindchange="onQuizCount" />
+      </view>
+      <view class="field row">
+        <view class="label">翻译结果自动朗读</view>
+        <switch checked="{{form.autoPlay}}" color="{{themePrimary}}" bindchange="onSwitch" />
+      </view>
+      <view class="field">
+        <view class="label">朗读语速（{{form.ttsSpeed}}x，{{form.ttsSpeed < 1 ? '慢' : form.ttsSpeed > 1 ? '快' : '正常'}}）</view>
+        <slider min="0.5" max="2" step="0.25" value="{{form.ttsSpeed}}" show-value activeColor="{{themePrimary}}" bindchange="onSpeed" />
+      </view>
+      <view class="field">
+        <view class="label">朗读 TTS Key（可选，硅基流动）</view>
+        <input class="ipt" password value="{{form.ttsApiKey}}" bindinput="onInput" data-k="ttsApiKey" placeholder="留空使用免费合成接口" placeholder-class="ph" />
+      </view>
+    </view>
+
+    <view class="btn-primary" bindtap="saveSettings">保存设置</view>
+
+    <!-- 数据管理 -->
+    <view class="card">
+      <view class="sec">数据管理（全部存于本机）</view>
+      <view class="stat">书籍 {{stat.books}} 本 · 生词 {{stat.vocab}} 个 · AI 缓存 {{stat.cache}} 条</view>
+      <view class="row-btns">
+        <view class="btn-plain" bindtap="exportBackup">导出备份到剪贴板</view>
+        <view class="btn-plain" bindtap="toggleImport">{{importing ? '收起导入' : '从剪贴板导入'}}</view>
+      </view>
+      <textarea wx:if="{{importing}}" class="ta" placeholder="粘贴备份 JSON…" placeholder-class="ph" value="{{importText}}" bindinput="onImportText" maxlength="-1" show-confirm-bar="{{false}}"></textarea>
+      <view class="btn-primary" wx:if="{{importing}}" bindtap="doImport">确认导入（覆盖同名数据）</view>
+      <view class="row-btns">
+        <view class="btn-plain danger" bindtap="clearCache">清空 AI 缓存</view>
+      </view>
+      <view class="hint">清理微信缓存会丢失本地学习数据，建议定期导出备份</view>
+    </view>
+  </view>
+</view>

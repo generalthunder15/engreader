@@ -4,6 +4,7 @@
   <view class="item" bindtap="fire" data-act="play">朗读</view>
   <view class="item" bindtap="fire" data-act="mark">划线</view>
   <view class="item" bindtap="fire" data-act="note">笔记</view>
+  <view class="item" bindtap="fire" data-act="fav">收藏</view>
   <view class="item" bindtap="fire" data-act="ask">提问</view>
   <view class="item" bindtap="fire" data-act="copy">复制</view>
 </view>

@@ -68,20 +68,23 @@ const DEFAULT_TOKENS = {
   'r-sm': '12rpx'
 };
 
-// 底栏三个 tab（图标 key 对应主题包里的图片文件名）
+// 底栏四个 tab（图标 key 对应主题包里的图片文件名）
 const TABS = [
-  { pagePath: 'pages/index/index', text: '阅读', icon: 'tab.read' },
-  { pagePath: 'pages/vocab/vocab', text: '生词本', icon: 'tab.vocab' },
+  { pagePath: 'pages/quiz/quiz', text: '单词闯关', icon: 'tab.quiz' },
+  { pagePath: 'pages/shelf/shelf', text: '书架', icon: 'tab.shelf' },
+  { pagePath: 'pages/study/study', text: '学习', icon: 'tab.study' },
   { pagePath: 'pages/mine/mine', text: '我的', icon: 'tab.mine' }
 ];
 
 // 底栏图标 / 封面：三套内置主题同构，key 见 TABS 的 icon 字段
 const TAB_ICONS = {
   cover: 'cover.png',
-  'tab.read': 'tab-read.png',
-  'tab.read-on': 'tab-read-on.png',
-  'tab.vocab': 'tab-vocab.png',
-  'tab.vocab-on': 'tab-vocab-on.png',
+  'tab.quiz': 'tab-quiz.png',
+  'tab.quiz-on': 'tab-quiz-on.png',
+  'tab.shelf': 'tab-shelf.png',
+  'tab.shelf-on': 'tab-shelf-on.png',
+  'tab.study': 'tab-study.png',
+  'tab.study-on': 'tab-study-on.png',
   'tab.mine': 'tab-mine.png',
   'tab.mine-on': 'tab-mine-on.png'
 };

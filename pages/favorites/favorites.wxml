@@ -1,0 +1,24 @@
+<view class="page" style="{{themeStyle}}">
+  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+  <view class="page-body">
+    <view class="empty" wx:if="{{!list.length}}">
+      <view class="empty-icon">⭐</view>
+      <view class="empty-text">还没有收藏章节</view>
+      <view class="empty-hint">阅读时点顶栏 ☆ 即可收藏本章</view>
+    </view>
+
+    <view
+      class="f-item"
+      wx:for="{{list}}"
+      wx:key="id"
+      data-book="{{item.bookId}}"
+      data-chapter="{{item.chapterId}}"
+      data-title="{{item.title}}"
+      bindtap="open"
+      bindlongpress="remove"
+    >
+      <view class="f-title">{{item.title}}</view>
+      <view class="f-book">{{item.bookTitle}}</view>
+    </view>
+  </view>
+</view>

@@ -1,4 +1,5 @@
 {
+  "navigationStyle": "custom",
   "navigationBarTitleText": "阅读",
   "usingComponents": {
     "selection-toolbar": "/components/selection-toolbar/index",

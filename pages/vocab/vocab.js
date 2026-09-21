@@ -9,7 +9,7 @@ Page({
   },
 
   onShow() {
-    theme.bindPage(this, 1); // 主题注入 + 底栏选中态
+    theme.bindPage(this, -1); // 主题注入（生词本现在是"我的"下的子页面）
     this.setData({ vocab: store.getVocab() });
   },
 

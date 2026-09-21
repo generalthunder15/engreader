@@ -1,0 +1,38 @@
+<view class="page" style="{{themeStyle}}">
+  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+  <view class="page-body">
+    <view class="head">
+      <view class="head-title">书架</view>
+      <view class="head-sub">{{books.length ? books.length + ' 本书' : ''}}</view>
+    </view>
+
+    <view class="grid" wx:if="{{books.length}}">
+      <view
+        class="book-card"
+        wx:for="{{books}}"
+        wx:key="id"
+        bindtap="openBook"
+        bindlongpress="removeBook"
+        data-id="{{item.id}}"
+        data-title="{{item.title}}"
+      >
+        <view class="cover" style="{{item.coverStyle}}">
+          <view class="cover-title">{{item.title}}</view>
+          <view class="cover-author" wx:if="{{item.author}}">{{item.author}}</view>
+        </view>
+        <view class="book-meta">
+          <view class="book-name">{{item.title}}</view>
+          <view class="book-sub">{{item.chapterCount}} 章 · {{item.timeText}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty" wx:else>
+      <view class="empty-icon">📚</view>
+      <view class="empty-text">书架还是空的</view>
+      <view class="empty-hint">点击下方按钮创建你的第一本书</view>
+    </view>
+
+    <view class="fab" bindtap="createBook">＋ 新建书籍</view>
+  </view>
+</view>

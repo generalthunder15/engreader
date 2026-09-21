@@ -10,7 +10,7 @@
           <text class="speaker">🔈</text>
         </view>
         <view class="trans" wx:if="{{item.translation}}">{{item.translation}}</view>
-        <view class="from" wx:if="{{item.fromArticle}}">来自：{{item.fromArticle}}</view>
+        <view class="from" wx:if="{{item.fromChapter || item.fromArticle}}">来自：{{item.fromBook ? item.fromBook + ' · ' : ''}}{{item.fromChapter || item.fromArticle}}</view>
       </view>
       <view class="tip">点击朗读 · 长按删除</view>
     </view>

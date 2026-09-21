@@ -1,0 +1,19 @@
+<view class="page" style="{{themeStyle}}">
+  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+  <view class="page-body">
+    <view class="empty" wx:if="{{!list.length}}">
+      <view class="empty-icon">💬</view>
+      <view class="empty-text">还没有收藏句子</view>
+      <view class="empty-hint">阅读时选中文本 → 点「收藏」即可保存</view>
+    </view>
+
+    <view class="s-item" wx:for="{{list}}" wx:key="id" bindlongpress="remove" data-id="{{item.id}}" data-text="{{item.text}}">
+      <view class="s-text" bindtap="play" data-text="{{item.text}}">{{item.text}}</view>
+      <view class="s-trans" wx:if="{{item.translation}}">{{item.translation}}</view>
+      <view class="s-meta">
+        <text wx:if="{{item.bookTitle}}">{{item.bookTitle}} · {{item.chapterTitle}}</text>
+        <text class="s-del" catchtap="remove" data-id="{{item.id}}" data-text="{{item.text}}">删除</text>
+      </view>
+    </view>
+  </view>
+</view>

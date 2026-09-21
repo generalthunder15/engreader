@@ -4,6 +4,9 @@ const font = require('./utils/font');
 
 App({
   onLaunch() {
+    // v3 数据迁移：清空旧"单篇文章"模型数据（生词本/设置/主题/字体保留）
+    store.migrate();
+
     // 初始化默认设置（大模型 API 配置 + 主题 + 字体）
     const s = store.getSettings();
     store.setSettings(s);

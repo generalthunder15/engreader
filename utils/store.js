@@ -1,17 +1,24 @@
-// utils/store.js —— 本地存储封装（个人版"数据库"）
-// 一篇文章一个 key，避免超出单 key 1MB 限制
+// utils/store.js —— 本地存储封装（个人版"数据库"）v3
+// 数据模型：书籍(book) → 章节(chapter)，章节分 key 存储避免超出单 key 1MB 限制
+// v3 起弃用旧的"单篇文章"模型，启动时清空旧文章数据（生词本/设置/主题/字体保留）
 
 const KEYS = {
-  INDEX: 'article_index',
+  DATA_VER: 'data_ver',
+  BOOKS: 'book_index',        // [{id,title,author,hue,chapterCount,createdAt,lastReadAt,lastChapterId}]
+  CHAPTER_PREFIX: 'chapter_', // chapter_<bookId>_<chapterId>
   SETTINGS: 'settings',
   VOCAB: 'vocab',
   AI_CACHE: 'ai_cache',
   FONTS: 'font_packs',
-  ARTICLE_PREFIX: 'article_',
-  MARKS_PREFIX: 'marks_',
-  NOTES_PREFIX: 'notes_',
+  SENTENCES: 'sentences',     // 收藏句子 [{id,text,translation,bookId,chapterId,bookTitle,chapterTitle,createdAt}]
+  FAVORS: 'favors',           // 收藏章节 [{id,bookId,chapterId,title,bookTitle,createdAt}]
+  STUDY: 'study_state',       // 学习 Agent 状态 + 对话记忆
+  MARKS_PREFIX: 'marks_',     // marks_<chapterId>
+  NOTES_PREFIX: 'notes_',     // notes_<chapterId>
   TTS_PREFIX: 'tts_'
 };
+
+const DATA_VER = 3;
 
 const hash = (str) => {
   let h = 5381;
@@ -59,97 +66,144 @@ const evictCaches = () => {
 const newId = () =>
   'a' + Date.now().toString(36) + Math.floor(Math.random() * 46656).toString(36);
 
-// ---------- 文章 ----------
-const listArticles = () => get(KEYS.INDEX, []);
-
-const SPLIT_VER = 2; // 分段版本：2 = 一句一段（遇到 "." 断段）
-
-const saveArticle = (art) => {
-  set(KEYS.ARTICLE_PREFIX + art.id, {
-    id: art.id,
-    title: art.title,
-    paragraphs: art.paragraphs,
-    sentences: art.sentences,
-    splitVer: art.splitVer || SPLIT_VER
-  });
-  const idx = listArticles().filter((a) => a.id !== art.id);
-  idx.unshift({ id: art.id, title: art.title, createdAt: art.createdAt, tokenCount: art.tokenCount });
-  set(KEYS.INDEX, idx);
+// ---------- 版本迁移：v3 一次性清空旧文章模型 ----------
+const migrate = () => {
+  if (Number(get(KEYS.DATA_VER, 0)) >= DATA_VER) return;
+  try {
+    wx.getStorageInfoSync().keys.forEach((k) => {
+      if (
+        k.indexOf('article_') === 0 ||
+        k.indexOf(KEYS.MARKS_PREFIX) === 0 ||
+        k.indexOf(KEYS.NOTES_PREFIX) === 0
+      ) {
+        wx.removeStorageSync(k);
+      }
+    });
+  } catch (e) {}
+  set(KEYS.DATA_VER, DATA_VER);
 };
 
-const getArticle = (id) => {
-  const art = get(KEYS.ARTICLE_PREFIX + id, null);
-  return normalizeArticle(art);
+// ---------- 书籍 ----------
+const listBooks = () => get(KEYS.BOOKS, []);
+
+const getBook = (id) => listBooks().find((b) => b.id === id) || null;
+
+// 书籍记录里只存章节元信息，章节正文/分词/翻译单独存 key
+const createBook = ({ title, author }) => {
+  const book = {
+    id: newId(),
+    title: String(title || '').trim() || '未命名书籍',
+    author: String(author || '').trim(),
+    hue: Math.floor(Math.random() * 360), // 封面底色
+    chapterCount: 0,
+    createdAt: Date.now(),
+    lastReadAt: 0,
+    lastChapterId: ''
+  };
+  set(KEYS.BOOKS, [book].concat(listBooks()));
+  return book;
 };
 
-// 按句号重排段落：token id 保持不变（划线、笔记依然对得上）
-const regroupBySentence = (paragraphs) => {
-  const flat = [];
-  paragraphs.forEach((p) => (p.tokens || []).forEach((t) => flat.push(t)));
-  // 没有 sid 的老数据无法按句归组，保持原样
-  if (!flat.length || flat.some((t) => t.sid === undefined || t.sid === null)) return null;
-  const groups = [];
-  flat.forEach((t) => {
-    const last = groups[groups.length - 1];
-    if (!last || last.sid !== t.sid) groups.push({ sid: t.sid, tokens: [t] });
-    else last.tokens.push(t);
-  });
-  return groups.map((g, pid) => ({ pid, tokens: g.tokens }));
+const saveBook = (book) => {
+  const list = listBooks().map((b) => (b.id === book.id ? book : b));
+  set(KEYS.BOOKS, list);
+  return book;
 };
 
-// 兼容旧版结构，并把历史文章一次性升级为「一句一段」
-const normalizeArticle = (art) => {
-  if (!art || !Array.isArray(art.paragraphs)) return art;
-  if (art.paragraphs.length && Array.isArray(art.paragraphs[0])) {
-    art.paragraphs = art.paragraphs.map((tokens, pid) => ({ pid, tokens }));
+const touchBook = (bookId, chapterId) => {
+  const b = getBook(bookId);
+  if (!b) return;
+  b.lastReadAt = Date.now();
+  if (chapterId) b.lastChapterId = chapterId;
+  saveBook(b);
+};
+
+const deleteBook = (bookId) => {
+  const book = getBook(bookId);
+  if (book && Array.isArray(book.chapters)) {
+    book.chapters.forEach((c) => deleteChapterData(bookId, c.id));
   }
-  if (art.splitVer === SPLIT_VER) return art;
-  const regrouped = regroupBySentence(art.paragraphs);
-  if (regrouped) {
-    art.paragraphs = regrouped;
-    art.splitVer = SPLIT_VER;
-    set(KEYS.ARTICLE_PREFIX + art.id, {
-      id: art.id,
-      title: art.title,
-      paragraphs: art.paragraphs,
-      sentences: art.sentences,
-      splitVer: SPLIT_VER
-    }); // 就地写回，只升级一次
-  }
-  return art;
+  set(KEYS.BOOKS, listBooks().filter((b) => b.id !== bookId));
 };
 
-const deleteArticle = (id) => {
-  set(KEYS.INDEX, listArticles().filter((a) => a.id !== id));
-  [KEYS.ARTICLE_PREFIX + id, KEYS.MARKS_PREFIX + id, KEYS.NOTES_PREFIX + id].forEach((k) => {
+// ---------- 章节 ----------
+const chapterKey = (bookId, chapterId) => KEYS.CHAPTER_PREFIX + bookId + '_' + chapterId;
+
+// 章节完整数据：{id, bookId, title, tokens:{paragraphs,sentences,tokenCount}, words:[{word,meaning}], translations:[sid]->string, translatedAt, quizDone, createdAt}
+const getChapter = (bookId, chapterId) => get(chapterKey(bookId, chapterId), null);
+
+const saveChapter = (bookId, ch) => {
+  set(chapterKey(bookId, ch.id), ch);
+  const b = getBook(bookId);
+  if (!b) return;
+  const chapters = Array.isArray(b.chapters) ? b.chapters.slice() : [];
+  const meta = {
+    id: ch.id,
+    title: ch.title,
+    wordCount: (ch.words || []).length,
+    translated: !!ch.translatedAt,
+    quizDone: !!ch.quizDone,
+    createdAt: ch.createdAt
+  };
+  const idx = chapters.findIndex((c) => c.id === ch.id);
+  if (idx >= 0) chapters[idx] = meta; else chapters.push(meta);
+  b.chapters = chapters;
+  b.chapterCount = chapters.length;
+  saveBook(b);
+};
+
+// 只更新章节的部分字段（词表/翻译/闯关状态），避免整章重写
+const patchChapter = (bookId, chapterId, patch) => {
+  const ch = getChapter(bookId, chapterId);
+  if (!ch) return null;
+  Object.assign(ch, patch);
+  saveChapter(bookId, ch);
+  return ch;
+};
+
+const deleteChapterData = (bookId, chapterId) => {
+  [chapterKey(bookId, chapterId), KEYS.MARKS_PREFIX + chapterId, KEYS.NOTES_PREFIX + chapterId].forEach((k) => {
     try { wx.removeStorageSync(k); } catch (e) {}
   });
 };
 
-// ---------- 划线 / 笔记 ----------
-const getMarks = (id) => get(KEYS.MARKS_PREFIX + id, []);
-const addMark = (id, mark) => {
-  const m = getMarks(id).filter((x) => !(x.start === mark.start && x.end === mark.end));
+const deleteChapter = (bookId, chapterId) => {
+  const b = getBook(bookId);
+  if (!b) return;
+  b.chapters = (b.chapters || []).filter((c) => c.id !== chapterId);
+  b.chapterCount = b.chapters.length;
+  if (b.lastChapterId === chapterId) b.lastChapterId = '';
+  saveBook(b);
+  deleteChapterData(bookId, chapterId);
+};
+
+// 按书籍内顺序取章节 id 列表（书架/阅读器翻章用）
+const chapterIds = (book) => ((book && book.chapters) || []).map((c) => c.id);
+
+// ---------- 划线 / 笔记（按章节） ----------
+const getMarks = (chapterId) => get(KEYS.MARKS_PREFIX + chapterId, []);
+const addMark = (chapterId, mark) => {
+  const m = getMarks(chapterId).filter((x) => !(x.start === mark.start && x.end === mark.end));
   m.push(mark);
-  set(KEYS.MARKS_PREFIX + id, m);
+  set(KEYS.MARKS_PREFIX + chapterId, m);
   return m;
 };
-const removeMark = (id, mark) => {
-  const m = getMarks(id).filter((x) => !(x.start === mark.start && x.end === mark.end));
-  set(KEYS.MARKS_PREFIX + id, m);
+const removeMark = (chapterId, mark) => {
+  const m = getMarks(chapterId).filter((x) => !(x.start === mark.start && x.end === mark.end));
+  set(KEYS.MARKS_PREFIX + chapterId, m);
   return m;
 };
 
-const getNotes = (id) => get(KEYS.NOTES_PREFIX + id, []);
-const addNote = (id, note) => {
-  const n = getNotes(id);
+const getNotes = (chapterId) => get(KEYS.NOTES_PREFIX + chapterId, []);
+const addNote = (chapterId, note) => {
+  const n = getNotes(chapterId);
   n.unshift(note);
-  set(KEYS.NOTES_PREFIX + id, n);
+  set(KEYS.NOTES_PREFIX + chapterId, n);
   return n;
 };
-const removeNote = (id, note) => {
-  const n = getNotes(id).filter((x) => x.createdAt !== note.createdAt);
-  set(KEYS.NOTES_PREFIX + id, n);
+const removeNote = (chapterId, note) => {
+  const n = getNotes(chapterId).filter((x) => x.createdAt !== note.createdAt);
+  set(KEYS.NOTES_PREFIX + chapterId, n);
   return n;
 };
 
@@ -166,34 +220,91 @@ const deleteVocab = (word) => {
   set(KEYS.VOCAB, v);
   return v;
 };
+const setVocab = (v) => set(KEYS.VOCAB, v);
+// 生词是否缺释义（闯关前批量补）
+const vocabMissingMeaning = () => getVocab().filter((x) => !x.translation);
+
+// ---------- 收藏句子 ----------
+const listSentences = () => get(KEYS.SENTENCES, []);
+const addSentence = (item) => {
+  const s = listSentences();
+  if (s.some((x) => x.text === item.text)) return s; // 去重
+  s.unshift(Object.assign({ id: newId(), createdAt: Date.now() }, item));
+  set(KEYS.SENTENCES, s);
+  return s;
+};
+const removeSentence = (id) => {
+  const s = listSentences().filter((x) => x.id !== id);
+  set(KEYS.SENTENCES, s);
+  return s;
+};
+
+// ---------- 收藏章节 ----------
+const listFavors = () => get(KEYS.FAVORS, []);
+const isFavored = (bookId, chapterId) =>
+  listFavors().some((x) => x.bookId === bookId && x.chapterId === chapterId);
+const toggleFavor = (item) => {
+  let s = listFavors();
+  const hit = s.find((x) => x.bookId === item.bookId && x.chapterId === item.chapterId);
+  if (hit) {
+    s = s.filter((x) => x !== hit);
+  } else {
+    s.unshift(Object.assign({ id: newId(), createdAt: Date.now() }, item));
+  }
+  set(KEYS.FAVORS, s);
+  return !hit; // 返回切换后的状态
+};
+
+// ---------- 学习 Agent 状态 / 记忆 ----------
+const DEFAULT_STUDY = {
+  phase: 'idle', // idle → assess(摸底) → plan(已出计划) → reading(待闯关) → qa(已解锁问答)
+  createdAt: 0,
+  assess: null,  // {total, asked, history:[{title,answer,ok}]}
+  plan: null,    // {text, chapters:[{bookId,chapterId,title,done}], createdAt}
+  qa: null,      // {messages:[{role,content,ts}]}
+  profile: ''    // AI 维护的学习者画像摘要（每轮注入）
+};
+const getStudy = () => Object.assign({}, DEFAULT_STUDY, get(KEYS.STUDY, {}));
+const setStudy = (patch) => {
+  const cur = getStudy();
+  const next = Object.assign(cur, patch);
+  set(KEYS.STUDY, next);
+  return next;
+};
+const resetStudy = () => set(KEYS.STUDY, Object.assign({}, DEFAULT_STUDY));
 
 // ---------- 设置 ----------
 const DEFAULT_SETTINGS = {
   baseUrl: 'https://api.deepseek.com',
   apiKey: 'sk-9538dd9ebbab4f198d6a6289b97a5a39', // 仅个人本机使用
   model: 'deepseek-v4-flash',
+  // 硅基流动：批量句译 / 词表提取等轻量任务
+  sfApiKey: 'sk-lhtrhasgcxuwnmyvcippzjyldspvmxhfjjjhhgtxfkqxvgoq',
+  sfBaseUrl: 'https://api.siliconflow.cn',
+  sfModel: 'Qwen/Qwen2.5-7B-Instruct',
   ttsApiKey: '', // 可选：硅基流动 Key，升级整句朗读音质；留空用免费接口
   autoPlay: false,
-  theme: 'default', // 主题包 id（见 utils/theme.js 的 BUILT_IN）
-  // 字体（字体包 id，见 utils/font.js；'theme' = 跟随主题推荐）
+  theme: 'default',
   fontRead: 'theme',
   fontUi: 'system',
-  // 阅读排版：0 / -1 表示跟随主题默认值，用户手动调过后才写具体值
   readFontSize: 0,
   readLineHeight: 0,
-  readIndent: -1
+  readIndent: -1,
+  showTrans: false,   // 阅读页显示句译
+  quizCount: 30       // 单词闯关每次取生词本最近 N 个
 };
 const getSettings = () => {
   const s = Object.assign({}, DEFAULT_SETTINGS, get(KEYS.SETTINGS, {}));
-  // 清洗历史残留配置（旧智谱地址/模型/非 sk- 开头的 Key），统一回 DeepSeek 默认值
   if (s.baseUrl.indexOf('bigmodel') !== -1 || !s.baseUrl) s.baseUrl = DEFAULT_SETTINGS.baseUrl;
   if (s.model === 'glm-4-flash' || !s.model) s.model = DEFAULT_SETTINGS.model;
   if (!s.apiKey || s.apiKey.indexOf('sk-') !== 0) s.apiKey = DEFAULT_SETTINGS.apiKey;
-  if (!s.ttsApiKey) s.ttsApiKey = DEFAULT_SETTINGS.ttsApiKey; // 旧设置残留空值时兜底
+  if (!s.sfApiKey || s.sfApiKey.indexOf('sk-') !== 0) s.sfApiKey = DEFAULT_SETTINGS.sfApiKey;
+  if (!s.sfBaseUrl) s.sfBaseUrl = DEFAULT_SETTINGS.sfBaseUrl;
+  if (!s.sfModel) s.sfModel = DEFAULT_SETTINGS.sfModel;
+  if (!s.ttsApiKey) s.ttsApiKey = DEFAULT_SETTINGS.ttsApiKey;
   if (!s.theme) s.theme = DEFAULT_SETTINGS.theme;
   if (!s.fontRead) s.fontRead = DEFAULT_SETTINGS.fontRead;
   if (!s.fontUi) s.fontUi = DEFAULT_SETTINGS.fontUi;
-  // 排版数值合法性兜底（0 / -1 是「跟随主题」的哨兵值，原样保留）
   const clamp = (v, lo, hi, follow) => {
     const n = Number(v);
     if (!n && n !== 0) return follow;
@@ -204,7 +315,10 @@ const getSettings = () => {
   s.readLineHeight = clamp(s.readLineHeight, 1.3, 3.2, 0);
   s.readIndent = clamp(s.readIndent, 0, 90, -1);
   const sp = Number(s.ttsSpeed);
-  s.ttsSpeed = !sp || sp < 0.5 || sp > 2 ? 1 : sp; // 语速合法性兜底
+  s.ttsSpeed = !sp || sp < 0.5 || sp > 2 ? 1 : sp;
+  const qc = Number(s.quizCount);
+  s.quizCount = !qc || qc < 5 || qc > 100 ? 30 : qc;
+  s.showTrans = !!s.showTrans;
   return s;
 };
 const setSettings = (s) => set(KEYS.SETTINGS, s);
@@ -220,7 +334,7 @@ const clearAICache = () => { try { wx.removeStorageSync(KEYS.AI_CACHE); } catch 
 
 // ---------- 备份 / 恢复 ----------
 const exportAll = () => {
-  const data = { version: 1, exportedAt: new Date().toISOString(), data: {} };
+  const data = { version: DATA_VER, exportedAt: new Date().toISOString(), data: {} };
   wx.getStorageInfoSync().keys.forEach((k) => {
     if (k.indexOf(KEYS.TTS_PREFIX) === 0) return; // TTS 缓存不备份
     data.data[k] = get(k);
@@ -235,11 +349,15 @@ const importAll = (backup) => {
 };
 
 module.exports = {
-  KEYS, hash, get, set, evictCaches, newId,
-  listArticles, saveArticle, getArticle, deleteArticle,
+  KEYS, DATA_VER, hash, get, set, evictCaches, newId, migrate,
+  listBooks, getBook, createBook, saveBook, touchBook, deleteBook,
+  getChapter, saveChapter, patchChapter, deleteChapter, chapterIds,
   getMarks, addMark, removeMark,
   getNotes, addNote, removeNote,
-  getVocab, addVocab, deleteVocab,
+  getVocab, addVocab, deleteVocab, setVocab, vocabMissingMeaning,
+  listSentences, addSentence, removeSentence,
+  listFavors, isFavored, toggleFavor,
+  getStudy, setStudy, resetStudy,
   getSettings, setSettings,
   getAICache, putAICache, clearAICache,
   exportAll, importAll

@@ -1,0 +1,42 @@
+.page { min-height: 100vh; background: var(--c-bg); position: relative; }
+.theme-bg { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 0; }
+.page-body { position: relative; z-index: 1; padding: 30rpx 30rpx 80rpx; }
+
+.field { margin-bottom: 34rpx; }
+.label { font-size: 28rpx; font-weight: 700; color: var(--c-text-strong); margin-bottom: 14rpx; }
+.label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14rpx; }
+.label-row .label { margin-bottom: 0; }
+.extract-btn {
+  font-size: 24rpx; font-weight: 600; color: var(--c-on-primary);
+  background: var(--c-primary); border-radius: 30rpx; padding: 10rpx 24rpx;
+}
+.extract-btn.busy { opacity: 0.6; }
+
+.input {
+  background: var(--c-card); border-radius: var(--r-btn);
+  padding: 22rpx 26rpx; font-size: 28rpx; color: var(--c-text);
+  width: 100%; box-sizing: border-box;
+}
+.input.content { min-height: 300rpx; line-height: 1.6; }
+.ph { color: var(--c-text-faint); }
+.hint { font-size: 22rpx; color: var(--c-text-hint); line-height: 1.6; margin-bottom: 16rpx; }
+
+.word-list { background: var(--c-card); border-radius: var(--r-btn); padding: 8rpx 20rpx; }
+.word-row { display: flex; align-items: center; gap: 14rpx; padding: 10rpx 0; border-bottom: 1rpx solid var(--c-border); }
+.word-row:last-child { border-bottom: none; }
+.word-row .input { background: transparent; padding: 10rpx 8rpx; }
+.w-word { flex: 2; }
+.w-meaning { flex: 3; }
+.w-del { flex-shrink: 0; width: 48rpx; text-align: center; color: var(--c-text-faint); font-size: 26rpx; }
+.add-word {
+  margin-top: 14rpx; text-align: center; font-size: 26rpx; color: var(--c-primary);
+  background: var(--c-primary-weak); border-radius: var(--r-btn); padding: 16rpx;
+}
+
+.save-btn {
+  margin-top: 50rpx; background: var(--c-primary); color: var(--c-on-primary);
+  font-size: 32rpx; font-weight: 700; text-align: center;
+  border-radius: var(--r-btn); padding: 26rpx;
+}
+.save-btn.busy { opacity: 0.7; }
+.save-hint { margin-top: 16rpx; text-align: center; font-size: 22rpx; color: var(--c-text-hint); }

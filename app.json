@@ -1,14 +1,21 @@
 {
   "pages": [
-    "pages/index/index",
+    "pages/quiz/quiz",
+    "pages/shelf/shelf",
+    "pages/study/study",
+    "pages/mine/mine",
     "pages/reader/reader",
+    "pages/book/book",
+    "pages/chapter-edit/chapter-edit",
     "pages/vocab/vocab",
-    "pages/mine/mine"
+    "pages/sentences/sentences",
+    "pages/favorites/favorites",
+    "pages/settings/settings"
   ],
   "window": {
     "navigationBarBackgroundColor": "#2B6CB0",
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "英文阅读 · AI 精读",
+    "navigationBarTitleText": "英语精读",
     "backgroundColor": "#F6F7F9"
   },
   "tabBar": {
@@ -18,8 +25,9 @@
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
-      { "pagePath": "pages/index/index", "text": "阅读" },
-      { "pagePath": "pages/vocab/vocab", "text": "生词本" },
+      { "pagePath": "pages/quiz/quiz", "text": "单词闯关" },
+      { "pagePath": "pages/shelf/shelf", "text": "书架" },
+      { "pagePath": "pages/study/study", "text": "学习" },
       { "pagePath": "pages/mine/mine", "text": "我的" }
     ]
   },

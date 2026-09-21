@@ -50,10 +50,12 @@
   },
   "images": {
     "cover": "cover.png",
-    "tab.read": "tab-read.png",
-    "tab.read-on": "tab-read-on.png",
-    "tab.vocab": "tab-vocab.png",
-    "tab.vocab-on": "tab-vocab-on.png",
+    "tab.quiz": "tab-quiz.png",
+    "tab.quiz-on": "tab-quiz-on.png",
+    "tab.shelf": "tab-shelf.png",
+    "tab.shelf-on": "tab-shelf-on.png",
+    "tab.study": "tab-study.png",
+    "tab.study-on": "tab-study-on.png",
     "tab.mine": "tab-mine.png",
     "tab.mine-on": "tab-mine-on.png"
   }
