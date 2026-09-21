@@ -1,0 +1,13 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.zip
+
+# 微信开发者工具本地个性化配置（因机器而异）
+project.private.config.json
+
+# 系统与编辑器杂项
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log

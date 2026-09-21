@@ -1,0 +1,6 @@
+{
+  "desc": "个人使用，关闭搜索索引",
+  "rules": [
+    { "action": "disallow", "page": "*" }
+  ]
+}

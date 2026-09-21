@@ -1,0 +1,16 @@
+{
+  "id": "garamond",
+  "name": "EB Garamond",
+  "alias": "古典衬线",
+  "desc": "文艺复兴老式衬线，典雅耐读",
+  "version": 1,
+  "family": "EngReader Garamond",
+  "file": "garamond.ttf",
+  "boldFile": "garamond-bold.ttf",
+  "weight": "400",
+  "style": "normal",
+  "fallback": "Georgia, 'Times New Roman', 'Songti SC', serif",
+  "sample": "The art of reading",
+  "license": "SIL Open Font License 1.1 (OFL.txt)",
+  "source": "https://fonts.google.com/specimen/EB+Garamond"
+}

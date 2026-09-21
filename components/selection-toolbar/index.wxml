@@ -1,0 +1,9 @@
+<view class="mask" wx:if="{{show}}" bindtap="onMask" catchtouchmove="noop"></view>
+<view class="bar" wx:if="{{show}}" style="left:{{left}}px;top:{{top}}px">
+  <view class="item" bindtap="fire" data-act="translate">翻译</view>
+  <view class="item" bindtap="fire" data-act="play">朗读</view>
+  <view class="item" bindtap="fire" data-act="mark">划线</view>
+  <view class="item" bindtap="fire" data-act="note">笔记</view>
+  <view class="item" bindtap="fire" data-act="ask">提问</view>
+  <view class="item" bindtap="fire" data-act="copy">复制</view>
+</view>

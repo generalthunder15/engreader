@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "阅读",
+  "usingComponents": {
+    "selection-toolbar": "/components/selection-toolbar/index",
+    "ai-panel": "/components/ai-panel/index"
+  }
+}

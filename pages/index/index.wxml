@@ -1,0 +1,38 @@
+<view class="page has-tabbar" style="{{themeStyle}}">
+  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+  <view class="page-body">
+    <view class="list" wx:if="{{articles.length}}">
+      <view class="card art" wx:for="{{articles}}" wx:key="id" bindtap="openArticle" bindlongpress="deleteArticle" data-id="{{item.id}}">
+        <view class="art-title">{{item.title}}</view>
+        <view class="art-meta">{{item.tokenCount}} 词 · 长按删除</view>
+      </view>
+      <view class="tip">长按文章可删除</view>
+    </view>
+
+    <view class="empty" wx:else>
+      <view>还没有文章</view>
+      <view>点击下方按钮粘贴一篇英文文章开始阅读</view>
+    </view>
+
+    <view class="fab-wrap">
+      <view class="fab" bindtap="showImport">＋ 导入文章</view>
+      <view class="fab demo" bindtap="loadSample" wx:if="{{!articles.length}}">试试示例文章</view>
+    </view>
+
+    <!-- 导入弹层 -->
+    <view class="import-mask" wx:if="{{importing}}" bindtap="hideImport"></view>
+    <view class="import-panel" wx:if="{{importing}}" style="bottom: {{panelBottom}}px">
+      <view class="import-head">
+        <view class="import-title">导入英文文章</view>
+        <view class="paste-btn" catchtap="pasteFromClip">一键粘贴</view>
+      </view>
+      <input class="ipt" placeholder="文章标题（可留空）" placeholder-class="ph" value="{{form.title}}" bindinput="onTitle" bindblur="onTitleBlur" confirm-type="done" show-confirm-bar="{{false}}" />
+      <textarea class="ta" placeholder="粘贴英文正文…" placeholder-class="ph" maxlength="-1" adjust-position="{{false}}" show-confirm-bar="{{false}}" value="{{form.content}}" bindinput="onContent" bindblur="onContentBlur" bindkeyboardheightchange="onKbChange"></textarea>
+      <view class="import-hint">导入后自动按句分段：遇到 "." 即换行，一句一段</view>
+      <view class="import-btns">
+        <view class="btn-plain half" bindtap="hideImport">取消</view>
+        <view class="btn-primary half {{form.content ? '' : 'disabled'}}" bindtap="saveImport">导入并阅读</view>
+      </view>
+    </view>
+  </view>
+</view>

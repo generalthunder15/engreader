@@ -1,0 +1,14 @@
+<view class="tabbar" style="{{style}}">
+  <!-- 底栏背景图（主题包可选），铺在图标层之下 -->
+  <image wx:if="{{bgImage}}" class="tb-bg" src="{{bgImage}}" mode="aspectFill"></image>
+  <view
+    class="tb-item"
+    wx:for="{{list}}"
+    wx:key="pagePath"
+    data-i="{{index}}"
+    bindtap="onTap"
+  >
+    <image class="tb-icon" src="{{selected === index && item.onIcon ? item.onIcon : item.icon}}" mode="aspectFit"></image>
+    <view class="tb-text" style="color: {{selected === index ? selectedColor : color}}">{{item.text}}</view>
+  </view>
+</view>

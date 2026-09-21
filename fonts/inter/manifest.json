@@ -1,0 +1,16 @@
+{
+  "id": "inter",
+  "name": "Inter",
+  "alias": "现代无衬线",
+  "desc": "屏幕优化的无衬线体，界面感强",
+  "version": 1,
+  "family": "EngReader Inter",
+  "file": "inter.ttf",
+  "boldFile": "inter-bold.ttf",
+  "weight": "400",
+  "style": "normal",
+  "fallback": "-apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif",
+  "sample": "Read faster, learn more",
+  "license": "SIL Open Font License 1.1 (OFL.txt)",
+  "source": "https://fonts.google.com/specimen/Inter"
+}

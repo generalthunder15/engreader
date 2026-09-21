@@ -1,0 +1,23 @@
+<view class="page has-tabbar" style="{{themeStyle}}">
+  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+  <view class="page-body">
+    <view class="list" wx:if="{{vocab.length}}">
+      <view class="card word" wx:for="{{vocab}}" wx:key="word" bindtap="playWord" bindlongpress="removeWord" data-word="{{item.word}}">
+        <view class="w-line">
+          <text class="w">{{item.word}}</text>
+          <text class="pos" wx:if="{{item.pos}}">{{item.pos}}</text>
+          <text class="phon" wx:if="{{item.phonetic}}">{{item.phonetic}}</text>
+          <text class="speaker">🔈</text>
+        </view>
+        <view class="trans" wx:if="{{item.translation}}">{{item.translation}}</view>
+        <view class="from" wx:if="{{item.fromArticle}}">来自：{{item.fromArticle}}</view>
+      </view>
+      <view class="tip">点击朗读 · 长按删除</view>
+    </view>
+
+    <view class="empty" wx:else>
+      <view>生词本还是空的</view>
+      <view>在阅读页查过的词会自动收集到这里</view>
+    </view>
+  </view>
+</view>

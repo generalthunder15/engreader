@@ -1,0 +1,179 @@
+<view class="page" style="{{themeStyle}}">
+  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
+  <view class="page-body">
+  <view class="reader">
+  <view class="art-title">{{article.title}}</view>
+
+  <view class="paragraph" wx:for="{{paragraphs}}" wx:key="pid" wx:for-item="para">
+    <!-- 首行缩进（两个字母宽）：独立元素撑开，不承载文字、不参与选中 -->
+    <text class="indent"></text>
+    <block wx:for="{{para.tokens}}" wx:key="id" wx:for-item="tk">
+      <!-- 末尾的 sel-cont / mark-cont：该词后面还有同一选区的词，底色向右多铺一个词距（不占布局），
+           使高亮连续；选区末尾的词不加，避免多选中一个空格 -->
+      <text
+        id="tok-{{tk.id}}"
+        class="tok {{marksMap[tk.id] ? 'marked' : ''}} {{spaceMarks[tk.id] ? 'mark-cont' : ''}} {{tk.id >= selStart && tk.id <= selEnd ? 'sel' : ''}} {{tk.id >= selStart && tk.id < selEnd ? 'sel-cont' : ''}}"
+        data-id="{{tk.id}}"
+        bindtouchstart="onTouchStart"
+        bindtouchend="onTouchEnd"
+        bindlongpress="onLongPress"
+      >{{tk.w}}</text>
+      <!-- 词间距：独立元素，不参与文字与选中，仅撑开宽度 -->
+      <text
+        wx:if="{{tk.sp}}"
+        class="sp"
+        data-id="{{tk.id}}"
+        bindtouchstart="onTouchStart"
+        bindtouchend="onTouchEnd"
+        bindlongpress="onLongPress"
+      ></text>
+    </block>
+    <!-- 段落笔记角标：记过笔记的段落显示，点击查看本段笔记 -->
+    <view
+      wx:if="{{noteCounts[para.pid]}}"
+      class="note-badge"
+      data-pid="{{para.pid}}"
+      catchtap="onNoteBadge"
+    >{{noteCounts[para.pid]}}</view>
+  </view>
+
+  <view class="reader-foot-tip">双击选词 · 长按选整句 · 单击呼出设置</view>
+</view>
+
+<!-- 段落笔记弹层：与 AI 翻译面板同款底部抽屉 -->
+<view class="np-wrap" wx:if="{{noteView.show}}" catchtouchmove="noop">
+  <view class="np-mask" bindtap="closeNoteView"></view>
+  <view class="np-panel">
+    <view class="np-head">
+      <view class="np-tabs">
+        <view class="np-tab">本段笔记 · {{noteView.list.length}}</view>
+      </view>
+      <view class="np-close" bindtap="closeNoteView">✕</view>
+    </view>
+
+    <scroll-view scroll-y class="np-body">
+      <view class="np-sel">{{noteView.paraText}}</view>
+      <view class="np-item" wx:for="{{noteView.list}}" wx:key="createdAt">
+        <view class="np-note">{{item.note}}</view>
+        <view class="np-meta">
+          <text class="np-time">{{item.timeText}}</text>
+          <text class="np-del" data-idx="{{index}}" catchtap="delParaNote">删除</text>
+        </view>
+      </view>
+      <view class="np-hint" wx:if="{{!noteView.list.length}}">本段还没有笔记</view>
+    </scroll-view>
+
+    <view class="np-foot">
+      <view class="np-btn" bindtap="closeNoteView">关闭</view>
+    </view>
+  </view>
+</view>
+
+<!-- 阅读设置抽屉：单击正文呼出（主题 / 字体 / 排版，与 AI 面板同款底部抽屉样式） -->
+<view class="rs-wrap" wx:if="{{rs.show}}" catchtouchmove="noop">
+  <view class="rs-mask" bindtap="closeRS"></view>
+  <view class="rs-panel">
+    <view class="rs-head">
+      <view class="rs-tabs"><view class="rs-tab">阅读设置</view></view>
+      <view class="rs-close" bindtap="closeRS">✕</view>
+    </view>
+
+    <scroll-view scroll-y class="rs-body">
+      <view class="rs-sec">主题</view>
+      <view class="rs-theme-list">
+        <view
+          class="rs-theme-item {{rsTheme === item.id ? 'on' : ''}}"
+          wx:for="{{rsThemes}}"
+          wx:key="id"
+          bindtap="pickTheme"
+          data-id="{{item.id}}"
+        >
+          <image class="rs-theme-cover" src="{{item.cover}}" mode="aspectFill"></image>
+          <view class="rs-theme-name">{{item.name}}</view>
+          <view class="rs-check" wx:if="{{rsTheme === item.id}}">✓</view>
+        </view>
+      </view>
+
+      <view class="rs-sec">阅读字体</view>
+      <scroll-view class="rs-font-scroll" scroll-x enable-flex>
+        <view
+          class="rs-font-item {{rsFont === item.id ? 'on' : ''}}"
+          wx:for="{{rsFonts}}"
+          wx:key="id"
+          bindtap="pickFont"
+          data-id="{{item.id}}"
+        >
+          <view class="rs-font-sample" style="font-family:{{item.css}}">Aa Bb</view>
+          <view class="rs-font-name">{{item.name}}</view>
+          <view class="rs-font-meta">{{item.metaText}}</view>
+          <view
+            class="rs-font-del"
+            wx:if="{{item.kind === 'custom'}}"
+            catchtap="removeFont"
+            data-id="{{item.id}}"
+            data-name="{{item.name}}"
+          >✕</view>
+        </view>
+      </scroll-view>
+
+      <view class="rs-field">
+        <view class="rs-label">阅读字号 · 当前 {{rsEff.size}}rpx</view>
+        <view class="rs-seg">
+          <view class="rs-seg-item {{rsEff.size === item.v ? 'on' : ''}}" wx:for="{{sizeOptions}}" wx:key="v" data-v="{{item.v}}" bindtap="setSize">{{item.t}}</view>
+        </view>
+      </view>
+      <view class="rs-field">
+        <view class="rs-label">行距 · 当前 {{rsEff.line}}</view>
+        <view class="rs-seg">
+          <view class="rs-seg-item {{rsEff.line === item.v ? 'on' : ''}}" wx:for="{{lineOptions}}" wx:key="v" data-v="{{item.v}}" bindtap="setLine">{{item.t}}</view>
+        </view>
+      </view>
+      <view class="rs-field rs-row">
+        <view class="rs-label">首行缩进两个字母</view>
+        <switch checked="{{rsEff.indent}}" color="{{themePrimary}}" bindchange="onIndent" />
+      </view>
+      <view class="rs-field rs-row">
+        <view class="rs-label">字体同时用到界面文字</view>
+        <switch checked="{{rsUiSame}}" color="{{themePrimary}}" bindchange="onUiSame" />
+      </view>
+      <view class="btn-plain rs-import" bindtap="importFont">导入字体包（.ttf / .otf）</view>
+      <view class="rs-hint">主题、字体、排版设置全局生效并自动保存。中文字体（如霞鹜文楷）体积较大，用「导入字体包」从微信聊天记录安装，不占小程序包体。</view>
+    </scroll-view>
+  </view>
+</view>
+
+<selection-toolbar
+  style="{{themeStyle}}"
+  show="{{bar.show}}"
+  left="{{bar.left}}"
+  top="{{bar.top}}"
+  bindaction="onBarAction"
+/>
+
+<ai-panel
+  style="{{themeStyle}}"
+  show="{{panel.show}}"
+  loading="{{panel.loading}}"
+  type="{{panel.type}}"
+  tab="{{panel.tab}}"
+  result="{{panel.result}}"
+  detailResult="{{panel.detailResult}}"
+  detailLoading="{{panel.detailLoading}}"
+  qaLoading="{{panel.qaLoading}}"
+  qaResult="{{panel.qaResult}}"
+  qSuggestions="{{panel.qaSuggestions}}"
+  playing="{{panel.playing}}"
+  selectedText="{{selectedText}}"
+  bindtabchange="onPanelTab"
+  bindclose="onPanelClose"
+  bindplay="onPanelPlay"
+  bindstop="onPanelStop"
+  bindaddvocab="onAddVocab"
+  bindretry="onPanelRetry"
+  binddetail="onPanelDetail"
+  bindspeak="onPanelSpeak"
+  bindask="onPanelAsk"
+  bindsavenote="onSaveNote"
+/>
+  </view>
+</view>

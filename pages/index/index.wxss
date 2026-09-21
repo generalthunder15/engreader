@@ -1,0 +1,43 @@
+.list { padding-bottom: 160rpx; }
+.art-title { font-size: 32rpx; font-weight: 500; line-height: 1.5; color: var(--c-text, #1A1D24); }
+.art-meta { font-size: 24rpx; color: var(--c-text-hint, #9AA0AA); margin-top: 10rpx; }
+.tip { text-align: center; color: var(--c-text-faint, #C3C8D0); font-size: 24rpx; padding: 10rpx 0 30rpx; }
+
+.fab-wrap {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 20rpx 32rpx calc(140rpx + env(safe-area-inset-bottom));
+  display: flex; gap: 20rpx;
+  background: linear-gradient(transparent, var(--c-bg, #F6F7F9) 40%);
+}
+.fab { flex: 1; }
+.demo { flex: 1; }
+
+/* 注意：custom-tab-bar 是 fixed bottom + z-index:999，导入弹层必须压在其上（>999），
+   否则键盘收起后面板贴回屏幕底部，「导入并阅读」按钮会被底栏盖住 */
+.import-mask { position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: var(--c-mask, rgba(0,0,0,0.4)); z-index: 1100; }
+.import-panel {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 1101;
+  background: var(--c-card, #fff); border-radius: var(--r-sheet, 28rpx) var(--r-sheet, 28rpx) 0 0;
+  padding: 36rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+}
+.import-head { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 28rpx; }
+.import-title { font-size: 34rpx; font-weight: 500; text-align: center; color: var(--c-text, #1A1D24); }
+.paste-btn {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  color: var(--c-primary, #2B6CB0); font-size: 26rpx;
+  border: 1rpx solid var(--c-primary, #2B6CB0);
+  border-radius: var(--r-sm, 12rpx); padding: 8rpx 20rpx;
+}
+.ipt {
+  background: var(--c-bg, #F6F7F9); border-radius: var(--r-sm, 12rpx); padding: 20rpx 24rpx;
+  font-size: 30rpx; margin-bottom: 20rpx; color: var(--c-text, #1A1D24);
+}
+.ta {
+  width: 100%; box-sizing: border-box; height: 420rpx;
+  background: var(--c-bg, #F6F7F9); border-radius: var(--r-sm, 12rpx); padding: 20rpx 24rpx;
+  font-size: 28rpx; line-height: 1.7; margin-bottom: 28rpx; color: var(--c-text, #1A1D24);
+}
+.ph { color: var(--c-text-faint, #C3C8D0); }
+.import-hint { font-size: 24rpx; color: var(--c-text-hint, #98A0AC); line-height: 1.5; margin: -14rpx 0 24rpx; }
+.import-btns { display: flex; gap: 20rpx; }
+.half { flex: 1; }

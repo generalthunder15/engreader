@@ -1,0 +1,110 @@
+/* page 级默认变量 = 「经典蓝」主题（utils/theme.js 的 DEFAULT_TOKENS）。
+   页面根节点 .page 会在运行时注入当前主题的变量，覆盖这里的默认值；
+   组件与子元素通过 var() 继承，主题缺字段时回退到这里 */
+page {
+  --c-primary: #2B6CB0;
+  --c-primary-weak: #EAF1FA;
+  --c-primary-soft: #EBF2FC;
+  --c-primary-quote: #F3F6FB;
+  --c-on-primary: #FFFFFF;
+  --c-bg: #F6F7F9;
+  --c-card: #FFFFFF;
+  --c-sunken: #FAFBFC;
+  --c-mask: rgba(0, 0, 0, 0.35);
+  --c-text: #1A1D24;
+  --c-text-strong: #22242A;
+  --c-text-sub: #4B5563;
+  --c-text-muted: #6B7280;
+  --c-text-hint: #9AA0AA;
+  --c-text-faint: #C3C8D0;
+  --c-border: #F0F1F4;
+  --c-mark-bg: #FBF3E4;
+  --c-mark-line: #E3B04B;
+  --c-tag-bg: #FBF3E4;
+  --c-tag-text: #B4690E;
+  --c-sel-bg: #2B6CB0;
+  --c-sel-text: #FFFFFF;
+  --c-badge-border: #A8A296;
+  --c-danger: #E24B4A;
+  --c-danger-strong: #A32D2D;
+  --c-toolbar-bg: #1F2430;
+  --c-toolbar-text: #FFFFFF;
+  --c-toolbar-line: rgba(255, 255, 255, 0.18);
+  --c-tabbar-bg: #FFFFFF;
+  --c-tabbar-text: #8A8F99;
+  --c-tabbar-on: #2B6CB0;
+  --r-card: 20rpx;
+  --r-btn: 16rpx;
+  --r-sheet: 28rpx;
+  --r-sm: 12rpx;
+  --read-font: 34rpx;
+  --read-line: 2.1;
+  --read-indent: 34rpx;
+  --read-para-gap: 16rpx;
+  /* 字体兜底：运行时由 utils/font.js 解析当前字体包后，在 .page 上重新注入 */
+  --font-ui: -apple-system, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  --font-read: -apple-system, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
+  background: #F6F7F9;
+  font-size: 28rpx;
+  color: #22242A;
+  font-family: var(--font-ui);
+}
+
+/* 页面根容器：承接主题变量注入点；theme-bg 铺整页背景图 */
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: var(--c-bg, #F6F7F9);
+  /* 注入点在这里，所以字体也要在这一层接一次（page 选择器读不到这里的变量） */
+  font-family: var(--font-ui);
+}
+/* tab 页给自定义底栏留出高度 */
+.page.has-tabbar {
+  padding-bottom: calc(130rpx + env(safe-area-inset-bottom));
+}
+.theme-bg {
+  position: fixed;
+  left: 0; top: 0;
+  width: 100vw; height: 100vh;
+  z-index: 0;
+}
+.page-body {
+  position: relative;
+  z-index: 1;
+}
+
+.card {
+  background: var(--c-card, #ffffff);
+  border-radius: var(--r-card, 20rpx);
+  padding: 30rpx;
+  margin: 20rpx 24rpx;
+}
+
+.btn-primary {
+  background: var(--c-primary, #2B6CB0);
+  color: var(--c-on-primary, #fff);
+  border-radius: var(--r-btn, 16rpx);
+  font-size: 30rpx;
+  padding: 20rpx 0;
+  text-align: center;
+}
+
+.btn-primary.disabled { opacity: 0.5; }
+
+.btn-plain {
+  background: var(--c-card, #fff);
+  color: var(--c-primary, #2B6CB0);
+  border: 1rpx solid var(--c-primary, #2B6CB0);
+  border-radius: var(--r-btn, 16rpx);
+  font-size: 30rpx;
+  padding: 18rpx 0;
+  text-align: center;
+}
+
+.empty {
+  text-align: center;
+  color: var(--c-text-hint, #9AA0AA);
+  padding: 120rpx 40rpx;
+  font-size: 28rpx;
+  line-height: 1.8;
+}

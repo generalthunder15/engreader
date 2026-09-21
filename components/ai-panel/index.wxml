@@ -1,0 +1,165 @@
+<view class="wrap" wx:if="{{show}}" catchtouchmove="noop">
+  <view class="mask" bindtap="onClose"></view>
+  <view class="panel">
+    <view class="head">
+      <view class="tabs">
+        <view class="tab {{tab === 'trans' ? 'on' : ''}}" bindtap="setTab" data-t="trans">翻译</view>
+        <view class="tab {{tab === 'grammar' ? 'on' : ''}}" wx:if="{{type === 'sentence'}}" bindtap="setTab" data-t="grammar">语法解析</view>
+        <view class="tab {{tab === 'detail' ? 'on' : ''}}" wx:if="{{type === 'sentence' && (detailResult || detailLoading || tab === 'detail')}}" bindtap="setTab" data-t="detail">详细拆解</view>
+        <view class="tab {{tab === 'ask' ? 'on' : ''}}" wx:if="{{qaResult || qaLoading || tab === 'ask'}}" bindtap="setTab" data-t="ask">提问</view>
+        <view class="tab {{tab === 'note' ? 'on' : ''}}" bindtap="setTab" data-t="note">笔记</view>
+      </view>
+      <view class="close" bindtap="onClose">✕</view>
+    </view>
+
+    <scroll-view scroll-y class="body">
+      <view class="sel-text">{{selectedText}}</view>
+
+      <view wx:if="{{loading}}" class="loading">
+        <view class="spin"></view>
+        <text>AI 分析中…</text>
+      </view>
+
+      <!-- 翻译 Tab -->
+      <block wx:elif="{{tab === 'trans'}}">
+        <view wx:if="{{type === 'word' && result}}">
+          <view class="main-trans">{{result.translation}}</view>
+          <view class="meta" wx:if="{{result.phonetic || result.pos}}">
+            <text wx:if="{{result.pos}}" class="pos">{{result.pos}}</text>
+            <text wx:if="{{result.phonetic}}" class="phon">{{result.phonetic}}</text>
+          </view>
+          <view class="senses" wx:if="{{result.senses && result.senses.length}}">
+            <view class="sense" wx:for="{{result.senses}}" wx:key="*this">{{item}}</view>
+          </view>
+          <view class="example" wx:if="{{result.example}}">
+            <view class="ex-en">{{result.example}}</view>
+            <view class="ex-cn" wx:if="{{result.exampleTranslation}}">{{result.exampleTranslation}}</view>
+          </view>
+        </view>
+        <view wx:elif="{{type === 'sentence' && result}}">
+          <view class="main-trans">{{result.translation}}</view>
+          <view class="hint" wx:if="{{result.grammar}}">切到「语法解析」查看句子结构拆解</view>
+        </view>
+        <view wx:elif="{{!loading}}" class="hint">{{type === 'word' ? '暂无该词释义，可关闭面板后重新点选该词' : '暂无结果'}}</view>
+      </block>
+
+      <!-- 语法解析 Tab -->
+      <block wx:elif="{{tab === 'grammar'}}">
+        <view wx:if="{{result && result.grammar}}">
+          <view class="sec-title">句子结构</view>
+          <view class="structure">{{result.grammar.structure}}</view>
+          <block wx:if="{{result.grammar.clauses && result.grammar.clauses.length}}">
+            <view class="sec-title">从句拆解</view>
+            <view class="clause" wx:for="{{result.grammar.clauses}}" wx:key="text">
+              <view class="clause-text">{{item.text}}</view>
+              <view class="clause-type">{{item.type}}</view>
+              <view class="clause-explain">{{item.explain}}</view>
+            </view>
+          </block>
+          <block wx:if="{{result.grammar.phrases && result.grammar.phrases.length}}">
+            <view class="sec-title">短语与搭配</view>
+            <view class="clause" wx:for="{{result.grammar.phrases}}" wx:key="text">
+              <view class="clause-text">{{item.text}}</view>
+              <view class="clause-explain">{{item.explain}}</view>
+            </view>
+          </block>
+          <block wx:if="{{result.grammar.difficultPoints}}">
+            <view class="sec-title">难点讲解</view>
+            <view class="structure">{{result.grammar.difficultPoints}}</view>
+          </block>
+        </view>
+        <view wx:elif="{{!loading}}" class="hint">暂无语法解析结果，点击「重新解析」再试</view>
+      </block>
+
+      <!-- 详细拆解 Tab（单词→短语→语法逐层） -->
+      <block wx:elif="{{tab === 'detail'}}">
+        <view wx:if="{{detailLoading}}" class="loading">
+          <view class="spin"></view>
+          <text>AI 逐层拆解中…（内容较多，请稍候）</text>
+        </view>
+        <block wx:elif="{{detailResult}}">
+          <view class="main-trans">{{detailResult.translation}}</view>
+          <block wx:if="{{detailResult.structure}}">
+            <view class="sec-title">结构总览</view>
+            <view class="structure">{{detailResult.structure}}</view>
+          </block>
+          <block wx:if="{{detailResult.words && detailResult.words.length}}">
+            <view class="sec-title">单词拆解</view>
+            <view class="clause has-spk" wx:for="{{detailResult.words}}" wx:key="word">
+              <view class="spk" catchtap="onSpeak" data-text="{{item.word}}">🔊</view>
+              <view class="clause-text">{{item.word}}</view>
+              <view class="clause-explain">{{item.meaning}}</view>
+              <view class="clause-explain dim" wx:if="{{item.note}}">{{item.note}}</view>
+            </view>
+          </block>
+          <block wx:if="{{detailResult.phrases && detailResult.phrases.length}}">
+            <view class="sec-title">短语与搭配</view>
+            <view class="clause has-spk" wx:for="{{detailResult.phrases}}" wx:key="text">
+              <view class="spk" catchtap="onSpeak" data-text="{{item.text}}">🔊</view>
+              <view class="clause-text">{{item.text}}</view>
+              <view class="clause-explain">{{item.meaning}}</view>
+              <view class="clause-explain dim" wx:if="{{item.usage}}">{{item.usage}}</view>
+            </view>
+          </block>
+          <block wx:if="{{detailResult.grammar && detailResult.grammar.length}}">
+            <view class="sec-title">语法点</view>
+            <view class="clause has-spk" wx:for="{{detailResult.grammar}}" wx:key="point">
+              <view class="spk" catchtap="onSpeak" data-text="{{item.example || ''}}" data-fallback="{{item.point}}">🔊</view>
+              <view class="clause-type">{{item.point}}</view>
+              <view class="clause-explain">{{item.explain}}</view>
+              <view class="clause-explain dim" wx:if="{{item.example}}">例：{{item.example}}</view>
+            </view>
+          </block>
+          <view class="example" wx:if="{{detailResult.summary}}">
+            <view class="ex-en">💡 {{detailResult.summary}}</view>
+          </view>
+        </block>
+        <view wx:else class="hint">点击下方「详细解析」生成从单词到语法的逐层拆解</view>
+      </block>
+
+      <!-- 提问 Tab -->
+      <block wx:elif="{{tab === 'ask'}}">
+        <view class="qa-chips" wx:if="{{qSuggestions && qSuggestions.length}}">
+          <view class="qa-chip" wx:for="{{qSuggestions}}" wx:key="*this" bindtap="onChip" data-q="{{item}}">{{item}}</view>
+        </view>
+        <textarea
+          class="note-input"
+          value="{{qaValue}}"
+          placeholder="针对选中的内容提问，如：为什么用过去完成时？这个词能换成 X 吗？"
+          placeholder-class="note-ph"
+          maxlength="500"
+          show-confirm-bar="{{false}}"
+          bindinput="onQaInput"
+        ></textarea>
+        <view class="btn-primary note-save {{qaLoading ? 'disabled' : ''}}" bindtap="onAsk">{{qaLoading ? 'AI 思考中…' : '向 AI 提问'}}</view>
+        <view class="qa-answer" wx:if="{{qaLoading}}">
+          <view class="loading"><view class="spin"></view><text>AI 思考中…</text></view>
+        </view>
+        <view class="qa-answer" wx:elif="{{qaResult}}"><text user-select>{{qaResult}}</text></view>
+      </block>
+
+      <!-- 笔记 Tab -->
+      <block wx:elif="{{tab === 'note'}}">
+        <textarea
+          class="note-input"
+          value="{{noteValue}}"
+          placeholder="写点什么…（自动附带选中的原文）"
+          placeholder-class="note-ph"
+          maxlength="2000"
+          show-confirm-bar="{{false}}"
+          bindinput="onNoteInput"
+        ></textarea>
+        <view class="btn-primary note-save" bindtap="onSaveNote">保存笔记</view>
+      </block>
+    </scroll-view>
+
+    <view class="foot" wx:if="{{tab !== 'note' && tab !== 'ask' && !loading}}">
+      <view class="foot-btn {{detailLoading ? 'on' : ''}}"
+            wx:if="{{tab === 'grammar' && type === 'sentence'}}"
+            bindtap="onDetail">{{detailLoading ? '拆解中…' : '详细解析'}}</view>
+      <view class="foot-btn {{playing ? 'on' : ''}}" wx:else bindtap="onPlay">{{playing ? '停止' : '朗读'}}</view>
+      <view class="foot-btn" wx:if="{{type === 'word' && tab === 'trans'}}" bindtap="onAddVocab">加入生词本</view>
+      <view class="foot-btn" wx:if="{{type !== 'word'}}" bindtap="onRetry">重新解析</view>
+    </view>
+  </view>
+</view>
