@@ -61,9 +61,9 @@ Page({
     rsEff: { size: 34, line: 2.1, indent: true },
     sizeOptions: SIZE_OPTIONS,
     lineOptions: LINE_OPTIONS,
-    // 小说式框架：自定义顶栏 + 底部控制条 + 目录抽屉
+    // 小说式框架：自定义顶栏 + 底部控制条 + 目录抽屉（默认沉浸全屏，单击正文唤出）
     statusBarH: 24,
-    ctl: { show: true },
+    ctl: { show: false },
     toc: { show: false, list: [], current: '' },
     chIndex: 0,
     chTotal: 0,

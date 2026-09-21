@@ -1,7 +1,7 @@
 // utils/seed-data.js —— 内置书种子数据（由 booksrc/build-seed.js 生成，勿手改）
 // books[].chapters[].translations 与 tokenizeArticle 分句结果按 sid 对齐
 module.exports = {
-  SEED_VER: 1,
+  SEED_VER: 2,
   books: [
  {
   "id": "bk_cet4",

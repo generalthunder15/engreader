@@ -341,7 +341,13 @@ const seedBuiltIns = () => {
   if (Number(get(SEED_KEY, 0)) >= seed.SEED_VER) return;
   const { tokenizeArticle } = require('./tokenize');
   seed.books.forEach((sb) => {
-    if (getBook(sb.id)) return; // 已存在（如恢复过备份）则不重复注入
+    const expected = sb.chapters.length;
+    const existing = getBook(sb.id);
+    if (existing && existing.chapterCount === expected) return; // 完整则跳过
+    if (existing) {
+      // 章节数不齐（旧版本注入 bug 残留）→ 整本重建（内置书可再生，安全）
+      deleteBook(sb.id);
+    }
     const book = {
       id: sb.id,
       title: sb.title,
