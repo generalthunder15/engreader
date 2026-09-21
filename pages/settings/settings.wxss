@@ -11,7 +11,8 @@
 .row .label { margin-bottom: 0; }
 .ipt {
   background: var(--c-sunken); border-radius: var(--r-btn);
-  padding: 20rpx 24rpx; font-size: 28rpx; color: var(--c-text); width: 100%; box-sizing: border-box;
+  height: 88rpx; line-height: 88rpx;
+  padding: 0 24rpx; font-size: 28rpx; color: var(--c-text); width: 100%; box-sizing: border-box;
 }
 .ph { color: var(--c-text-faint); }
 .btn-primary {

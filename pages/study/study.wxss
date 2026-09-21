@@ -76,7 +76,8 @@
 .locked-text { flex: 1; font-size: 24rpx; color: var(--c-text-hint); }
 .chat-input {
   flex: 1; background: var(--c-sunken); border-radius: 36rpx;
-  padding: 16rpx 28rpx; font-size: 28rpx; color: var(--c-text);
+  height: 76rpx; line-height: 76rpx;
+  padding: 0 28rpx; font-size: 28rpx; color: var(--c-text);
 }
 .ph { color: var(--c-text-faint); }
 .send-btn {
