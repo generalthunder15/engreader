@@ -12,7 +12,7 @@
   </view>
 
   <view class="page-body">
-  <view class="reader">
+  <view class="reader" style="padding-top:{{statusBarH + 12}}px">
   <view class="art-title">{{article.title}}</view>
 
   <view class="paragraph" wx:for="{{paragraphs}}" wx:key="pid" wx:for-item="para">
