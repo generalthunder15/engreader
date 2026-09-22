@@ -13,39 +13,49 @@
 
   <view class="page-body">
   <view class="reader" style="padding-top:{{statusBarH + 12}}px">
-  <view class="art-title">{{article.title}}</view>
+  <!-- 连续滚动流：章节标题 + 段落，读完自动接下一章 -->
+  <block wx:for="{{blocks}}" wx:key="uid">
+    <view wx:if="{{item.type === 'title'}}" class="art-title ch-anchor" data-cid="{{item.cid}}">{{item.text}}</view>
 
-  <view class="paragraph" wx:for="{{paragraphs}}" wx:key="pid" wx:for-item="para">
-    <text class="indent"></text>
-    <block wx:for="{{para.tokens}}" wx:key="id" wx:for-item="tk">
-      <text
-        id="tok-{{tk.id}}"
-        class="tok {{marksMap[tk.id] ? 'marked' : ''}} {{spaceMarks[tk.id] ? 'mark-cont' : ''}} {{tk.id >= selStart && tk.id <= selEnd ? 'sel' : ''}} {{tk.id >= selStart && tk.id < selEnd ? 'sel-cont' : ''}}"
-        data-id="{{tk.id}}"
-        bindtouchstart="onTouchStart"
-        bindtouchend="onTouchEnd"
-        bindlongpress="onLongPress"
-      >{{tk.w}}</text>
-      <text
-        wx:if="{{tk.sp}}"
-        class="sp"
-        data-id="{{tk.id}}"
-        bindtouchstart="onTouchStart"
-        bindtouchend="onTouchEnd"
-        bindlongpress="onLongPress"
-      ></text>
-    </block>
-    <view
-      wx:if="{{noteCounts[para.pid]}}"
-      class="note-badge"
-      data-pid="{{para.pid}}"
-      catchtap="onNoteBadge"
-    >{{noteCounts[para.pid]}}</view>
-    <!-- 句译：保存章节时批量翻译并缓存，这里零成本展示 -->
-    <view class="para-trans" wx:if="{{showTrans && transMap[para.pid]}}">{{transMap[para.pid]}}</view>
+    <view wx:else class="paragraph">
+      <text class="indent"></text>
+      <block wx:for="{{item.tokens}}" wx:key="id" wx:for-item="tk">
+        <text
+          id="tok-{{tk.id}}"
+          class="tok {{marksMap[tk.id] ? 'marked' : ''}} {{spaceMarks[tk.id] ? 'mark-cont' : ''}} {{tk.id >= selStart && tk.id <= selEnd ? 'sel' : ''}} {{tk.id >= selStart && tk.id < selEnd ? 'sel-cont' : ''}}"
+          data-id="{{tk.id}}"
+          bindtouchstart="onTouchStart"
+          bindtouchend="onTouchEnd"
+          bindlongpress="onLongPress"
+        >{{tk.w}}</text>
+        <text
+          wx:if="{{tk.sp}}"
+          class="sp"
+          data-id="{{tk.id}}"
+          bindtouchstart="onTouchStart"
+          bindtouchend="onTouchEnd"
+          bindlongpress="onLongPress"
+        ></text>
+      </block>
+      <view
+        wx:if="{{noteCounts[item.uid]}}"
+        class="note-badge"
+        data-uid="{{item.uid}}"
+        catchtap="onNoteBadge"
+      >{{noteCounts[item.uid]}}</view>
+      <!-- 句译：创建章节时批量翻译并缓存，这里零成本展示 -->
+      <view class="para-trans" wx:if="{{showTrans && transMap[item.uid]}}">{{transMap[item.uid]}}</view>
+    </view>
+  </block>
+
+  <!-- 续章状态 -->
+  <view class="reader-more" wx:if="{{hasMore}}">
+    <view class="more-tip" bindtap="appendNext">{{loadingMore ? '正在加载下一章…' : '上拉或点击加载下一章'}}</view>
   </view>
-
-  <view class="reader-foot-tip">双击选词 · 长按选整句 · 单击呼出菜单</view>
+  <view class="reader-more" wx:else>
+    <view class="more-end">— 全书已读完 —</view>
+  </view>
+  <view class="reader-foot-tip">双击选词 · 长按选整句 · 单击呼出菜单 · 滑动继续下一章</view>
 </view>
 
 <!-- 底部控制条（小说式）：上一章/进度/下一章 + 目录/夜间/设置/翻译 -->

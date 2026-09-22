@@ -38,6 +38,11 @@
    选区末尾的词不带这个类，所以不会多选中一个空格 */
 .tok.sel-cont { padding-right: 10rpx; margin-right: -10rpx; }
 .tok.mark-cont { padding-right: 10rpx; margin-right: -10rpx; }
+/* 续章：读完当前章自动拼接下一章 */
+.reader-more { padding: 40rpx 0 10rpx; text-align: center; }
+.more-tip { font-size: 26rpx; color: var(--c-text-hint, #9AA0AA); padding: 20rpx 0; }
+.more-end { font-size: 26rpx; color: var(--c-text-hint, #9AA0AA); padding: 20rpx 0; opacity: .8; }
+
 .reader-foot-tip {
   text-align: center; color: var(--c-text-faint, #C3C8D0); font-size: 24rpx; padding-top: 20rpx;
 }

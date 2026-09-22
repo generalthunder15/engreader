@@ -1,5 +1,5 @@
-// pages/reader/reader.js —— 小说式阅读器（以书/章为单位）
-// 交互：双击选词 · 长按选整句 · 跨词拖选 · 单击呼出「顶栏 + 底部控制条」（目录/夜间/设置/翻译）
+// pages/reader/reader.js —— 小说式阅读器（连续滚动：本章读完自动接下一章）
+// 交互：双击选词 · 长按选整句 · 跨词拖选 · 单击立即呼出/收起「顶栏 + 底部控制条」
 const store = require('../../utils/store');
 const theme = require('../../utils/theme');
 const font = require('../../utils/font');
@@ -40,8 +40,8 @@ const fmtTime = (ts) => {
 Page({
   data: {
     book: { id: '', title: '' },
-    article: { id: '', title: '' },   // article 即当前章节
-    paragraphs: [],
+    article: { id: '', title: '' },   // 当前视口所在章节
+    blocks: [],          // 连续滚动流：[{type:'title'|'para', uid, cid, ...}]
     marksMap: {},
     spaceMarks: {},
     noteCounts: {},
@@ -61,7 +61,7 @@ Page({
     rsEff: { size: 34, line: 2.1, indent: true },
     sizeOptions: SIZE_OPTIONS,
     lineOptions: LINE_OPTIONS,
-    // 小说式框架：自定义顶栏 + 底部控制条 + 目录抽屉（默认沉浸全屏，单击正文唤出）
+    // 小说式框架：自定义顶栏 + 底部控制条 + 目录抽屉（默认沉浸全屏）
     statusBarH: 24,
     ctl: { show: false },
     toc: { show: false, list: [], current: '' },
@@ -69,8 +69,10 @@ Page({
     chTotal: 0,
     progressPct: 0,
     showTrans: false,
-    transMap: {},       // pid -> 句译
-    favored: false
+    transMap: {},       // uid -> 句译
+    favored: false,
+    loadingMore: false,
+    hasMore: true
   },
 
   onLoad(options) {
@@ -79,8 +81,13 @@ Page({
     this.touchStartId = null;
     this.longPressed = false;
     this.lastTap = { id: null, time: 0 };
+    this.pendingToggle = false;
     this.tapTimer = null;
-    this.dayThemeId = 'default'; // 夜间切换前记住白天主题
+    this.dayThemeId = 'default';
+    this.scrollTop = 0;
+    this.lastScrollTop = 0;
+    this.anchors = [];      // [{cid, idx, top}] 章节标题在文档中的位置
+    this.blocks = [];
     try {
       const win = wx.getWindowInfo();
       this.setData({ statusBarH: win.statusBarHeight || 24 });
@@ -96,18 +103,22 @@ Page({
     }
     this.book = book;
     this.setData({ book: { id: book.id, title: book.title }, showTrans: !!store.getSettings().showTrans });
-    this.loadChapter(this.chapterId);
+    this.startAt(this.chapterId);
   },
 
   onShow() {
     theme.bindPage(this, -1);
-    // 从书籍详情/编辑页回来时章节列表可能变化
-    if (this.bookId && this.chapterId && store.getChapter(this.bookId, this.chapterId)) {
+    if (this.bookId && store.getBook(this.bookId)) {
       const b = store.getBook(this.bookId);
-      if (b) {
-        this.book = b;
-        this.setData({ 'toc.list': this.buildTocList(b) });
-      }
+      this.book = b;
+      const list = this.buildTocList(b);
+      const cur = (b.chapters || []).findIndex((c) => c.id === this.chapterId);
+      this.setData({
+        'toc.list': list,
+        'toc.current': this.chapterId,
+        chTotal: (b.chapters || []).length,
+        chIndex: cur >= 0 ? cur : this.data.chIndex
+      });
     }
   },
 
@@ -115,51 +126,244 @@ Page({
     return (book.chapters || []).map((c, i) => ({ id: c.id, title: c.title || '第' + (i + 1) + '章', idx: i + 1 }));
   },
 
-  // ---------- 章节装载 ----------
-  loadChapter(chapterId) {
+  // ---------- 连续滚动：章节流式装载 ----------
+  // 重置并从指定章节开始（目录跳转 / 上一章 / 下一章 / 进度滑条）
+  startAt(chapterId) {
     const ch = store.getChapter(this.bookId, chapterId);
     if (!ch) {
       wx.showToast({ title: '章节不存在', icon: 'none' });
       setTimeout(() => wx.navigateBack(), 800);
       return;
     }
-    this.chapterId = chapterId;
-    this.article = { id: ch.id, title: ch.title };
-    this.marks = store.getMarks(chapterId);
-    this.notes = store.getNotes(chapterId);
-    this.paraTexts = (ch.tokens.paragraphs || []).map((p) => normText(joinTokens(p.tokens)));
-    this.paraRawTexts = (ch.tokens.paragraphs || []).map((p) => joinTokens(p.tokens));
-    // pid -> 句译（一句一段：取段内第一个 token 的 sid）
-    const transMap = {};
-    (ch.tokens.paragraphs || []).forEach((p) => {
-      const sid = p.tokens && p.tokens[0] && p.tokens[0].sid;
-      const tr = (ch.translations || [])[sid];
-      if (tr) transMap[p.pid] = tr;
-    });
-    const chs = (this.book.chapters || []);
-    const idx = chs.findIndex((c) => c.id === chapterId);
-    const chIndex = idx >= 0 ? idx : 0;
-    const pct = chs.length ? Math.round(((chIndex + 1) / chs.length) * 100) : 0;
-    store.touchBook(this.bookId, chapterId);
+    this.chapters = [];      // [{cid, idx, offset, marks, notes, paras:[{uid,pid,text,raw}]}]
+    this.paraByUid = {};     // uid -> {uid, cid, pid, text, raw}
+    this.nextId = 0;
+    this.nextUid = 0;
+    this.anchors = [];
+    this.scrollTop = 0;
+    this.lastScrollTop = 0;
+    this.blocks = [];
     this.setData({
-      article: { id: ch.id, title: ch.title },
-      paragraphs: decorateSpacing(ch.tokens.paragraphs || []),
-      marksMap: this.buildMarksMap(),
-      spaceMarks: this.buildSpaceMarks(),
-      noteCounts: this.buildNoteCounts(),
-      transMap,
-      chIndex,
-      chTotal: chs.length,
-      progressPct: pct,
-      favored: store.isFavored(this.bookId, chapterId),
-      'toc.list': this.buildTocList(this.book),
-      'toc.current': chapterId,
+      blocks: [],
+      marksMap: {},
+      spaceMarks: {},
+      noteCounts: {},
+      transMap: {},
       selStart: -1,
       selEnd: -1,
       selectedText: '',
-      'bar.show': false
+      'bar.show': false,
+      hasMore: true
     });
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
+    this.appendChapter(chapterId, true);
+    this.ensureFilled();
+  },
+
+  // 追加一章到滚动流末尾；token id 按章节偏移重排，保证全局唯一
+  appendChapter(chapterId, isFirst) {
+    const ch = store.getChapter(this.bookId, chapterId);
+    if (!ch || !ch.tokens) return false;
+    const chs = (this.book.chapters || []);
+    const idx = chs.findIndex((c) => c.id === chapterId);
+    if (idx < 0) return false;
+    if (this.chapters.some((x) => x.cid === chapterId)) return false; // 已装载
+
+    const offset = this.nextId;
+    const rec = {
+      cid: chapterId,
+      idx,
+      offset,
+      marks: store.getMarks(chapterId),
+      notes: store.getNotes(chapterId),
+      paras: []
+    };
+
+    const newBlocks = [];
+    newBlocks.push({ uid: this.nextUid++, type: 'title', cid: chapterId, idx, text: ch.title || ('第' + (idx + 1) + '章') });
+
+    const paras = decorateSpacing(ch.tokens.paragraphs || []);
+    let maxId = -1;
+    paras.forEach((p) => {
+      const uid = this.nextUid++;
+      const tokens = (p.tokens || []).map((t) => {
+        if (t.id > maxId) maxId = t.id;
+        return { id: t.id + offset, w: t.w, sid: t.sid, sp: t.sp };
+      });
+      const raw = joinTokens(p.tokens || []);
+      rec.paras.push({ uid, pid: p.pid, text: normText(raw), raw });
+      this.paraByUid[uid] = { uid, cid: chapterId, pid: p.pid, text: normText(raw), raw };
+      newBlocks.push({ uid, type: 'para', cid: chapterId, idx, pid: p.pid, tokens });
+    });
+
+    const span = Math.max(maxId + 1, ch.tokens.tokenCount || 0);
+    this.nextId = offset + span;
+    this.chapters.push(rec);
+    this.blocks = this.blocks.concat(newBlocks);
+
+    const patch = {
+      blocks: this.blocks,
+      transMap: this.buildTransMap(),
+      marksMap: this.buildMarksMap(),
+      spaceMarks: this.buildSpaceMarks(),
+      noteCounts: this.buildNoteCounts(),
+      chTotal: chs.length,
+      hasMore: idx < chs.length - 1
+    };
+    if (isFirst) {
+      patch.article = { id: ch.id, title: ch.title };
+      patch.chIndex = idx;
+      patch.progressPct = chs.length ? Math.round(((idx + 1) / chs.length) * 100) : 0;
+      patch.favored = store.isFavored(this.bookId, chapterId);
+      patch['toc.list'] = this.buildTocList(this.book);
+      patch['toc.current'] = chapterId;
+    }
+    this.setData(patch);
+    this.chapterId = chapterId;
+    store.touchBook(this.bookId, chapterId);
+    this.measureAnchors();
+    return true;
+  },
+
+  // 滚到底部：续下一章
+  appendNext() {
+    if (!this.book || !this.data.hasMore) return;
+    const chs = (this.book.chapters || []);
+    if (!chs.length) return;
+    const lastIdx = this.chapters.length ? this.chapters[this.chapters.length - 1].idx : -1;
+    const next = chs[lastIdx + 1];
+    if (!next) {
+      this.setData({ hasMore: false });
+      return;
+    }
+    this.appendChapter(next.id);
+  },
+
+  onReachBottom() {
+    this.appendNext();
+    this.ensureFilled();
+  },
+
+  // 短章节场景：整篇不足两屏时自动补章，避免"翻不动又没有下一章"
+  ensureFilled() {
+    if (!this.data.hasMore || !wx.createSelectorQuery) return;
+    const q = wx.createSelectorQuery().in(this);
+    q.selectViewport().scrollOffset();
+    q.exec((res) => {
+      if (!res || !res[0]) return;
+      const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+      if (res[0].scrollHeight < win.windowHeight * 2) {
+        const before = this.chapters.length;
+        this.appendNext();
+        if (this.chapters.length > before) setTimeout(() => this.ensureFilled(), 60);
+      }
+    });
+  },
+
+  // 章节标题锚点测距：用于滚动时判断"当前在第几章"
+  measureAnchors() {
+    const q = wx.createSelectorQuery().in(this);
+    q.selectAll('.ch-anchor').boundingClientRect();
+    q.exec((res) => {
+      const rects = (res && res[0]) || [];
+      if (!rects.length) return;
+      this.anchors = rects.map((r, i) => ({
+        cid: (this.chapters[i] || {}).cid,
+        idx: (this.chapters[i] || {}).idx,
+        top: (r.top || 0) + this.scrollTop
+      }));
+      this.updateCurrentChapter(this.scrollTop);
+    });
+  },
+
+  updateCurrentChapter(scrollTop) {
+    if (!this.anchors.length) return;
+    let cur = this.anchors[0];
+    this.anchors.forEach((a) => { if (a.top <= scrollTop + 40) cur = a; });
+    if (!cur || !cur.cid || cur.idx === this.data.chIndex) return;
+    const chs = (this.book.chapters || []);
+    this.chapterId = cur.cid;
+    const ch = store.getChapter(this.bookId, cur.cid);
+    this.setData({
+      chIndex: cur.idx,
+      progressPct: chs.length ? Math.round(((cur.idx + 1) / chs.length) * 100) : 0,
+      article: { id: cur.cid, title: (ch && ch.title) || '' },
+      favored: store.isFavored(this.bookId, cur.cid),
+      'toc.current': cur.cid
+    });
+    store.touchBook(this.bookId, cur.cid);
+  },
+
+  onPageScroll(e) {
+    const top = e.scrollTop || 0;
+    this.scrollTop = top;
+    // 滑动立即收起顶栏/控制条，回到沉浸阅读
+    if (this.data.ctl.show && Math.abs(top - this.lastScrollTop) > 3) {
+      this.setData({ 'ctl.show': false });
+    }
+    this.lastScrollTop = top;
+    this.updateCurrentChapter(top);
+  },
+
+  // ---------- 划线渲染（跨章：token id 已全局唯一） ----------
+  buildMarksMap() {
+    const m = {};
+    this.chapters.forEach((c) => {
+      (c.marks || []).forEach((r) => {
+        for (let i = r.start; i <= r.end; i++) m[i + c.offset] = true;
+      });
+    });
+    return m;
+  },
+
+  // 词间空格是否需要跟随划线着色：仅当空格两侧的词都在同一划线区间内
+  buildSpaceMarks() {
+    const m = {};
+    this.chapters.forEach((c) => {
+      (c.marks || []).forEach((r) => {
+        for (let i = r.start; i < r.end; i++) m[i + c.offset] = true;
+      });
+    });
+    return m;
+  },
+
+  refreshMarks() {
+    this.setData({ marksMap: this.buildMarksMap(), spaceMarks: this.buildSpaceMarks() });
+  },
+
+  buildTransMap() {
+    const map = {};
+    this.chapters.forEach((c) => {
+      const ch = store.getChapter(this.bookId, c.cid);
+      const translations = (ch && ch.translations) || [];
+      c.paras.forEach((p) => {
+        const tr = translations[p.pid];
+        if (tr) map[p.uid] = tr;
+      });
+    });
+    return map;
+  },
+
+  buildNoteCounts() {
+    const counts = {};
+    this.chapters.forEach((c) => {
+      (c.notes || []).forEach((n) => {
+        const uid = this.findNotePara(c, n.sel);
+        if (uid != null) counts[uid] = (counts[uid] || 0) + 1;
+      });
+    });
+    return counts;
+  },
+
+  findNotePara(c, sel) {
+    const s = normText(sel);
+    if (!s) return null;
+    let hit = c.paras.find((p) => p.text.indexOf(s) !== -1);
+    if (!hit) {
+      const head = s.slice(0, Math.max(12, Math.ceil(s.length / 3)));
+      hit = c.paras.find((p) => p.text.indexOf(head) !== -1);
+    }
+    return hit ? hit.uid : null;
   },
 
   // ---------- 顶栏 / 底部控制条 ----------
@@ -180,25 +384,25 @@ Page({
   pickChapter(e) {
     const id = e.currentTarget.dataset.id;
     this.setData({ 'toc.show': false });
-    if (id && id !== this.chapterId) this.loadChapter(id);
+    if (id && id !== this.chapterId) this.startAt(id);
   },
 
   onSlider(e) {
     const i = Number(e.detail.value);
     const ch = (this.book.chapters || [])[i];
-    if (ch) this.loadChapter(ch.id);
+    if (ch) this.startAt(ch.id);
   },
 
   prevChapter() {
     const i = this.data.chIndex;
     if (i <= 0) return wx.showToast({ title: '已经是第一章', icon: 'none' });
-    this.loadChapter(this.book.chapters[i - 1].id);
+    this.startAt(this.book.chapters[i - 1].id);
   },
 
   nextChapter() {
     const i = this.data.chIndex;
     if (i >= this.data.chTotal - 1) return wx.showToast({ title: '已经是最后一章', icon: 'none' });
-    this.loadChapter(this.book.chapters[i + 1].id);
+    this.startAt(this.book.chapters[i + 1].id);
   },
 
   // 夜间：与白天主题一键互换
@@ -231,14 +435,8 @@ Page({
     wx.showToast({ title: on ? '已收藏本章' : '已取消收藏', icon: 'none' });
   },
 
-  // ---------- 选择 ----------
+  // ---------- 选择（单击立即切控制条，双击选词） ----------
   onTouchStart(e) {
-    if (this.data.ctl.show) {
-      // 正文上的点击优先用于收起控制条
-      this.setData({ 'ctl.show': false });
-      this.clearSelection();
-      return;
-    }
     if (this.data.bar.show || this.data.panel.show) {
       this.clearSelection();
       return;
@@ -266,34 +464,45 @@ Page({
 
   cancelTap() {
     if (this.tapTimer) { clearTimeout(this.tapTimer); this.tapTimer = null; }
+    this.pendingToggle = false;
     this.lastTap = { id: null, time: 0 };
   },
 
+  // 单击：立即开/关控制条（不等双击判定，手感跟手）；320ms 内再点同一词 → 撤销并选中该词
   handleTap(id) {
     if (!this.lastTap) this.lastTap = { id: null, time: 0 };
     const now = Date.now();
-    if (this.lastTap.id === id && now - this.lastTap.time < 300) {
+    if (this.lastTap.id === id && now - this.lastTap.time < 320) {
+      if (this.pendingToggle) {
+        this.pendingToggle = false;
+        this.setData({ 'ctl.show': !this.data.ctl.show }); // 撤销刚才那次单击
+      }
       this.cancelTap();
       return this.selectRange(id, id);
     }
     this.lastTap = { id, time: now };
     if (this.tapTimer) clearTimeout(this.tapTimer);
+    this.pendingToggle = true;
+    this.setData({ 'ctl.show': !this.data.ctl.show });
     this.tapTimer = setTimeout(() => {
       this.tapTimer = null;
+      this.pendingToggle = false;
       this.lastTap = { id: null, time: 0 };
-      // 单击：开/关小说式控制条（顶栏 + 底部控制）
-      this.toggleCtl();
-    }, 280);
+    }, 320);
   },
 
   onLongPress(e) {
+    if (this.pendingToggle) {
+      this.pendingToggle = false;
+      this.setData({ 'ctl.show': !this.data.ctl.show });
+    }
     this.cancelTap();
     this.longPressed = true;
     const id = e.currentTarget.dataset.id;
     const loc = this.findToken(id);
     if (!loc) return;
     let start = -1, end = -1;
-    this.data.paragraphs[loc.pIndex].tokens.forEach((t) => {
+    loc.para.tokens.forEach((t) => {
       if (t.sid === loc.token.sid) {
         if (start < 0) start = t.id;
         end = t.id;
@@ -303,22 +512,48 @@ Page({
   },
 
   findToken(id) {
-    const paras = this.data.paragraphs;
-    for (let p = 0; p < paras.length; p++) {
-      const arr = paras[p].tokens;
-      if (arr.length && id <= arr[arr.length - 1].id) {
-        return { pIndex: p, token: arr.find((x) => x.id === id) };
+    for (let c = 0; c < this.chapters.length; c++) {
+      const paras = this.chapters[c].paras;
+      for (let i = 0; i < paras.length; i++) {
+        const p = this.paraOf(paras[i].uid);
+        if (!p || !p.tokens.length) continue;
+        const arr = p.tokens;
+        if (id >= arr[0].id && id <= arr[arr.length - 1].id) {
+          const token = arr.find((x) => x.id === id);
+          if (token) return { para: p, token, cid: paras[i].cid, offset: this.chapters[c].offset };
+        }
       }
     }
     return null;
   },
 
+  // 按 uid 从渲染流里取段落（含 tokens）
+  paraOf(uid) {
+    return this.blocks.find((b) => b.uid === uid && b.type === 'para') || null;
+  },
+
+  // 全局 token id → 所属章节记录
+  chapterOf(id) {
+    let hit = null;
+    this.chapters.forEach((c) => {
+      if (!hit && id >= c.offset) hit = c;
+    });
+    return hit;
+  },
+
+  allTokens() {
+    const out = [];
+    this.blocks.forEach((b) => {
+      if (b.type === 'para') out.push.apply(out, b.tokens);
+    });
+    return out;
+  },
+
   selectRange(start, end) {
-    const tokens = [];
-    this.data.paragraphs.forEach((para) =>
-      para.tokens.forEach((t) => { if (t.id >= start && t.id <= end) tokens.push(t); })
-    );
+    const tokens = this.allTokens().filter((t) => t.id >= start && t.id <= end);
     const text = joinTokens(tokens);
+    const c = this.chapterOf(start);
+    this.selCid = c ? c.cid : this.chapterId;
     this.setData({ selStart: start, selEnd: end, selectedText: text });
     this.positionBar(start, end);
   },
@@ -340,35 +575,13 @@ Page({
       const first = res[0], last = res[1];
       if (!first || !last) return;
       const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
-      const barW = 350, barH = 46; // 7 个操作项
+      const barW = 350, barH = 46;
       let left = (first.left + last.right) / 2 - barW / 2;
       left = Math.max(8, Math.min(left, win.windowWidth - barW - 8));
       let top = last.bottom + 8;
       if (top + barH > win.windowHeight - 40) top = Math.max(70, first.top - barH - 8);
       this.setData({ bar: { show: true, left, top } });
     });
-  },
-
-  // ---------- 划线渲染 ----------
-  buildMarksMap() {
-    const m = {};
-    (this.marks || []).forEach((r) => {
-      for (let i = r.start; i <= r.end; i++) m[i] = true;
-    });
-    return m;
-  },
-
-  // 词间空格是否需要跟随划线着色：仅当空格两侧的词都在同一划线区间内
-  buildSpaceMarks() {
-    const m = {};
-    (this.marks || []).forEach((r) => {
-      for (let i = r.start; i < r.end; i++) m[i] = true;
-    });
-    return m;
-  },
-
-  refreshMarks() {
-    this.setData({ marksMap: this.buildMarksMap(), spaceMarks: this.buildSpaceMarks() });
   },
 
   // ---------- 操作栏动作 ----------
@@ -378,6 +591,7 @@ Page({
 
     const text = this.data.selectedText;
     const singleWord = !/\s/.test(text.trim());
+    const cid = this.selCid || this.chapterId;
 
     if (act === 'copy') {
       wx.setClipboardData({ data: text });
@@ -391,9 +605,9 @@ Page({
         text,
         translation: this.sentenceTransOf(text),
         bookId: this.bookId,
-        chapterId: this.chapterId,
+        chapterId: cid,
         bookTitle: this.book.title,
-        chapterTitle: this.data.article.title
+        chapterTitle: this.chapterTitleOf(cid)
       });
       wx.showToast({ title: '已收藏到句集', icon: 'success' });
       return;
@@ -428,13 +642,19 @@ Page({
     this.runAI(singleWord ? 'word' : 'sentence');
   },
 
+  chapterTitleOf(cid) {
+    const ch = store.getChapter(this.bookId, cid);
+    return (ch && ch.title) || this.data.article.title || '';
+  },
+
   // 收藏句子时尽量带上已缓存的句译
   sentenceTransOf(text) {
     const key = normText(text);
     let best = '';
-    this.paraTexts.forEach((pt, pid) => {
-      if (pt === key || pt.indexOf(key) !== -1 || key.indexOf(pt) !== -1) {
-        const tr = this.data.transMap[pid];
+    Object.keys(this.paraByUid).forEach((uid) => {
+      const p = this.paraByUid[uid];
+      if (p.text === key || p.text.indexOf(key) !== -1 || key.indexOf(p.text) !== -1) {
+        const tr = this.data.transMap[uid];
         if (tr && !best) best = tr;
       }
     });
@@ -444,16 +664,19 @@ Page({
   addMark() {
     const { selStart: start, selEnd: end } = this.data;
     if (start < 0) return;
-    const hit = this.marks.find((m) => m.start <= start && m.end >= end);
+    const c = this.chapterOf(start);
+    if (!c) return;
+    const ls = start - c.offset, le = end - c.offset;
+    const hit = c.marks.find((m) => m.start <= ls && m.end >= le);
     if (hit) {
-      this.marks = store.removeMark(this.chapterId, hit);
+      c.marks = store.removeMark(c.cid, hit);
       this.refreshMarks();
       this.clearSelection();
       wx.showToast({ title: '已取消划线', icon: 'none' });
       return;
     }
-    this.marks = store.addMark(this.chapterId, {
-      start, end, text: this.data.selectedText, createdAt: Date.now()
+    c.marks = store.addMark(c.cid, {
+      start: ls, end: le, text: this.data.selectedText, createdAt: Date.now()
     });
     this.refreshMarks();
     this.clearSelection();
@@ -482,7 +705,6 @@ Page({
         .then(finish)
         .catch(() => llm.ask({ type, text }).then((r) => finish(r.result)).catch(fail));
     } else {
-      // 句子优先用已缓存的句译（免费零延迟），缓存缺失才走 AI 语法解析
       const cached = this.sentenceTransOf(text);
       llm.ask({ type, text })
         .then((r) => {
@@ -526,15 +748,16 @@ Page({
   onAddVocab() {
     const r = this.data.panel.result;
     if (!r) return;
+    const cid = this.selCid || this.chapterId;
     store.addVocab({
       word: this.data.selectedText.trim(),
       phonetic: r.phonetic || '',
       pos: r.pos || '',
       translation: r.translation || '',
       fromBook: this.book.title,
-      fromChapter: this.data.article.title,
+      fromChapter: this.chapterTitleOf(cid),
       bookId: this.bookId,
-      chapterId: this.chapterId,
+      chapterId: cid,
       createdAt: Date.now()
     });
     wx.showToast({ title: '已加入生词本', icon: 'success' });
@@ -542,12 +765,12 @@ Page({
   onSaveNote(e) {
     const note = (e.detail.note || '').trim();
     if (!note) return wx.showToast({ title: '笔记内容为空', icon: 'none' });
-    this.notes = store.addNote(this.chapterId, {
-      note, sel: this.data.selectedText, createdAt: Date.now()
-    });
+    const cid = this.selCid || this.chapterId;
+    const c = this.chapters.find((x) => x.cid === cid) || this.chapters[0];
+    if (!c) return;
+    c.notes = store.addNote(cid, { note, sel: this.data.selectedText, createdAt: Date.now() });
     wx.showToast({ title: '笔记已保存', icon: 'success' });
-    this.refreshNotes();
-    this.setData({ 'panel.show': false });
+    this.setData({ noteCounts: this.buildNoteCounts(), 'panel.show': false });
     this.clearSelection();
   },
 
@@ -602,41 +825,18 @@ Page({
   },
 
   // ---------- 段落笔记角标 ----------
-  refreshNotes() {
-    this.notes = store.getNotes(this.chapterId);
-    this.setData({ noteCounts: this.buildNoteCounts() });
-  },
-
-  buildNoteCounts() {
-    const counts = {};
-    (this.notes || []).forEach((n) => {
-      const pid = this.findNotePara(n.sel);
-      if (pid >= 0) counts[pid] = (counts[pid] || 0) + 1;
-    });
-    return counts;
-  },
-
-  findNotePara(sel) {
-    const s = normText(sel);
-    if (!s) return -1;
-    let hit = this.paraTexts.findIndex((t) => t.indexOf(s) !== -1);
-    if (hit < 0) {
-      const head = s.slice(0, Math.max(12, Math.ceil(s.length / 3)));
-      hit = this.paraTexts.findIndex((t) => t.indexOf(head) !== -1);
-    }
-    return hit;
-  },
-
   onNoteBadge(e) {
-    const pid = e.currentTarget.dataset.pid;
-    const list = (this.notes || [])
-      .map((n) => ({ n, p: this.findNotePara(n.sel) }))
-      .filter((x) => x.p === pid)
+    const uid = e.currentTarget.dataset.uid;
+    const p = this.paraByUid[uid];
+    if (!p) return;
+    const c = this.chapters.find((x) => x.cid === p.cid);
+    if (!c) return;
+    const list = (c.notes || [])
+      .map((n) => ({ n, uid: this.findNotePara(c, n.sel) }))
+      .filter((x) => x.uid === uid)
       .map((x) => ({ sel: x.n.sel, note: x.n.note, createdAt: x.n.createdAt, timeText: fmtTime(x.n.createdAt) }));
     this.clearSelection();
-    this.setData({
-      noteView: { show: true, pid, list, paraText: (this.paraRawTexts || [])[pid] || '' }
-    });
+    this.setData({ noteView: { show: true, pid: uid, list, paraText: p.raw } });
   },
 
   noop() {},
@@ -655,9 +855,13 @@ Page({
       confirmColor: '#E24B4A',
       success: (res) => {
         if (!res.confirm) return;
-        this.notes = store.removeNote(this.chapterId, item);
+        const c = this.chapters.find((x) => (x.notes || []).some((n) => n.createdAt === item.createdAt));
+        if (c) {
+          c.notes = store.removeNote(c.cid, item);
+          this.setData({ noteCounts: this.buildNoteCounts() });
+        }
         const list = this.data.noteView.list.filter((x) => x.createdAt !== item.createdAt);
-        this.setData({ 'noteView.list': list, noteCounts: this.buildNoteCounts() });
+        this.setData({ 'noteView.list': list });
         if (!list.length) this.setData({ 'noteView.show': false });
         wx.showToast({ title: '已删除', icon: 'none' });
       }
