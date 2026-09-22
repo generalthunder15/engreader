@@ -140,8 +140,11 @@ Page({
         });
         const blocked = rs.filter((r) => !r.ok && !r.optional);
         if (blocked.length) {
-          push('\n⚠️ ' + blocked.length + ' 个关键域名不通：真机点右上角「···」开「开发调试」；' +
-            '开发者工具勾选「不校验合法域名」；长期用见「复制域名清单」。');
+          push('\n⚠️ ' + blocked.length + ' 个关键域名被微信拦截（请求没发出去，不是 Key/网络问题）。按你当前的环境选一条：');
+          push('· 开发者工具 → 详情 → 本地设置 → 勾选「不校验合法域名」');
+          push('· 真机预览 → 右上角「···」→ 打开「开发调试」→ 重进小程序');
+          push('· 正式版 → mp 后台配 request 合法域名（域名须已 ICP 备案，境外域名配不了）');
+          push('· 都不行 → 打开上方「本地兜底」，内置书可离线阅读');
         }
 
         // 词典（不经 AI）：清掉该词的本地缓存，确保每次都真实联网
@@ -183,7 +186,7 @@ Page({
   copyDomains() {
     wx.setClipboardData({
       data: net.DOMAIN_TEXT,
-      success: () => wx.showToast({ title: '域名已复制，去 mp 后台添加', icon: 'none' })
+      success: () => wx.showToast({ title: '已复制可配置的国内域名，去 mp 后台添加', icon: 'none' })
     });
   },
 
