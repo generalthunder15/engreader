@@ -399,6 +399,59 @@ const seedBuiltIns = () => {
   if (wantWords) set(WORDS_KEY, seed.WORDS_VER);
 };
 
+// ---------- 清除用户数据 ----------
+// 保留：内置书（书 + 章节正文/词表/句译）。清除其余一切：自建书、生词本、收藏、
+// 划线、笔记、学习状态、AI/词典/TTS 缓存；可选连设置（含 API Key）一起清。
+// opts: {includeSettings: true} 时连设置一起清
+const clearUserData = (opts) => {
+  const incSettings = !!(opts && opts.includeSettings);
+  const seedIds = [];
+  try {
+    const seed = require('./seed-data');
+    (seed.books || []).forEach((b) => { if (b && b.id) seedIds.push(b.id); });
+  } catch (e) {}
+
+  const keepBooks = listBooks().filter((b) => b && seedIds.indexOf(b.id) !== -1);
+  const keep = {};
+  keep[KEYS.BOOKS] = 1;
+  keep['seed_ver'] = 1;
+  keep['words_ver'] = 1;
+  keep[KEYS.DATA_VER] = 1;
+  if (!incSettings) keep[KEYS.SETTINGS] = 1;
+  keepBooks.forEach((b) => {
+    (b.chapters || []).forEach((c) => { keep[chapterKey(b.id, c.id)] = 1; });
+  });
+
+  let removed = 0;
+  try {
+    (wx.getStorageInfoSync().keys || []).forEach((k) => {
+      if (keep[k]) return;
+      wx.removeStorageSync(k);
+      removed++;
+    });
+  } catch (e) {}
+
+  // 内置书重置为「未读过」：清掉阅读进度与闯关记录，正文/词表/句译保留
+  keepBooks.forEach((b) => {
+    b.lastReadAt = 0;
+    b.lastChapterId = '';
+    (b.chapters || []).forEach((c) => { c.quizDone = false; });
+  });
+  set(KEYS.BOOKS, keepBooks);
+  keepBooks.forEach((b) => {
+    (b.chapters || []).forEach((c) => {
+      if (getChapter(b.id, c.id)) patchChapter(b.id, c.id, { quizDone: false });
+    });
+  });
+
+  // 内置书若被删过，清掉版本号，下次启动 seedBuiltIns 会重新注入
+  const reseed = seedIds.length > 0 && keepBooks.length < seedIds.length;
+  if (reseed) {
+    try { wx.removeStorageSync('seed_ver'); wx.removeStorageSync('words_ver'); } catch (e) {}
+  }
+  return { removed: removed, keptBooks: keepBooks.length, reseed: !!reseed, settingsCleared: incSettings };
+};
+
 // ---------- 备份 / 恢复 ----------
 const exportAll = () => {
   const data = { version: DATA_VER, exportedAt: new Date().toISOString(), data: {} };
@@ -427,5 +480,6 @@ module.exports = {
   getStudy, setStudy, resetStudy,
   getSettings, setSettings,
   getAICache, putAICache, clearAICache,
+  clearUserData,
   exportAll, importAll
 };

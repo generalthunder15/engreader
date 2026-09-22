@@ -13,4 +13,5 @@
 .mi-name { font-size: 30rpx; font-weight: 600; color: var(--c-text); flex: 1; }
 .mi-sub { font-size: 24rpx; color: var(--c-text-hint); margin-right: 12rpx; }
 .mi-arrow { font-size: 36rpx; color: var(--c-text-faint); }
+.mi.danger .mi-name { color: #E24B4A; }
 .about { text-align: center; font-size: 22rpx; color: var(--c-text-faint); margin-top: 40rpx; }

@@ -39,6 +39,12 @@
         <view class="mi-sub">API 配置 · 闯关词数 · 备份</view>
         <view class="mi-arrow">›</view>
       </view>
+      <view class="mi danger" bindtap="onClearData">
+        <view class="mi-ico">🧹</view>
+        <view class="mi-name">清除数据</view>
+        <view class="mi-sub">保留内置书，清空其余全部</view>
+        <view class="mi-arrow">›</view>
+      </view>
     </view>
 
     <view class="about">英语精读 v3.0 · 个人单机版</view>
