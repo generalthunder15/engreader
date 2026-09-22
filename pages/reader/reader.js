@@ -480,34 +480,25 @@ Page({
     this.lastTap = { id: null, time: 0 };
   },
 
-  // 单击：立即开/关控制条（不等双击判定，手感跟手）；200ms 内再点同一词 → 撤销并选中该词
+  // 等 200ms：期间没有第二次点击 → 判定单击（开/关控制条）
+  // 期间点了同一个词 → 判定双击（取消单击判定，选中该词）
   handleTap(id) {
     if (!this.lastTap) this.lastTap = { id: null, time: 0 };
     const now = Date.now();
     if (this.lastTap.id === id && now - this.lastTap.time < 200) {
-      if (this.pendingToggle) {
-        this.pendingToggle = false;
-        this.setData({ 'ctl.show': !this.data.ctl.show }); // 撤销刚才那次单击
-      }
       this.cancelTap();
       return this.selectRange(id, id);
     }
     this.lastTap = { id, time: now };
     if (this.tapTimer) clearTimeout(this.tapTimer);
-    this.pendingToggle = true;
-    this.setData({ 'ctl.show': !this.data.ctl.show });
     this.tapTimer = setTimeout(() => {
       this.tapTimer = null;
-      this.pendingToggle = false;
       this.lastTap = { id: null, time: 0 };
+      this.toggleCtl();
     }, 200);
   },
 
   onLongPress(e) {
-    if (this.pendingToggle) {
-      this.pendingToggle = false;
-      this.setData({ 'ctl.show': !this.data.ctl.show });
-    }
     this.cancelTap();
     this.longPressed = true;
     const id = e.currentTarget.dataset.id;
