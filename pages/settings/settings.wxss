@@ -32,4 +32,12 @@
   background: var(--c-sunken); border-radius: var(--r-btn);
   padding: 20rpx 24rpx; font-size: 26rpx; color: var(--c-text); margin-bottom: 16rpx;
 }
+.field.row { gap: 16rpx; justify-content: flex-start; }
+.btn-plain.disabled { opacity: 0.5; }
+.diag {
+  background: var(--c-sunken); border-radius: var(--r-btn);
+  padding: 20rpx 24rpx; margin-top: 16rpx;
+  font-size: 24rpx; line-height: 1.8; color: var(--c-text);
+  white-space: pre-wrap; word-break: break-all;
+}
 .hint { font-size: 22rpx; color: var(--c-text-hint); line-height: 1.7; margin-top: 12rpx; }

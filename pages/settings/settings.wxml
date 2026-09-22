@@ -1,9 +1,9 @@
 <view class="page" style="{{themeStyle}}">
   <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
   <view class="page-body">
-    <!-- 精读 AI（DeepSeek） -->
+    <!-- 主 AI 配置 -->
     <view class="card">
-      <view class="sec">精读 AI（DeepSeek · 划词问答 / 学习教练）</view>
+      <view class="sec">AI 配置（DeepSeek · 翻译/划词问答/词表提取/批量句译/学习教练）</view>
       <view class="field">
         <view class="label">API 地址（OpenAI 兼容）</view>
         <input class="ipt" value="{{form.baseUrl}}" bindinput="onInput" data-k="baseUrl" placeholder="https://api.deepseek.com" placeholder-class="ph" />
@@ -18,9 +18,20 @@
       </view>
     </view>
 
-    <!-- 硅基流动（批量任务） -->
+    <!-- 连接自检 -->
     <view class="card">
-      <view class="sec">硅基流动（章节词表提取 / 批量句译 / 学习引擎）</view>
+      <view class="sec">连接自检（翻译用不了时先点这里）</view>
+      <view class="field row">
+        <view class="btn-plain {{testing ? 'disabled' : ''}}" bindtap="runDiag">{{testing ? '检测中…' : '开始自检'}}</view>
+        <view class="btn-plain" bindtap="copyDomains">复制域名清单</view>
+      </view>
+      <view class="diag" wx:if="{{testLog}}"><text user-select>{{testLog}}</text></view>
+      <view class="hint">单词查询已内置离线词库兜底；句子翻译/AI 精解需要 api.deepseek.com 可访问</view>
+    </view>
+
+    <!-- 硅基流动（备用，当前未使用） -->
+    <view class="card">
+      <view class="sec">硅基流动（备用 Key，当前功能未使用，可留空）</view>
       <view class="field">
         <view class="label">API 地址</view>
         <input class="ipt" value="{{form.sfBaseUrl}}" bindinput="onInput" data-k="sfBaseUrl" placeholder="https://api.siliconflow.cn" placeholder-class="ph" />

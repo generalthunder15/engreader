@@ -1,6 +1,7 @@
 // utils/llm.js —— 客户端直连大模型（OpenAI 兼容协议），带本地永久缓存
 const store = require('./store');
 const { hash } = require('./tokenize');
+const { hint: netHint } = require('./net');
 
 const PROMPTS = {
   word: () =>
@@ -44,8 +45,8 @@ const ask = ({ type, text, question }) =>
     const VALID = ['word', 'sentence', 'sentenceDetail', 'textAsk', 'suggestQ'];
     const t = VALID.indexOf(type) !== -1 ? type : 'word';
     const content = text.trim();
-    const question = String(type === 'textAsk' ? opts.question || '' : '').trim();
-    if (t === 'textAsk' && !question) return reject(new Error('请先输入问题'));
+    const q = String(t === 'textAsk' ? question || '' : '').trim();
+    if (t === 'textAsk' && !q) return reject(new Error('请先输入问题'));
 
     const s = store.getSettings();
     if (!s.apiKey) {
@@ -53,7 +54,7 @@ const ask = ({ type, text, question }) =>
     }
 
     // 本地缓存命中：同一句/词/问题永久免费、零延迟
-    const key = hash(t + ':' + content.toLowerCase() + ':' + question);
+    const key = hash(t + ':' + content.toLowerCase() + ':' + q);
     const cache = store.getAICache();
     if (cache[key]) return resolve({ fromCache: true, type: t, text: content, result: cache[key] });
 
@@ -71,7 +72,7 @@ const ask = ({ type, text, question }) =>
           temperature: 0.3,
           messages: [
             { role: 'system', content: PROMPTS[t]() },
-            { role: 'user', content: t === 'textAsk' ? '原文：' + content + '\n\n问题：' + question : content }
+            { role: 'user', content: t === 'textAsk' ? '原文：' + content + '\n\n问题：' + q : content }
           ]
         },
         // DeepSeek V4 默认开启思考模式（慢），查词/翻译场景显式关闭
@@ -100,7 +101,7 @@ const ask = ({ type, text, question }) =>
           reject(e);
         }
       },
-      fail: () => reject(new Error('网络请求失败，请检查网络，或在开发者工具中勾选「不校验合法域名」'))
+      fail: (err) => reject(new Error(netHint(err)))
     });
   });
 

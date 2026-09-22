@@ -44,6 +44,10 @@ Component({
     onDetail() {
       if (!this.properties.detailLoading) this.triggerEvent('detail');
     },
+    // 单词「AI 精解」：离线释义命中后，再向 AI 要音标 / 例句 / 多义项
+    onDeep() {
+      if (!this.properties.detailLoading) this.triggerEvent('deep');
+    },
     // 卡片小喇叭：朗读卡片的英文内容（语法卡优先读例句）
     onSpeak(e) {
       const text = (e.currentTarget.dataset.text || '').trim();

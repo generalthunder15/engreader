@@ -253,6 +253,7 @@
   bindaddvocab="onAddVocab"
   bindretry="onPanelRetry"
   binddetail="onPanelDetail"
+  binddeep="onPanelDeep"
   bindspeak="onPanelSpeak"
   bindask="onPanelAsk"
   bindsavenote="onSaveNote"

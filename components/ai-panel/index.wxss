@@ -84,6 +84,7 @@
   line-height: 1.4;
 }
 
+.badge { display: inline-block; background: var(--c-sunken, #FAFBFC); color: var(--c-text-hint, #8A8F99); font-size: 22rpx; padding: 6rpx 14rpx; border-radius: 8rpx; margin-bottom: 20rpx; }
 .hint { color: var(--c-text-hint, #9AA0AA); font-size: 26rpx; text-align: center; padding: 40rpx 0; }
 
 .note-input {

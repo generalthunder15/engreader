@@ -1,0 +1,337 @@
+// utils/offline-dict.js —— 内置离线词库（无需网络、0 延迟）
+// 来源：1) seed-data 内置书每章词表（启动汇总，约 640 词）
+//       2) EXTRA 手工补充高频词（功能词/高频动词/常见连词，seed 里通常不收）
+// 作用：域名被拦截 / 断网 / AI 不可用时，单词查询仍能立刻给出释义
+
+const EXTRA = [
+  ['a', 'art. 一（个）'], ['about', 'prep. 关于；大约'], ['above', 'prep. 在…上方'],
+  ['accept', 'v. 接受'], ['across', 'prep. 穿过'], ['act', 'v. 行动；n. 行为'],
+  ['add', 'v. 增加'], ['after', 'prep. 在…之后'], ['again', 'adv. 再一次'],
+  ['against', 'prep. 反对；靠着'], ['age', 'n. 年龄；时代'], ['ago', 'adv. 以前'],
+  ['agree', 'v. 同意'], ['ahead', 'adv. 在前面'], ['all', 'adj. 全部的'],
+  ['allow', 'v. 允许'], ['almost', 'adv. 几乎'], ['alone', 'adj. 独自的'],
+  ['along', 'prep. 沿着'], ['already', 'adv. 已经'], ['also', 'adv. 也'],
+  ['although', 'conj. 虽然'], ['always', 'adv. 总是'], ['among', 'prep. 在…之中'],
+  ['and', 'conj. 和'], ['another', 'adj. 另一个'], ['answer', 'n./v. 回答'],
+  ['any', 'adj. 任何的'], ['anyone', 'pron. 任何人'], ['anything', 'pron. 任何事'],
+  ['appear', 'v. 出现；似乎'], ['apply', 'v. 申请；应用'], ['argue', 'v. 争论'],
+  ['around', 'prep. 围绕；大约'], ['arrive', 'v. 到达'], ['as', 'conj. 如同；随着'],
+  ['ask', 'v. 问'], ['at', 'prep. 在'], ['back', 'n. 背部；adv. 回来'],
+  ['bad', 'adj. 坏的'], ['basic', 'adj. 基本的'], ['be', 'v. 是'],
+  ['become', 'v. 变成'], ['before', 'prep. 在…之前'], ['begin', 'v. 开始'],
+  ['behind', 'prep. 在…后面'], ['believe', 'v. 相信'], ['below', 'prep. 在…下面'],
+  ['best', 'adj. 最好的'], ['better', 'adj. 更好的'], ['between', 'prep. 在…之间'],
+  ['big', 'adj. 大的'], ['both', 'adj. 两者都'], ['bring', 'v. 带来'],
+  ['build', 'v. 建造'], ['but', 'conj. 但是'], ['by', 'prep. 由；通过'],
+  ['call', 'v. 呼叫；称呼'], ['can', 'v. 能够'], ['carry', 'v. 携带'],
+  ['case', 'n. 情况；案例'], ['cause', 'v. 导致；n. 原因'], ['change', 'v./n. 改变'],
+  ['check', 'v. 检查'], ['child', 'n. 孩子'], ['choose', 'v. 选择'],
+  ['clear', 'adj. 清晰的'], ['close', 'v. 关闭；adj. 近的'], ['come', 'v. 来'],
+  ['common', 'adj. 常见的'], ['compare', 'v. 比较'], ['complete', 'v. 完成；adj. 完整的'],
+  ['concern', 'n. 关心；v. 涉及'], ['consider', 'v. 考虑'], ['continue', 'v. 继续'],
+  ['could', 'v. 能够（过去）'], ['country', 'n. 国家'], ['cover', 'v. 覆盖'],
+  ['create', 'v. 创造'], ['cut', 'v. 切'], ['day', 'n. 天；白天'],
+  ['decide', 'v. 决定'], ['deep', 'adj. 深的'], ['describe', 'v. 描述'],
+  ['design', 'n./v. 设计'], ['despite', 'prep. 尽管'], ['develop', 'v. 发展'],
+  ['die', 'v. 死'], ['different', 'adj. 不同的'], ['difficult', 'adj. 困难的'],
+  ['discover', 'v. 发现'], ['do', 'v. 做'], ['draw', 'v. 画；拉'],
+  ['drive', 'v. 驾驶；驱使'], ['during', 'prep. 在…期间'], ['each', 'adj. 每个'],
+  ['early', 'adj./adv. 早的'], ['easy', 'adj. 容易的'], ['effect', 'n. 影响'],
+  ['either', 'adv. 也（否定）；任一'], ['else', 'adv. 其他'], ['end', 'n. 结束'],
+  ['enough', 'adj. 足够的'], ['enter', 'v. 进入'], ['even', 'adv. 甚至'],
+  ['ever', 'adv. 曾经'], ['every', 'adj. 每个'], ['everyone', 'pron. 每个人'],
+  ['everything', 'pron. 一切'], ['example', 'n. 例子'], ['except', 'prep. 除…之外'],
+  ['expect', 'v. 期待'], ['explain', 'v. 解释'], ['face', 'n. 脸；v. 面对'],
+  ['fact', 'n. 事实'], ['fall', 'v. 落下；n. 秋天'], ['far', 'adj. 远的'],
+  ['fast', 'adj. 快的'], ['feel', 'v. 感觉'], ['few', 'adj. 很少的'],
+  ['field', 'n. 领域；田地'], ['fight', 'v./n. 战斗'], ['final', 'adj. 最终的'],
+  ['find', 'v. 找到'], ['first', 'adj. 第一的'], ['follow', 'v. 跟随'],
+  ['for', 'prep. 为了'], ['force', 'n. 力量；v. 强迫'], ['forget', 'v. 忘记'],
+  ['form', 'n. 形式；v. 形成'], ['free', 'adj. 自由的；免费的'], ['from', 'prep. 来自'],
+  ['full', 'adj. 满的'], ['get', 'v. 得到'], ['give', 'v. 给'],
+  ['go', 'v. 去'], ['good', 'adj. 好的'], ['great', 'adj. 伟大的'],
+  ['grow', 'v. 生长'], ['happen', 'v. 发生'], ['hard', 'adj. 硬的；adv. 努力地'],
+  ['have', 'v. 有'], ['hear', 'v. 听见'], ['help', 'v./n. 帮助'],
+  ['her', 'pron. 她的'], ['here', 'adv. 这里'], ['high', 'adj. 高的'],
+  ['him', 'pron. 他（宾格）'], ['his', 'pron. 他的'], ['hold', 'v. 握住'],
+  ['home', 'n. 家'], ['hope', 'n./v. 希望'], ['how', 'adv. 如何'],
+  ['however', 'adv. 然而'], ['human', 'n. 人类；adj. 人的'], ['hundred', 'num. 一百'],
+  ['idea', 'n. 想法'], ['if', 'conj. 如果'], ['important', 'adj. 重要的'],
+  ['in', 'prep. 在…里'], ['include', 'v. 包括'], ['increase', 'v. 增加'],
+  ['indeed', 'adv. 确实'], ['instead', 'adv. 代替'], ['into', 'prep. 进入'],
+  ['its', 'pron. 它的'], ['itself', 'pron. 它自己'], ['just', 'adv. 仅仅；刚刚'],
+  ['keep', 'v. 保持'], ['kind', 'n. 种类；adj. 善良的'], ['know', 'v. 知道'],
+  ['large', 'adj. 大的'], ['last', 'adj. 最后的；v. 持续'], ['late', 'adj. 迟的'],
+  ['lead', 'v. 领导'], ['learn', 'v. 学习'], ['least', 'adj. 最少的'],
+  ['leave', 'v. 离开'], ['less', 'adj. 更少的'], ['let', 'v. 让'],
+  ['level', 'n. 水平'], ['life', 'n. 生活；生命'], ['like', 'v. 喜欢；prep. 像'],
+  ['line', 'n. 线'], ['list', 'n. 列表；v. 列出'], ['little', 'adj. 少的；小的'],
+  ['live', 'v. 生活；居住'], ['long', 'adj. 长的'], ['look', 'v. 看'],
+  ['lose', 'v. 失去'], ['lot', 'n. 许多'], ['low', 'adj. 低的'],
+  ['main', 'adj. 主要的'], ['make', 'v. 制作'], ['many', 'adj. 许多'],
+  ['matter', 'n. 事情；v. 要紧'], ['may', 'v. 可能'], ['maybe', 'adv. 也许'],
+  ['mean', 'v. 意味着'], ['measure', 'n. 措施；v. 测量'], ['might', 'v. 可能'],
+  ['mind', 'n. 心智；v. 介意'], ['more', 'adj. 更多的'], ['most', 'adj. 最多的'],
+  ['move', 'v. 移动'], ['much', 'adj. 许多'], ['must', 'v. 必须'],
+  ['my', 'pron. 我的'], ['name', 'n. 名字'], ['near', 'prep. 靠近'],
+  ['need', 'v. 需要'], ['never', 'adv. 从不'], ['new', 'adj. 新的'],
+  ['next', 'adj. 下一个'], ['no', 'adv. 不'], ['none', 'pron. 没有一个'],
+  ['nor', 'conj. 也不'], ['not', 'adv. 不'], ['note', 'n. 笔记；v. 注意'],
+  ['nothing', 'pron. 没有东西'], ['now', 'adv. 现在'], ['number', 'n. 数字'],
+  ['of', 'prep. …的'], ['off', 'adv. 离开'], ['offer', 'v. 提供'],
+  ['often', 'adv. 经常'], ['old', 'adj. 老的'], ['on', 'prep. 在…上'],
+  ['once', 'adv. 一次；曾经'], ['one', 'num. 一'], ['only', 'adv. 仅仅'],
+  ['open', 'v. 打开；adj. 开着的'], ['or', 'conj. 或者'], ['order', 'n. 顺序；v. 命令'],
+  ['other', 'adj. 其他的'], ['our', 'pron. 我们的'], ['out', 'adv. 出去'],
+  ['over', 'prep. 在…上方；超过'], ['own', 'adj. 自己的；v. 拥有'], ['part', 'n. 部分'],
+  ['particular', 'adj. 特定的'], ['pass', 'v. 通过'], ['past', 'n. 过去；prep. 经过'],
+  ['pay', 'v. 支付'], ['people', 'n. 人们'], ['per', 'prep. 每'],
+  ['perhaps', 'adv. 也许'], ['place', 'n. 地方；v. 放置'], ['plan', 'n./v. 计划'],
+  ['point', 'n. 点；v. 指出'], ['possible', 'adj. 可能的'], ['power', 'n. 力量'],
+  ['present', 'n. 现在；adj. 出席的'], ['probably', 'adv. 大概'], ['problem', 'n. 问题'],
+  ['provide', 'v. 提供'], ['public', 'adj. 公共的'], ['put', 'v. 放'],
+  ['question', 'n. 问题'], ['quite', 'adv. 相当'], ['rather', 'adv. 相当；宁愿'],
+  ['reach', 'v. 到达'], ['read', 'v. 读'], ['ready', 'adj. 准备好的'],
+  ['real', 'adj. 真实的'], ['really', 'adv. 真正地'], ['reason', 'n. 原因'],
+  ['receive', 'v. 收到'], ['record', 'n. 记录；v. 录制'], ['remain', 'v. 保持；剩下'],
+  ['remember', 'v. 记得'], ['report', 'n./v. 报告'], ['require', 'v. 要求'],
+  ['result', 'n. 结果'], ['return', 'v. 返回'], ['right', 'adj. 正确的；n. 权利'],
+  ['run', 'v. 跑；经营'], ['said', 'v. 说（过去式）'], ['same', 'adj. 相同的'],
+  ['say', 'v. 说'], ['school', 'n. 学校'], ['second', 'n. 秒；第二'],
+  ['see', 'v. 看见'], ['seem', 'v. 似乎'], ['sell', 'v. 卖'],
+  ['send', 'v. 发送'], ['sense', 'n. 感觉；意义'], ['set', 'v. 设置；n. 一套'],
+  ['several', 'adj. 几个'], ['shall', 'v. 将要'], ['she', 'pron. 她'],
+  ['should', 'v. 应该'], ['show', 'v. 展示'], ['side', 'n. 边'],
+  ['similar', 'adj. 相似的'], ['since', 'conj. 自从；因为'], ['single', 'adj. 单一的'],
+  ['so', 'conj. 所以'], ['social', 'adj. 社会的'], ['some', 'adj. 一些'],
+  ['someone', 'pron. 某人'], ['something', 'pron. 某事'], ['sometimes', 'adv. 有时'],
+  ['soon', 'adv. 很快'], ['sort', 'n. 种类；v. 分类'], ['speak', 'v. 说'],
+  ['special', 'adj. 特殊的'], ['stand', 'v. 站立'], ['start', 'v. 开始'],
+  ['state', 'n. 状态；国家'], ['still', 'adv. 仍然'], ['stop', 'v. 停止'],
+  ['such', 'adj. 这样的'], ['sure', 'adj. 确定的'], ['take', 'v. 拿'],
+  ['talk', 'v. 谈话'], ['tell', 'v. 告诉'], ['than', 'conj. 比'],
+  ['that', 'pron. 那个'], ['the', 'art. 这（那）个'], ['their', 'pron. 他们的'],
+  ['them', 'pron. 他们（宾格）'], ['then', 'adv. 然后'], ['there', 'adv. 那里'],
+  ['therefore', 'adv. 因此'], ['these', 'pron. 这些'], ['they', 'pron. 他们'],
+  ['thing', 'n. 东西；事情'], ['think', 'v. 认为'], ['this', 'pron. 这个'],
+  ['those', 'pron. 那些'], ['though', 'conj. 虽然'], ['thought', 'n. 想法'],
+  ['through', 'prep. 穿过'], ['thus', 'adv. 因此'], ['to', 'prep. 到'],
+  ['today', 'n. 今天'], ['together', 'adv. 一起'], ['too', 'adv. 太；也'],
+  ['turn', 'v. 转动；n. 轮次'], ['two', 'num. 二'], ['under', 'prep. 在…下面'],
+  ['understand', 'v. 理解'], ['until', 'conj. 直到'], ['up', 'adv. 向上'],
+  ['upon', 'prep. 在…上'], ['us', 'pron. 我们（宾格）'], ['use', 'v. 使用'],
+  ['usual', 'adj. 通常的'], ['very', 'adv. 非常'], ['want', 'v. 想要'],
+  ['way', 'n. 方式；道路'], ['we', 'pron. 我们'], ['week', 'n. 周'],
+  ['well', 'adv. 好地'], ['what', 'pron. 什么'], ['when', 'conj. 当…时'],
+  ['where', 'adv. 哪里'], ['whether', 'conj. 是否'], ['which', 'pron. 哪一个'],
+  ['while', 'conj. 当…时；虽然'], ['who', 'pron. 谁'], ['whole', 'adj. 整个的'],
+  ['whom', 'pron. 谁（宾格）'], ['whose', 'pron. 谁的'], ['why', 'adv. 为什么'],
+  ['will', 'v. 将要'], ['with', 'prep. 和…一起'], ['within', 'prep. 在…之内'],
+  ['without', 'prep. 没有'], ['word', 'n. 单词'], ['work', 'n./v. 工作'],
+  ['world', 'n. 世界'], ['would', 'v. 将会'], ['write', 'v. 写'],
+  ['year', 'n. 年'], ['yes', 'adv. 是的'], ['yet', 'adv. 还；然而'],
+  ['you', 'pron. 你'], ['young', 'adj. 年轻的'], ['your', 'pron. 你的'],
+
+  // ---- 第二组：正文实测未命中的高频词（be 动词 / 代词 / 基础名词等）----
+  ['is', 'v. 是（第三人称单数）'], ['are', 'v. 是（复数/第二人称）'], ['was', 'v. 是（过去式）'],
+  ['were', 'v. 是（过去复数）'], ['been', 'v. 是（过去分词）'], ['being', 'n. 存在；v. 是（进行）'],
+  ['am', 'v. 是（第一人称）'],
+  ['it', 'pron. 它'], ['he', 'pron. 他'], ['she', 'pron. 她'],
+  ['has', 'v. 有（三单）'], ['have', 'v. 有'], ['had', 'v. 有（过去式）'], ['having', 'v. 有（进行）'],
+  ['does', 'v. 做（三单）'], ['did', 'v. 做（过去式）'], ['done', 'v. 做（过去分词）'], ['doing', 'n. 行为'],
+  ['cannot', 'v. 不能'], ['an', 'art. 一个（元音前）'], ['because', 'conj. 因为'],
+  ['time', 'n. 时间；次数'], ['city', 'n. 城市'], ['cities', 'n. 城市（复数）'],
+  ['small', 'adj. 小的'], ['student', 'n. 学生'], ['students', 'n. 学生们'],
+  ['food', 'n. 食物'], ['hour', 'n. 小时'], ['hours', 'n. 小时（复数）'],
+  ['technology', 'n. 技术'], ['shared', 'adj. 共享的；v. 分享（过去式）'],
+  ['simple', 'adj. 简单的'], ['research', 'n./v. 研究'], ['sleep', 'n./v. 睡眠'],
+  ['money', 'n. 钱'], ['cost', 'n. 成本；v. 花费'], ['costs', 'n. 成本（复数）'],
+  ['system', 'n. 系统'], ['systems', 'n. 系统（复数）'], ['worker', 'n. 工人'], ['workers', 'n. 工人们'],
+  ['study', 'n./v. 学习；研究'], ['studies', 'n. 研究（复数）'], ['market', 'n. 市场'], ['markets', 'n. 市场（复数）'],
+  ['children', 'n. 孩子们'], ['language', 'n. 语言'], ['languages', 'n. 语言（复数）'],
+  ['space', 'n. 空间；太空'], ['daily', 'adj. 日常的'], ['health', 'n. 健康'], ['tea', 'n. 茶'],
+  ['political', 'adj. 政治的'], ['brain', 'n. 大脑'], ['control', 'n./v. 控制'],
+  ['experience', 'n. 经验；v. 经历'], ['music', 'n. 音乐'], ['plant', 'n. 植物；工厂'], ['plants', 'n. 植物（复数）'],
+  ['increasingly', 'adv. 越来越多地'], ['carbon', 'n. 碳'], ['morning', 'n. 早晨'],
+  ['suggest', 'v. 建议；表明'], ['habit', 'n. 习惯'], ['habits', 'n. 习惯（复数）'],
+  ['energy', 'n. 能量；精力'], ['body', 'n. 身体'], ['book', 'n. 书'], ['books', 'n. 书籍'],
+  ['enjoy', 'v. 享受'], ['quiet', 'adj. 安静的'], ['teach', 'v. 教'], ['third', 'num. 第三'],
+  ['street', 'n. 街道'], ['noise', 'n. 噪音'], ['short', 'adj. 短的'], ['cooking', 'n. 烹饪'],
+  ['user', 'n. 用户'], ['users', 'n. 用户们'],
+  ['I', 'pron. 我'], ['me', 'pron. 我（宾格）'], ['myself', 'pron. 我自己'],
+  ['we', 'pron. 我们'], ['us', 'pron. 我们（宾格）'], ['our', 'pron. 我们的'],
+  ['they', 'pron. 他们'], ['them', 'pron. 他们（宾格）'], ['their', 'pron. 他们的'],
+  ['unless', 'conj. 除非'], ['beyond', 'prep. 超出'], ['toward', 'prep. 朝向'], ['towards', 'prep. 朝向'],
+  ['inside', 'prep. 在…内'], ['outside', 'prep. 在…外'], ['onto', 'prep. 到…上'], ['besides', 'prep. 除…外'],
+  ['man', 'n. 男人；人类'], ['woman', 'n. 女人'], ['hand', 'n. 手'], ['eye', 'n. 眼睛'],
+  ['area', 'n. 地区；领域'], ['family', 'n. 家庭'], ['water', 'n. 水'], ['room', 'n. 房间；空间'],
+  ['door', 'n. 门'], ['computer', 'n. 电脑'], ['phone', 'n. 电话'], ['internet', 'n. 互联网'],
+  ['information', 'n. 信息'], ['news', 'n. 新闻'], ['story', 'n. 故事'], ['sentence', 'n. 句子'],
+  ['history', 'n. 历史'], ['culture', 'n. 文化'], ['society', 'n. 社会'], ['nature', 'n. 自然'],
+  ['environment', 'n. 环境'], ['climate', 'n. 气候'], ['weather', 'n. 天气'],
+  ['animal', 'n. 动物'], ['bird', 'n. 鸟'], ['tree', 'n. 树'], ['river', 'n. 河流'],
+  ['sea', 'n. 海'], ['sun', 'n. 太阳'], ['moon', 'n. 月亮'], ['sky', 'n. 天空'], ['earth', 'n. 地球；土地'],
+  ['light', 'n. 光；adj. 轻的'], ['colour', 'n. 颜色'], ['color', 'n. 颜色'], ['sound', 'n. 声音'],
+  ['voice', 'n. 嗓音'], ['picture', 'n. 图片'], ['movie', 'n. 电影'], ['game', 'n. 游戏；比赛'],
+  ['sport', 'n. 运动'], ['team', 'n. 团队'], ['art', 'n. 艺术'], ['science', 'n. 科学'],
+  ['doctor', 'n. 医生'], ['hospital', 'n. 医院'], ['medicine', 'n. 药；医学'],
+  ['law', 'n. 法律'], ['police', 'n. 警察'], ['war', 'n. 战争'], ['leader', 'n. 领导者'],
+  ['member', 'n. 成员'], ['meeting', 'n. 会议'], ['office', 'n. 办公室'], ['business', 'n. 商业'],
+  ['industry', 'n. 工业'], ['machine', 'n. 机器'], ['tool', 'n. 工具'], ['product', 'n. 产品'],
+  ['service', 'n. 服务'], ['customer', 'n. 顾客'], ['price', 'n. 价格'], ['trade', 'n./v. 贸易'],
+  ['economy', 'n. 经济'], ['economic', 'adj. 经济的'], ['bank', 'n. 银行'], ['tax', 'n. 税'],
+  ['growth', 'n. 增长'], ['development', 'n. 发展'], ['education', 'n. 教育'],
+  ['university', 'n. 大学'], ['college', 'n. 学院'], ['degree', 'n. 学位；程度'],
+  ['course', 'n. 课程'], ['class', 'n. 课；班级'], ['lesson', 'n. 课'], ['exam', 'n. 考试'],
+  ['score', 'n. 分数'], ['skill', 'n. 技能'], ['ability', 'n. 能力'], ['knowledge', 'n. 知识'],
+  ['practice', 'n./v. 练习'], ['training', 'n. 培训'], ['job', 'n. 工作'], ['career', 'n. 职业'],
+  ['salary', 'n. 薪水'], ['income', 'n. 收入'], ['benefit', 'n. 好处'], ['risk', 'n. 风险'],
+  ['safety', 'n. 安全'], ['danger', 'n. 危险'], ['death', 'n. 死亡'], ['birth', 'n. 出生'],
+  ['friend', 'n. 朋友'], ['love', 'n./v. 爱'], ['fear', 'n./v. 恐惧'], ['anger', 'n. 愤怒'],
+  ['success', 'n. 成功'], ['failure', 'n. 失败'], ['chance', 'n. 机会'], ['choice', 'n. 选择'],
+  ['goal', 'n. 目标'], ['purpose', 'n. 目的'], ['method', 'n. 方法'], ['process', 'n. 过程'],
+  ['step', 'n. 步骤'], ['stage', 'n. 阶段'], ['rate', 'n. 比率'], ['amount', 'n. 数量'],
+  ['quality', 'n. 质量'], ['size', 'n. 尺寸'], ['shape', 'n. 形状'], ['weight', 'n. 重量'],
+  ['length', 'n. 长度'], ['distance', 'n. 距离'], ['speed', 'n. 速度'], ['pressure', 'n. 压力'],
+  ['stress', 'n. 压力'], ['rest', 'n./v. 休息'], ['exercise', 'n./v. 锻炼'], ['diet', 'n. 饮食'],
+  ['meal', 'n. 一餐'], ['breakfast', 'n. 早餐'], ['lunch', 'n. 午餐'], ['dinner', 'n. 晚餐'],
+  ['kitchen', 'n. 厨房'], ['taste', 'n. 味道'], ['sugar', 'n. 糖'], ['coffee', 'n. 咖啡'],
+  ['fruit', 'n. 水果'], ['vegetable', 'n. 蔬菜'], ['shop', 'n. 商店'], ['store', 'n. 商店'],
+  ['improve', 'v. 改善'], ['reduce', 'v. 减少'], ['break', 'v. 打破'], ['fix', 'v. 修理'],
+  ['finish', 'v. 完成'], ['try', 'v. 尝试'], ['win', 'v. 赢'], ['catch', 'v. 抓住'],
+  ['throw', 'v. 扔'], ['pull', 'v. 拉'], ['push', 'v. 推'], ['climb', 'v. 爬'],
+  ['jump', 'v. 跳'], ['walk', 'v. 走'], ['travel', 'v. 旅行'], ['cross', 'v. 穿过'],
+  ['avoid', 'v. 避免'], ['wait', 'v. 等待'], ['stay', 'v. 停留'], ['survive', 'v. 幸存'],
+  ['depend', 'v. 依赖'], ['belong', 'v. 属于'], ['contain', 'v. 包含'], ['involve', 'v. 涉及'],
+  ['affect', 'v. 影响'], ['influence', 'n./v. 影响'], ['produce', 'v. 生产'], ['prevent', 'v. 阻止'],
+  ['protect', 'v. 保护'], ['support', 'n./v. 支持'], ['share', 'v. 分享'], ['divide', 'v. 分开'],
+  ['separate', 'adj. 分开的'], ['combine', 'v. 结合'], ['connect', 'v. 连接'], ['refuse', 'v. 拒绝'],
+  ['admit', 'v. 承认'], ['complain', 'v. 抱怨'], ['praise', 'v. 表扬'], ['thank', 'v. 感谢'],
+  ['meet', 'v. 遇见'], ['invite', 'v. 邀请'], ['visit', 'v. 拜访'], ['join', 'v. 加入'],
+  ['attend', 'v. 参加'], ['organize', 'v. 组织'], ['manage', 'v. 管理'], ['operate', 'v. 操作'],
+  ['perform', 'v. 执行；表演'], ['achieve', 'v. 实现'], ['gain', 'v. 获得'], ['demand', 'n./v. 需求'],
+  ['supply', 'n./v. 供应'], ['deliver', 'v. 递送'], ['communicate', 'v. 交流'], ['express', 'v. 表达'],
+  ['announce', 'v. 宣布'], ['claim', 'v. 声称'], ['discuss', 'v. 讨论'], ['mention', 'v. 提到'],
+  ['translate', 'v. 翻译'], ['publish', 'v. 出版'], ['listen', 'v. 听'], ['watch', 'v. 观看'],
+  ['observe', 'v. 观察'], ['notice', 'v. 注意到'], ['explore', 'v. 探索'], ['search', 'v. 搜索'],
+  ['collect', 'v. 收集'], ['gather', 'v. 聚集'], ['prepare', 'v. 准备'], ['arrange', 'v. 安排'],
+  ['confirm', 'v. 确认'], ['prove', 'v. 证明'], ['calculate', 'v. 计算'], ['estimate', 'v. 估计'],
+  ['count', 'v. 数'], ['realize', 'v. 意识到'], ['suppose', 'v. 假设'], ['assume', 'v. 假定'],
+  ['conclude', 'v. 得出结论'], ['indicate', 'v. 表明'], ['reveal', 'v. 揭示'], ['reflect', 'v. 反映'],
+  ['represent', 'v. 代表'], ['exist', 'v. 存在'], ['occur', 'v. 发生'], ['emerge', 'v. 出现'],
+  ['spread', 'v. 传播'], ['expand', 'v. 扩张'], ['rise', 'v. 上升'], ['raise', 'v. 提高'],
+  ['vary', 'v. 变化'], ['differ', 'v. 不同'], ['match', 'n./v. 匹配'], ['suit', 'v. 适合'],
+  ['fit', 'adj. 健康的；v. 适合'],
+  ['tiny', 'adj. 极小的'], ['huge', 'adj. 巨大的'], ['tall', 'adj. 高的'], ['wide', 'adj. 宽的'],
+  ['narrow', 'adj. 窄的'], ['thick', 'adj. 厚的'], ['thin', 'adj. 薄的'], ['heavy', 'adj. 重的'],
+  ['bright', 'adj. 明亮的'], ['clean', 'adj. 干净的'], ['dirty', 'adj. 脏的'], ['fresh', 'adj. 新鲜的'],
+  ['hot', 'adj. 热的'], ['cold', 'adj. 冷的'], ['warm', 'adj. 温暖的'], ['cool', 'adj. 凉爽的'],
+  ['dry', 'adj. 干的'], ['wet', 'adj. 湿的'], ['soft', 'adj. 软的'], ['smooth', 'adj. 光滑的'],
+  ['sharp', 'adj. 锋利的'], ['slow', 'adj. 慢的'], ['quick', 'adj. 快的'], ['rapid', 'adj. 迅速的'],
+  ['sudden', 'adj. 突然的'], ['modern', 'adj. 现代的'], ['ancient', 'adj. 古代的'], ['recent', 'adj. 最近的'],
+  ['current', 'adj. 当前的'], ['future', 'n. 未来'], ['rare', 'adj. 罕见的'], ['unusual', 'adj. 不寻常的'],
+  ['normal', 'adj. 正常的'], ['typical', 'adj. 典型的'], ['general', 'adj. 一般的'], ['specific', 'adj. 具体的'],
+  ['complex', 'adj. 复杂的'], ['impossible', 'adj. 不可能的'], ['necessary', 'adj. 必要的'],
+  ['useful', 'adj. 有用的'], ['valuable', 'adj. 有价值的'], ['cheap', 'adj. 便宜的'], ['expensive', 'adj. 昂贵的'],
+  ['rich', 'adj. 富有的'], ['poor', 'adj. 贫穷的'], ['strong', 'adj. 强壮的'], ['weak', 'adj. 虚弱的'],
+  ['healthy', 'adj. 健康的'], ['sick', 'adj. 生病的'], ['safe', 'adj. 安全的'], ['dangerous', 'adj. 危险的'],
+  ['happy', 'adj. 快乐的'], ['sad', 'adj. 悲伤的'], ['angry', 'adj. 生气的'], ['busy', 'adj. 忙碌的'],
+  ['tired', 'adj. 疲惫的'], ['calm', 'adj. 平静的'], ['loud', 'adj. 大声的'], ['famous', 'adj. 著名的'],
+  ['popular', 'adj. 受欢迎的'], ['successful', 'adj. 成功的'], ['powerful', 'adj. 强大的'],
+  ['careful', 'adj. 小心的'], ['honest', 'adj. 诚实的'], ['brave', 'adj. 勇敢的'], ['patient', 'adj. 耐心的'],
+  ['polite', 'adj. 礼貌的'], ['funny', 'adj. 有趣的'], ['serious', 'adj. 严肃的'], ['obvious', 'adj. 明显的'],
+  ['strange', 'adj. 奇怪的'], ['familiar', 'adj. 熟悉的'], ['equal', 'adj. 平等的'], ['opposite', 'adj. 相反的'],
+  ['positive', 'adj. 积极的'], ['negative', 'adj. 消极的'], ['active', 'adj. 积极的'], ['aware', 'adj. 意识到的'],
+  ['able', 'adj. 能够的'], ['willing', 'adj. 愿意的'], ['afraid', 'adj. 害怕的'], ['certain', 'adj. 确定的'],
+  ['true', 'adj. 真实的'], ['false', 'adj. 假的'], ['empty', 'adj. 空的'], ['extra', 'adj. 额外的'],
+  ['primary', 'adj. 主要的'], ['previous', 'adj. 先前的'], ['initial', 'adj. 最初的'],
+  ['worst', 'adj. 最差的'], ['worse', 'adj. 更差的'],
+  ['quickly', 'adv. 快速地'], ['slowly', 'adv. 缓慢地'], ['carefully', 'adv. 小心地'], ['easily', 'adv. 容易地'],
+  ['hardly', 'adv. 几乎不'], ['nearly', 'adv. 几乎'], ['completely', 'adv. 完全地'], ['totally', 'adv. 完全地'],
+  ['mostly', 'adv. 主要地'], ['mainly', 'adv. 主要地'], ['especially', 'adv. 尤其'], ['generally', 'adv. 通常'],
+  ['possibly', 'adv. 可能'], ['certainly', 'adv. 当然'], ['definitely', 'adv. 肯定'], ['obviously', 'adv. 显然'],
+  ['clearly', 'adv. 清楚地'], ['actually', 'adv. 实际上'], ['finally', 'adv. 最终'], ['immediately', 'adv. 立即'],
+  ['later', 'adv. 后来'], ['usually', 'adv. 通常'], ['rarely', 'adv. 很少'], ['twice', 'adv. 两次'],
+  ['moreover', 'adv. 此外'], ['furthermore', 'adv. 此外'], ['otherwise', 'adv. 否则'], ['nevertheless', 'adv. 然而'],
+  ['meanwhile', 'adv. 同时'], ['always', 'adv. 总是']
+];
+
+let MAP = null; // lower -> meaning
+let COUNT = 0;
+
+// 汇总内置书词表（启动时一次，之后常驻内存）
+const build = () => {
+  if (MAP) return MAP;
+  MAP = {};
+  EXTRA.forEach((x) => { MAP[x[0]] = x[1]; });
+  try {
+    const seed = require('./seed-data.js');
+    (seed.books || []).forEach((b) =>
+      (b.chapters || []).forEach((c) =>
+        (c.words || []).forEach((w) => {
+          const k = String(w[0] || '').trim().toLowerCase();
+          if (k && !MAP[k]) MAP[k] = String(w[1] || '');
+        })
+      )
+    );
+  } catch (e) {
+    // seed 不可用时仍可用 EXTRA
+  }
+  COUNT = Object.keys(MAP).length;
+  return MAP;
+};
+
+// 词形还原候选：复数 / 三单 / 过去式 / 进行时 / 比较级
+const forms = (w) => {
+  const out = [w];
+  const push = (x) => { if (x && x.length > 2) out.push(x); };
+  if (/ies$/.test(w)) { push(w.slice(0, -3) + 'y'); }
+  if (/(ches|shes|sses|xes|zes)$/.test(w)) { push(w.slice(0, -2)); }
+  if (/s$/.test(w)) { push(w.slice(0, -1)); }
+  if (/ied$/.test(w)) { push(w.slice(0, -3) + 'y'); }
+  if (/ed$/.test(w)) { push(w.slice(0, -2)); push(w.slice(0, -1)); }
+  if (/ing$/.test(w)) { push(w.slice(0, -3)); push(w.slice(0, -3) + 'e'); }
+  if (/er$/.test(w)) { push(w.slice(0, -2)); }
+  if (/est$/.test(w)) { push(w.slice(0, -3)); }
+  if (/ly$/.test(w)) { push(w.slice(0, -2)); }
+  return out;
+};
+
+// 查内置词库，命中返回与 dict/AI 一致的 result；未命中返回 null
+// @returns {source:'offline', translation, senses, phonetic, pos, example, exampleTranslation, matched} | null
+const lookup = (word) => {
+  const raw = String(word || '').trim();
+  if (!raw) return null;
+  const map = build();
+  const lower = raw.toLowerCase();
+  const cands = forms(lower);
+  // 先精确，再词形还原
+  for (let i = 0; i < cands.length; i++) {
+    const m = map[cands[i]];
+    if (m) {
+      const posM = m.match(/^([a-z]{1,5})\.\s*/);
+      return {
+        source: 'offline',
+        translation: m,
+        senses: [],
+        phonetic: '',
+        pos: posM ? posM[1] + '.' : '',
+        example: '',
+        exampleTranslation: '',
+        matched: cands[i] === lower ? raw : cands[i]
+      };
+    }
+  }
+  // 多词短语（如 set the tone）在 seed 里保留原形，直接查全串
+  if (lower.indexOf(' ') !== -1 && map[lower]) {
+    return {
+      source: 'offline', translation: map[lower], senses: [], phonetic: '',
+      pos: '', example: '', exampleTranslation: '', matched: raw
+    };
+  }
+  return null;
+};
+
+const size = () => { build(); return COUNT; };
+
+module.exports = { lookup, size, build };

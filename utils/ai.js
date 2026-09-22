@@ -1,7 +1,8 @@
-// utils/ai.js —— 轻量 AI 任务（硅基流动）：词表提取 / 批量句译 / 学习 Agent
-// 与 utils/llm.js（DeepSeek 精读问答）互补：批量、便宜的任务走这里
+// utils/ai.js —— 轻量 AI 任务：词表提取 / 批量句译 / 生词补义 / 学习 Agent
+// 统一走主模型配置（store settings 的 baseUrl/apiKey/model，默认 DeepSeek）
 
 const store = require('./store');
+const { hint: netHint } = require('./net');
 
 const parseJSON = (text) => {
   try { return JSON.parse(text); } catch (e) {}
@@ -10,22 +11,24 @@ const parseJSON = (text) => {
   throw new Error('AI 返回内容解析失败，请重试');
 };
 
-// 硅基流动通用对话（OpenAI 兼容）
-// opts: {messages, model?, json?, temperature?, maxTokens?}
-const sfChat = (opts) =>
+// 域名拦截/网络错误 → 统一交给 net.hint 给出可操作提示
+const netErr = (err) => new Error(netHint(err));
+
+// 通用对话（OpenAI 兼容）。opts: {messages, model?, json?, temperature?, maxTokens?}
+const chat = (opts) =>
   new Promise((resolve, reject) => {
     const s = store.getSettings();
-    if (!s.sfApiKey) return reject(new Error('请先在「系统设置」配置硅基流动 API Key'));
+    if (!s.apiKey) return reject(new Error('请先在「系统设置」配置 API Key'));
     wx.request({
-      url: s.sfBaseUrl.replace(/\/+$/, '') + '/chat/completions',
+      url: s.baseUrl.replace(/\/+$/, '') + '/chat/completions',
       method: 'POST',
       timeout: 120000,
       header: {
         'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + s.sfApiKey
+        Authorization: 'Bearer ' + s.apiKey
       },
       data: {
-        model: opts.model || s.sfModel,
+        model: opts.model || s.model,
         temperature: opts.temperature != null ? opts.temperature : 0.3,
         max_tokens: opts.maxTokens || 4096,
         messages: opts.messages,
@@ -45,14 +48,14 @@ const sfChat = (opts) =>
           reject(new Error('API 返回格式异常'));
         }
       },
-      fail: () => reject(new Error('网络请求失败，请检查网络，或在开发者工具中勾选「不校验合法域名」'))
+      fail: (err) => reject(netErr(err))
     });
   });
 
 // ---------- 章节词表提取 ----------
 // 输入章节正文，输出固定 JSON：{"words":[{"word":"...","meaning":"中文释义"}]}
 const extractWords = (content) =>
-  sfChat({
+  chat({
     json: true,
     temperature: 0.2,
     messages: [
@@ -86,7 +89,7 @@ const PROMPT_TRANS =
 
 const batchTranslate = (sentences) => {
   const list = sentences.map((s, i) => i + 1 + '. ' + s);
-  return sfChat({
+  return chat({
     json: true,
     temperature: 0.2,
     maxTokens: 8192,
@@ -128,7 +131,7 @@ const fillMeanings = async (words) => {
   const list = missing.map((w, i) => i + 1 + '. ' + w.word);
   let map = {};
   try {
-    const out = await sfChat({
+    const out = await chat({
       json: true,
       temperature: 0.2,
       messages: [
@@ -191,7 +194,7 @@ const studyChat = async ({ phase, profile, bookshelf, history, userMsg, extra })
     (bookshelf || '（书架空）');
   const messages = [{ role: 'system', content: sys }].concat(history || []);
   messages.push({ role: 'user', content: userMsg });
-  const out = await sfChat({
+  const out = await chat({
     json: true,
     temperature: 0.5,
     maxTokens: 8192,
@@ -206,4 +209,4 @@ const studyChat = async ({ phase, profile, bookshelf, history, userMsg, extra })
   };
 };
 
-module.exports = { sfChat, parseJSON, extractWords, batchTranslate, translateAll, fillMeanings, studyChat };
+module.exports = { chat, parseJSON, extractWords, batchTranslate, translateAll, fillMeanings, studyChat };

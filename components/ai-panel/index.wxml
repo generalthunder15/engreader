@@ -24,6 +24,7 @@
       <block wx:elif="{{tab === 'trans'}}">
         <view wx:if="{{type === 'word' && result}}">
           <view class="main-trans">{{result.translation}}</view>
+          <view class="badge" wx:if="{{result.source === 'offline'}}">内置离线释义 · 点下方「AI 精解」可补音标与例句</view>
           <view class="meta" wx:if="{{result.phonetic || result.pos}}">
             <text wx:if="{{result.pos}}" class="pos">{{result.pos}}</text>
             <text wx:if="{{result.phonetic}}" class="phon">{{result.phonetic}}</text>
@@ -158,6 +159,7 @@
             wx:if="{{tab === 'grammar' && type === 'sentence'}}"
             bindtap="onDetail">{{detailLoading ? '拆解中…' : '详细解析'}}</view>
       <view class="foot-btn {{playing ? 'on' : ''}}" wx:else bindtap="onPlay">{{playing ? '停止' : '朗读'}}</view>
+      <view class="foot-btn {{detailLoading ? 'on' : ''}}" wx:if="{{type === 'word' && tab === 'trans' && result && result.source === 'offline'}}" bindtap="onDeep">{{detailLoading ? '精解中…' : 'AI 精解'}}</view>
       <view class="foot-btn" wx:if="{{type === 'word' && tab === 'trans'}}" bindtap="onAddVocab">加入生词本</view>
       <view class="foot-btn" wx:if="{{type !== 'word'}}" bindtap="onRetry">重新解析</view>
     </view>

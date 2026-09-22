@@ -714,8 +714,34 @@ Page({
           if (cached && r.result) r.result.cachedTranslation = cached;
           finish(r.result);
         })
-        .catch(fail);
+        .catch((err) => {
+          // AI 不可用（域名拦截 / 断网 / 401）时，内置书有预缓存句译就先展示，别只弹个错误框
+          if (cached) {
+            return finish({ translation: cached, source: 'offline', grammar: null, senses: [] });
+          }
+          fail(err);
+        });
     }
+  },
+
+  // 单词「AI 精解」：离线释义已出，再向 AI 补音标 / 例句 / 多义项（失败就保留离线结果）
+  onPanelDeep() {
+    const text = this.data.selectedText;
+    if (!text || this.data.panel.detailLoading) return;
+    this.setData({ 'panel.detailLoading': true });
+    llm.ask({ type: 'word', text })
+      .then((r) => {
+        this.setData({
+          'panel.detailLoading': false,
+          'panel.result': r.result,
+          'panel.type': 'word',
+          'panel.tab': 'trans'
+        });
+      })
+      .catch((err) => {
+        this.setData({ 'panel.detailLoading': false });
+        wx.showToast({ title: err.message && err.message.indexOf('域名') === 0 ? '域名未放行，已保留离线释义' : 'AI 精解失败', icon: 'none' });
+      });
   },
 
   // ---------- AI 面板事件 ----------
