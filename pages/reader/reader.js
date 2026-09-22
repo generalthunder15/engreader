@@ -349,6 +349,28 @@ Page({
     });
   },
 
+  // ---------- 划线渲染 ----------
+  buildMarksMap() {
+    const m = {};
+    (this.marks || []).forEach((r) => {
+      for (let i = r.start; i <= r.end; i++) m[i] = true;
+    });
+    return m;
+  },
+
+  // 词间空格是否需要跟随划线着色：仅当空格两侧的词都在同一划线区间内
+  buildSpaceMarks() {
+    const m = {};
+    (this.marks || []).forEach((r) => {
+      for (let i = r.start; i < r.end; i++) m[i] = true;
+    });
+    return m;
+  },
+
+  refreshMarks() {
+    this.setData({ marksMap: this.buildMarksMap(), spaceMarks: this.buildSpaceMarks() });
+  },
+
   // ---------- 操作栏动作 ----------
   onBarAction(e) {
     const act = e.detail.act;
