@@ -1,6 +1,9 @@
 <view class="page" style="{{themeStyle}}">
   <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
 
+  <!-- 顶部状态栏挡板：正文滚动时从挡板下方穿过，不与系统状态栏重叠 -->
+  <view class="status-shield" style="height:{{statusBarH + 6}}px"></view>
+
   <!-- 自定义顶栏（小说式沉浸）：返回 + 章节名/进度 + 收藏 -->
   <view class="topbar {{ctl.show ? 'on' : ''}}" style="padding-top:{{statusBarH}}px" wx:if="{{ctl.show}}">
     <view class="tb-back" bindtap="onBack">‹</view>

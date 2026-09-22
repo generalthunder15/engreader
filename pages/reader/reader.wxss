@@ -213,6 +213,13 @@
   padding-left: 14rpx;
 }
 
+/* ---------- 顶部状态栏挡板 ---------- */
+/* 盖住系统状态栏区域（沉浸模式下也常驻），正文滚动时从挡板下方穿过 */
+.status-shield {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 80;
+  background: var(--c-bg, #F6F7F9);
+}
+
 /* ---------- 自定义顶栏（小说式沉浸） ---------- */
 .topbar {
   position: fixed; left: 0; right: 0; top: 0; z-index: 90;
