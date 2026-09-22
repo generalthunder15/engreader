@@ -339,13 +339,25 @@ const clearAICache = () => { try { wx.removeStorageSync(KEYS.AI_CACHE); } catch 
 // SEED_VER 已达标则跳过（用户删除内置书后不会复活）
 const seedBuiltIns = () => {
   const SEED_KEY = 'seed_ver';
+  const WORDS_KEY = 'words_ver';
   const seed = require('./seed-data');
-  if (Number(get(SEED_KEY, 0)) >= seed.SEED_VER) return;
+  const wantWords = Number(get(WORDS_KEY, 0)) < Number(seed.WORDS_VER || 0);
+  if (Number(get(SEED_KEY, 0)) >= seed.SEED_VER && !wantWords) return;
   const { tokenizeArticle } = require('./tokenize');
+  const toWords = (sc) => (sc.words || []).map((w) => ({ word: w[0], meaning: w[1] }));
   seed.books.forEach((sb) => {
     const expected = sb.chapters.length;
     const existing = getBook(sb.id);
-    if (existing && existing.chapterCount === expected) return; // 完整则跳过
+    if (existing && existing.chapterCount === expected) {
+      // 书已完整：只在新旧词表版本不一致时补刷词表，保留阅读进度/闯关记录/划线
+      if (wantWords) {
+        sb.chapters.forEach((sc) => {
+          if (!getChapter(sb.id, sc.id)) return;
+          patchChapter(sb.id, sc.id, { words: toWords(sc) });
+        });
+      }
+      return;
+    }
     if (existing) {
       // 章节数不齐（旧版本注入 bug 残留）→ 整本重建（内置书可再生，安全）
       deleteBook(sb.id);
@@ -374,7 +386,7 @@ const seedBuiltIns = () => {
         title: sc.title,
         rawText: sc.text,
         tokens: { paragraphs: t.paragraphs, sentences: t.sentences, tokenCount: t.tokenCount },
-        words: (sc.words || []).map((w) => ({ word: w[0], meaning: w[1] })),
+        words: toWords(sc),
         translations,
         translatedAt: translations.some(Boolean) ? Date.now() : 0,
         quizDone: false,
@@ -384,6 +396,7 @@ const seedBuiltIns = () => {
     });
   });
   set(SEED_KEY, seed.SEED_VER);
+  if (wantWords) set(WORDS_KEY, seed.WORDS_VER);
 };
 
 // ---------- 备份 / 恢复 ----------
