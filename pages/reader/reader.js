@@ -480,12 +480,12 @@ Page({
     this.lastTap = { id: null, time: 0 };
   },
 
-  // 等 200ms：期间没有第二次点击 → 判定单击（开/关控制条）
+  // 等 320ms：期间没有第二次点击 → 判定单击（开/关控制条）
   // 期间点了同一个词 → 判定双击（取消单击判定，选中该词）
   handleTap(id) {
     if (!this.lastTap) this.lastTap = { id: null, time: 0 };
     const now = Date.now();
-    if (this.lastTap.id === id && now - this.lastTap.time < 200) {
+    if (this.lastTap.id === id && now - this.lastTap.time < 320) {
       this.cancelTap();
       return this.selectRange(id, id);
     }
@@ -495,7 +495,7 @@ Page({
       this.tapTimer = null;
       this.lastTap = { id: null, time: 0 };
       this.toggleCtl();
-    }, 200);
+    }, 320);
   },
 
   onLongPress(e) {
