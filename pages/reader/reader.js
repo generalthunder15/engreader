@@ -375,6 +375,18 @@ Page({
     this.setData({ 'ctl.show': !this.data.ctl.show });
   },
 
+  // 点正文空白处（单词以外的区域）：清选区 + 开关顶栏/控制条
+  // 单词上用 catchtap 阻止冒泡，所以一次点击不会被处理两次
+  onReaderTap() {
+    if (this.data.bar.show || this.data.panel.show) {
+      this.clearSelection();
+      return;
+    }
+    this.cancelTap();
+    this.clearSelection();
+    this.toggleCtl();
+  },
+
   openToc() {
     this.setData({ ctl: { show: false }, 'toc.show': true });
   },

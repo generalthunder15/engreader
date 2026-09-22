@@ -12,7 +12,7 @@
   </view>
 
   <view class="page-body">
-  <view class="reader" style="padding-top:{{statusBarH + 12}}px">
+  <view class="reader" style="padding-top:{{statusBarH + 12}}px" bindtap="onReaderTap">
   <!-- 连续滚动流：章节标题 + 段落，读完自动接下一章 -->
   <block wx:for="{{blocks}}" wx:key="uid">
     <view wx:if="{{item.type === 'title'}}" class="art-title ch-anchor" data-cid="{{item.cid}}">{{item.text}}</view>
@@ -24,6 +24,7 @@
           id="tok-{{tk.id}}"
           class="tok {{marksMap[tk.id] ? 'marked' : ''}} {{spaceMarks[tk.id] ? 'mark-cont' : ''}} {{tk.id >= selStart && tk.id <= selEnd ? 'sel' : ''}} {{tk.id >= selStart && tk.id < selEnd ? 'sel-cont' : ''}}"
           data-id="{{tk.id}}"
+          catchtap="noop"
           bindtouchstart="onTouchStart"
           bindtouchend="onTouchEnd"
           bindlongpress="onLongPress"
@@ -32,6 +33,7 @@
           wx:if="{{tk.sp}}"
           class="sp"
           data-id="{{tk.id}}"
+          catchtap="noop"
           bindtouchstart="onTouchStart"
           bindtouchend="onTouchEnd"
           bindlongpress="onLongPress"
