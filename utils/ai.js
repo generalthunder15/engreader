@@ -65,9 +65,12 @@ const PROMPT_WORDS =
   '你是英语教材编辑。对给出的英文章节正文做【穷尽式】词汇提取，宁多勿漏。\n' +
   '要求：\n' +
   '1. 逐句扫描全文，任何有学习价值的语言点都要收录：实词（名/动/形/副）、短语搭配、习语、固定用法；不要因为数量多而省略\n' +
-  '2. 只跳过纯功能词：冠词、代词、介词、be/助动词，以及 the/a/an/and/of/to/it/that/is 这类极高频词\n' +
-  '3. 短语按原文出现形式提取（如 "give up"、"be fond of"、"in the early hours"）\n' +
-  '4. 单词归为原形/单数形式，meaning 给出最常用中文释义（含词性，如 "n. 苹果"）\n' +
+  '2. 难度门槛：只保留 B1（CEFR 中级）及以上的词汇；跳过 A1/A2 基础词——冠词、代词、介词、be/助动词，' +
+  '以及 day/people/feel/need/long/good/many/whole/often/say/help/keep 这类高频简单词。拿不准时倾向于保留\n' +
+  '3. 短语搭配、习语、固定用法不受单个单词的难度限制，只要是地道常用搭配就收录，并按原文出现形式提取' +
+  '（如 "give up"、"be fond of"、"in the early hours"、"for example"）\n' +
+  '4. 单词一律归为原形/单数形式（studies → study、went → go、better → good），' +
+  'meaning 给出最常用中文释义（含词性，如 "n. 苹果"）\n' +
   '5. 不设数量上限，按在文中出现的先后顺序排列；同一词的不同词形按原形归并\n' +
   '只输出严格 JSON：{"words":[{"word":"英文","meaning":"中文释义"}]}';
 
