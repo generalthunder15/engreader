@@ -3,6 +3,7 @@
 // 备源：Free Dictionary API（dictionaryapi.dev，英文释义），两者都失败再降级 AI
 const store = require('./store');
 const offline = require('./offline-dict');
+const { hint: netHint } = require('./net');
 
 const isWord = (w) => /^[A-Za-z][A-Za-z'’-]*$/.test(String(w || '').trim());
 
@@ -59,7 +60,7 @@ function youdao(word) {
           reject(new Error('dict parse fail'));
         }
       },
-      fail: () => reject(new Error('dict network fail'))
+      fail: (err) => reject(new Error(netHint(err)))
     });
   });
 }
@@ -94,7 +95,7 @@ function freeDict(word) {
           exampleTranslation: ''
         });
       },
-      fail: () => reject(new Error('dict network fail'))
+      fail: (err) => reject(new Error(netHint(err)))
     });
   });
 }
@@ -122,11 +123,14 @@ function lookup(word) {
       store.set(key, result); // 网络结果本地永久缓存，第二次查询 0 请求
       return result;
     })
-    .catch(() => {
-      // 域名未放行 / 断网 / 超时：用内置词库兜底，别让用户干等后只看到报错
-      const off = offline.lookup(w);
-      if (off) return off;
-      throw new Error('network unavailable');
+    .catch((e) => {
+      // 域名未放行 / 断网 / 超时：开启「本地兜底」时用内置词库顶上
+      // 默认关闭，便于排查 API 真实可用性（关掉时把真实错误抛给上层）
+      if (store.getSettings().localFallback) {
+        const off = offline.lookup(w);
+        if (off) return off;
+      }
+      throw e;
     });
 }
 

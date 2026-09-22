@@ -291,7 +291,8 @@ const DEFAULT_SETTINGS = {
   readLineHeight: 0,
   readIndent: -1,
   showTrans: false,   // 阅读页显示句译
-  quizCount: 30       // 单词闯关每次取生词本最近 N 个
+  quizCount: 30,      // 单词闯关每次取生词本最近 N 个
+  localFallback: false // 本地兜底：网络不通时用内置离线词库/预缓存句译顶上（调试 API 时可关掉，暴露真实网络结果）
 };
 const getSettings = () => {
   const s = Object.assign({}, DEFAULT_SETTINGS, get(KEYS.SETTINGS, {}));
@@ -319,6 +320,7 @@ const getSettings = () => {
   const qc = Number(s.quizCount);
   s.quizCount = !qc || qc < 5 || qc > 100 ? 30 : qc;
   s.showTrans = !!s.showTrans;
+  s.localFallback = !!s.localFallback;
   return s;
 };
 const setSettings = (s) => set(KEYS.SETTINGS, s);

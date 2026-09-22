@@ -4,7 +4,8 @@
 const DOMAINS = [
   { host: 'api.deepseek.com', use: 'AI 翻译 / 句译 / 语法解析 / 学习教练', probe: 'https://api.deepseek.com/models' },
   { host: 'dict.youdao.com', use: '单词释义 / 真人发音', probe: 'https://dict.youdao.com/jsonapi?jsonversion=2&client=mobile&dicts=%7B%22count%22%3A1%2C%22dicts%22%3A%5B%5B%22ec%22%5D%5D%7D&q=good' },
-  { host: 'api.dictionaryapi.dev', use: '单词释义备源', probe: 'https://api.dictionaryapi.dev/api/v2/entries/en/good' }
+  // 备源：实测响应可达 20s，慢属正常，不通/超时都不算故障
+  { host: 'api.dictionaryapi.dev', use: '单词释义备源（慢属正常）', optional: true, timeout: 8000, probe: 'https://api.dictionaryapi.dev/api/v2/entries/en/good' }
 ];
 
 const DOMAIN_TEXT = DOMAINS.map((d) => d.host).join('\n');
@@ -32,7 +33,7 @@ const probe = (d) =>
     wx.request({
       url: d.probe,
       method: 'GET',
-      timeout: 10000,
+      timeout: d.timeout || 10000,
       success: (res) => {
         // 401 也说明网络通（域名已放行，只是没带 Key）
         const reachable = res.statusCode < 500;

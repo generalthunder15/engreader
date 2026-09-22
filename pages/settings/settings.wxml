@@ -26,7 +26,7 @@
         <view class="btn-plain" bindtap="copyDomains">复制域名清单</view>
       </view>
       <view class="diag" wx:if="{{testLog}}"><text user-select>{{testLog}}</text></view>
-      <view class="hint">单词查询已内置离线词库兜底；句子翻译/AI 精解需要 api.deepseek.com 可访问</view>
+      <view class="hint">逐项验证：域名放行 → 词典 → 单词翻译 → 句子翻译 → 批量句译 → 词表提取 → 学习教练</view>
     </view>
 
     <!-- 硅基流动（备用，当前未使用） -->
@@ -57,6 +57,11 @@
         <view class="label">翻译结果自动朗读</view>
         <switch checked="{{form.autoPlay}}" color="{{themePrimary}}" bindchange="onSwitch" />
       </view>
+      <view class="field row">
+        <view class="label">本地兜底（网络失败时用内置词库顶上）</view>
+        <switch checked="{{form.localFallback}}" color="{{themePrimary}}" bindchange="onFallbackSwitch" />
+      </view>
+      <view class="hint">测 API 时请保持关闭：关闭后网络失败会直接报错，不会用本地释义掩盖问题</view>
       <view class="field">
         <view class="label">朗读语速（{{form.ttsSpeed}}x，{{form.ttsSpeed < 1 ? '慢' : form.ttsSpeed > 1 ? '快' : '正常'}}）</view>
         <slider min="0.5" max="2" step="0.25" value="{{form.ttsSpeed}}" show-value activeColor="{{themePrimary}}" bindchange="onSpeed" />

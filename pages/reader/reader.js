@@ -715,8 +715,9 @@ Page({
           finish(r.result);
         })
         .catch((err) => {
-          // AI 不可用（域名拦截 / 断网 / 401）时，内置书有预缓存句译就先展示，别只弹个错误框
-          if (cached) {
+          // 开启「本地兜底」时，内置书有预缓存句译就先展示，别只弹个错误框
+          // 默认关闭：直接暴露真实错误，方便排查 API
+          if (cached && store.getSettings().localFallback) {
             return finish({ translation: cached, source: 'offline', grammar: null, senses: [] });
           }
           fail(err);
