@@ -480,11 +480,11 @@ Page({
     this.lastTap = { id: null, time: 0 };
   },
 
-  // 单击：立即开/关控制条（不等双击判定，手感跟手）；320ms 内再点同一词 → 撤销并选中该词
+  // 单击：立即开/关控制条（不等双击判定，手感跟手）；200ms 内再点同一词 → 撤销并选中该词
   handleTap(id) {
     if (!this.lastTap) this.lastTap = { id: null, time: 0 };
     const now = Date.now();
-    if (this.lastTap.id === id && now - this.lastTap.time < 320) {
+    if (this.lastTap.id === id && now - this.lastTap.time < 200) {
       if (this.pendingToggle) {
         this.pendingToggle = false;
         this.setData({ 'ctl.show': !this.data.ctl.show }); // 撤销刚才那次单击
@@ -500,7 +500,7 @@ Page({
       this.tapTimer = null;
       this.pendingToggle = false;
       this.lastTap = { id: null, time: 0 };
-    }, 320);
+    }, 200);
   },
 
   onLongPress(e) {
