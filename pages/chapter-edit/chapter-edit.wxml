@@ -24,7 +24,7 @@
       <view class="label-row">
         <view class="label">本章单词 / 短语（{{wordCount}}）</view>
         <view class="extract-btn {{extracting ? 'busy' : ''}}" bindtap="extractWords">
-          {{extracting ? '提取中…' : 'AI 提取词表'}}
+          {{extracting ? (extractTip || '提取中…') : 'AI 提取词表'}}
         </view>
       </view>
       <view class="hint">保存章节前必须有词表（学习阶段的章节闯关会用到）。AI 提取后可手动增删改。</view>

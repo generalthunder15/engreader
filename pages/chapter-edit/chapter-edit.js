@@ -11,6 +11,7 @@ Page({
     content: '',
     words: [],          // [{word, meaning}]
     extracting: false,
+    extractTip: '',
     saving: false,
     saveStep: '',
     isEdit: false,
@@ -48,14 +49,17 @@ Page({
     const { content, extracting } = this.data;
     if (extracting) return;
     if (!content.trim()) return wx.showToast({ title: '请先粘贴章节正文', icon: 'none' });
-    this.setData({ extracting: true });
-    ai.extractWords(content)
+    // 长正文会分段扫描（每段约 4500 字符），这里把进度显示出来
+    this.setData({ extracting: true, extractTip: '提取中…' });
+    ai.extractWords(content, (done, total) => {
+      if (total > 1) this.setData({ extractTip: '提取中 ' + done + '/' + total });
+    })
       .then((words) => {
-        this.setData({ words, wordCount: words.length, extracting: false });
+        this.setData({ words, wordCount: words.length, extracting: false, extractTip: '' });
         wx.showToast({ title: '提取到 ' + words.length + ' 个词', icon: 'success' });
       })
       .catch((err) => {
-        this.setData({ extracting: false });
+        this.setData({ extracting: false, extractTip: '' });
         wx.showModal({ title: '提取失败', content: err.message || '请稍后重试', showCancel: false });
       });
   },

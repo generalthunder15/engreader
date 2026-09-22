@@ -27,13 +27,17 @@ const chat = (opts) =>
         'Content-Type': 'application/json',
         Authorization: 'Bearer ' + s.apiKey
       },
-      data: {
-        model: opts.model || s.model,
-        temperature: opts.temperature != null ? opts.temperature : 0.3,
-        max_tokens: opts.maxTokens || 4096,
-        messages: opts.messages,
-        response_format: opts.json ? { type: 'json_object' } : undefined
-      },
+      data: Object.assign(
+        {
+          model: opts.model || s.model,
+          temperature: opts.temperature != null ? opts.temperature : 0.3,
+          max_tokens: opts.maxTokens || 4096,
+          messages: opts.messages,
+          response_format: opts.json ? { type: 'json_object' } : undefined
+        },
+        // DeepSeek V4 默认开思考模式，会把 max_tokens 全耗在 reasoning 上导致返回空内容
+        s.baseUrl.indexOf('deepseek') !== -1 ? { thinking: { type: 'disabled' } } : {}
+      ),
       success: (res) => {
         if (res.statusCode !== 200) {
           const msg =
@@ -54,32 +58,134 @@ const chat = (opts) =>
 
 // ---------- 章节词表提取 ----------
 // 输入章节正文，输出固定 JSON：{"words":[{"word":"...","meaning":"中文释义"}]}
-const extractWords = (content) =>
+// 穷尽式：不设数量上限；长正文按句切段逐段扫描，合并去重，避免漏词
+const CHUNK_SIZE = 3500; // 实测 3500 字符约产出 4300 输出 token，离 8192 上限有足够余量
+
+const PROMPT_WORDS =
+  '你是英语教材编辑。对给出的英文章节正文做【穷尽式】词汇提取，宁多勿漏。\n' +
+  '要求：\n' +
+  '1. 逐句扫描全文，任何有学习价值的语言点都要收录：实词（名/动/形/副）、短语搭配、习语、固定用法；不要因为数量多而省略\n' +
+  '2. 只跳过纯功能词：冠词、代词、介词、be/助动词，以及 the/a/an/and/of/to/it/that/is 这类极高频词\n' +
+  '3. 短语按原文出现形式提取（如 "give up"、"be fond of"、"in the early hours"）\n' +
+  '4. 单词归为原形/单数形式，meaning 给出最常用中文释义（含词性，如 "n. 苹果"）\n' +
+  '5. 不设数量上限，按在文中出现的先后顺序排列；同一词的不同词形按原形归并\n' +
+  '只输出严格 JSON：{"words":[{"word":"英文","meaning":"中文释义"}]}';
+
+// 按句子边界切分正文，避免把句子从中间劈开（兼容不支持 lookbehind 的引擎）
+const splitSentences = (text) => {
+  const s = String(text || '');
+  const out = [];
+  let start = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '.' || c === '!' || c === '?' || c === '。' || c === '！' || c === '？') {
+      const n = s[i + 1];
+      if (n == null || n === ' ' || n === '\n' || n === '\t' || n === '\r') {
+        out.push(s.slice(start, i + 1));
+        start = i + 1;
+      }
+    }
+  }
+  if (start < s.length) out.push(s.slice(start));
+  return out.filter((x) => x.trim());
+};
+
+// 拼成若干段，每段尽量接近但不超过 size；过短的尾巴并入上一段省一次请求
+const splitContent = (text, size) => {
+  const parts = [];
+  let buf = '';
+  splitSentences(text).forEach((sentence) => {
+    const s = sentence.trim();
+    if (!s) return;
+    // 单句本身就超长（少见）：硬切，保证每段不超过 2*size
+    if (s.length > size) {
+      if (buf) { parts.push(buf); buf = ''; }
+      for (let i = 0; i < s.length; i += size) parts.push(s.slice(i, i + size));
+      return;
+    }
+    if (buf && buf.length + s.length + 1 > size) { parts.push(buf); buf = s; }
+    else buf = buf ? buf + ' ' + s : s;
+  });
+  if (buf) parts.push(buf);
+  if (parts.length > 1 && parts[parts.length - 1].length < 300) {
+    const last = parts.pop();
+    parts[parts.length - 1] += ' ' + last;
+  }
+  return parts.length ? parts : [''];
+};
+
+// JSON 被 max_tokens 截断时的抢救：截到最后一个完整对象再补上结尾
+const salvageWords = (text) => {
+  const s = String(text);
+  let i = s.lastIndexOf('"},');
+  if (i > 0) { try { return JSON.parse(s.slice(0, i + 2) + ']}'); } catch (e) {} }
+  i = s.lastIndexOf('}');
+  if (i > 0) { try { return JSON.parse(s.slice(0, i + 1) + ']}'); } catch (e) {} }
+  return null;
+};
+
+const normalizeWords = (r) =>
+  ((r && r.words) || [])
+    .map((x) => ({ word: String(x.word || '').trim(), meaning: String(x.meaning || '').trim() }))
+    .filter((x) => x.word);
+
+// 合并并保持顺序，按 word 小写去重
+const mergeWords = (a, b) => {
+  const seen = {};
+  const out = [];
+  a.concat(b).forEach((w) => {
+    const k = w.word.toLowerCase();
+    if (seen[k]) return;
+    seen[k] = 1;
+    out.push(w);
+  });
+  return out;
+};
+
+// 单段提取；失败自动重试一次（第二次降 max_tokens，兼容上限较小的模型）
+const extractChunk = (part, retry) =>
   chat({
     json: true,
     temperature: 0.2,
+    maxTokens: retry ? 4096 : 8192,
     messages: [
-      {
-        role: 'system',
-        content:
-          '你是英语教材编辑。从用户给出的英文章节正文中提取「值得学习的单词和短语」。\n' +
-          '要求：\n' +
-          '1. 覆盖实词为主（生僻词、短语搭配、习语优先），跳过 the/is/and 等基础功能词\n' +
-          '2. 短语按原文出现形式提取（如 "give up"、"be fond of"）\n' +
-          '3. 单词归为原形/单数形式，meaning 给出最常用中文释义（含词性，如 "n. 苹果"）\n' +
-          '4. 数量 15-40 个，按在文中出现顺序\n' +
-          '只输出严格 JSON：{"words":[{"word":"英文","meaning":"中文释义"}]}'
-      },
-      { role: 'user', content: String(content || '').slice(0, 12000) }
+      { role: 'system', content: PROMPT_WORDS },
+      { role: 'user', content: part }
     ]
-  }).then((out) => {
-    const r = parseJSON(out);
-    const words = (r.words || [])
-      .map((x) => ({ word: String(x.word || '').trim(), meaning: String(x.meaning || '').trim() }))
-      .filter((x) => x.word);
-    if (!words.length) throw new Error('未能提取到词表，请重试');
-    return words;
-  });
+  })
+    .then((out) => {
+      let r = null;
+      try { r = parseJSON(out); } catch (e) { r = salvageWords(out); }
+      if (!r) throw new Error('AI 返回内容解析失败');
+      return normalizeWords(r);
+    })
+    .catch((e) => {
+      if (retry) return Promise.reject(e);
+      return extractChunk(part, true);
+    });
+
+// 对外：extractWords(content, onProgress?)，onProgress(done, total)
+const extractWords = (content, onProgress) => {
+  const parts = splitContent(content, CHUNK_SIZE);
+  let acc = [];
+  let failed = 0;
+  const step = (i) => {
+    if (i >= parts.length) {
+      if (!acc.length) {
+        return Promise.reject(new Error(failed ? '词表提取失败（' + failed + ' 段出错）' : '未能提取到词表，请重试'));
+      }
+      return Promise.resolve(acc);
+    }
+    return extractChunk(parts[i])
+      .then((ws) => { acc = mergeWords(acc, ws); })
+      .catch(() => { failed++; })
+      .then(() => {
+        if (onProgress) { try { onProgress(i + 1, parts.length); } catch (e) {} }
+        return step(i + 1);
+      });
+  };
+  return step(0);
+};
 
 // ---------- 批量句译 ----------
 // sentences: string[]；返回与输入等长的中文翻译数组（错位/缺失时回退为空串）
