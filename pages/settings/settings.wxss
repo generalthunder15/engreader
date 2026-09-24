@@ -2,13 +2,59 @@
   margin-top: 0;
 }
 .font-row {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 12rpx;
   margin-bottom: 12rpx;
+  margin-right: 12rpx;
+  vertical-align: top;
 }
-.font-row button {
+.font-row .chip {
   text-align: left;
+}
+.appearance-options {
+  width: 100%;
+  white-space: nowrap;
+}
+.appearance-options .chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88rpx;
+  min-height: 68rpx;
+  margin-right: 12rpx;
+  padding: 14rpx 24rpx;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--primary);
+  vertical-align: top;
+}
+.appearance-options .chip:last-child {
+  margin-right: 0;
+}
+.font-options .chip {
+  gap: 12rpx;
+}
+.font-options button.small {
+  width: auto;
+  margin: 0;
+}
+.reading-preview {
+  margin-top: 20rpx;
+  padding: 22rpx;
+  background: var(--bg);
+  border: 1rpx solid var(--line);
+  border-radius: 18rpx;
+}
+.reading-preview .caption {
+  margin-bottom: 12rpx;
+}
+.preview-text {
+  font-family: var(--font-read);
+  font-size: var(--read-size, 36rpx);
+  line-height: var(--read-line, 2.1);
+  text-indent: var(--read-indent, 34rpx);
+  overflow-wrap: break-word;
 }
 .diagnostic {
   padding: 18rpx 0;

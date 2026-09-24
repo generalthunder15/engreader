@@ -5,8 +5,9 @@
   <view class="section-title">阅读外观</view>
   <view class="card">
     <view class="label">主题</view>
-    <view class="chips">
-      <button
+    <scroll-view scroll-x class="appearance-options" show-scrollbar="{{false}}">
+      <view
+        aria-role="button"
         wx:for="{{themes}}"
         wx:key="id"
         class="chip {{form.theme === item.id ? 'active' : ''}}"
@@ -15,11 +16,12 @@
         bindtap="appearance"
       >
         {{item.name}}
-      </button>
-    </view>
+      </view>
+    </scroll-view>
     <view class="label">字号</view>
-    <view class="chips">
-      <button
+    <scroll-view scroll-x class="appearance-options" show-scrollbar="{{false}}">
+      <view
+        aria-role="button"
         wx:for="{{sizes}}"
         wx:key="*this"
         class="chip {{form.readFontSize === item ? 'active' : ''}}"
@@ -28,19 +30,28 @@
         bindtap="appearance"
       >
         {{item}}
-      </button>
-      <button
-        class="chip"
+      </view>
+      <view
+        aria-role="button"
+        class="chip {{form.readFontSize === 0 ? 'active' : ''}}"
         data-key="readFontSize"
         data-value="0"
         bindtap="appearance"
       >
         默认
-      </button>
+      </view>
+    </scroll-view>
+    <view class="reading-preview">
+      <view class="caption">字号预览 · {{form.readFontSize || 36}}</view>
+      <view class="preview-text">
+        A little reading every day opens a new world.
+      </view>
+      <view class="preview-text">每天读一点，看见更大的世界。</view>
     </view>
     <view class="label">行距</view>
-    <view class="chips">
-      <button
+    <scroll-view scroll-x class="appearance-options" show-scrollbar="{{false}}">
+      <view
+        aria-role="button"
         wx:for="{{lines}}"
         wx:key="*this"
         class="chip {{form.readLineHeight === item ? 'active' : ''}}"
@@ -49,8 +60,8 @@
         bindtap="appearance"
       >
         {{item}}
-      </button>
-    </view>
+      </view>
+    </scroll-view>
     <view class="list-row between">
       <text>首行缩进</text>
       <switch
@@ -68,28 +79,35 @@
       />
     </view>
     <view class="label">阅读字体</view>
-    <view class="font-row" wx:for="{{fonts}}" wx:key="id">
-      <button
-        class="chip grow {{form.fontRead === item.id ? 'active' : ''}}"
-        data-key="fontRead"
-        data-value="{{item.id}}"
-        bindtap="appearance"
-      >
-        {{item.name}}
-        <text class="caption">
-          {{item.kind === 'custom' ? '已导入' : item.kind === 'builtin' ? '内置'
-          : '系统'}}
-        </text>
-      </button>
-      <button
-        wx:if="{{item.kind === 'custom'}}"
-        class="small ghost"
-        data-id="{{item.id}}"
-        bindtap="removeFont"
-      >
-        删除
-      </button>
-    </view>
+    <scroll-view
+      scroll-x
+      class="appearance-options font-options"
+      show-scrollbar="{{false}}"
+    >
+      <view class="font-row" wx:for="{{fonts}}" wx:key="id">
+        <view
+          aria-role="button"
+          class="chip {{form.fontRead === item.id ? 'active' : ''}}"
+          data-key="fontRead"
+          data-value="{{item.id}}"
+          bindtap="appearance"
+        >
+          {{item.name}}
+          <text class="caption">
+            {{item.kind === 'custom' ? '已导入' : item.kind === 'builtin' ?
+            '内置' : '系统'}}
+          </text>
+        </view>
+        <button
+          wx:if="{{item.kind === 'custom'}}"
+          class="small ghost"
+          data-id="{{item.id}}"
+          bindtap="removeFont"
+        >
+          删除
+        </button>
+      </view>
+    </scroll-view>
     <button class="ghost full" bindtap="importFont">＋ 导入字体文件</button>
   </view>
   <view class="section-title">AI 模型</view>

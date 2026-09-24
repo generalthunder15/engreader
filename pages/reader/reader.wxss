@@ -194,18 +194,32 @@
   border-radius: 14rpx;
 }
 .panel-tabs {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
   gap: 6rpx;
 }
 .panel-tabs .chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  min-height: 64rpx;
+  line-height: 1.4;
   font-size: 22rpx;
-  padding: 13rpx 14rpx;
+  padding: 13rpx 0;
 }
 .analysis-sheet {
   padding-left: 25rpx;
   padding-right: 25rpx;
 }
 .analysis-sheet .sheet-head .icon-button {
-  width: 48rpx;
+  width: 64rpx;
+  height: 64rpx;
+  margin: 0 0 0 8rpx;
+  padding: 0;
 }
 .definition {
   font-size: 34rpx;
@@ -214,6 +228,14 @@
 }
 .panel-actions {
   margin: 30rpx 0;
+}
+.panel-actions button.small {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  padding: 15rpx 8rpx;
+  white-space: nowrap;
 }
 .question-chips {
   margin: 22rpx 0;

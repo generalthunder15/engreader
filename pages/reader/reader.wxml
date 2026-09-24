@@ -149,41 +149,46 @@
     <view class="sheet analysis-sheet">
       <view class="sheet-head">
         <view class="chips panel-tabs">
-          <button
+          <view
+            aria-role="button"
             class="chip {{tab === 'translation' ? 'active' : ''}}"
             data-tab="translation"
             bindtap="tab"
           >
             释义
-          </button>
-          <button
+          </view>
+          <view
+            aria-role="button"
             class="chip {{tab === 'grammar' ? 'active' : ''}}"
             data-tab="grammar"
             bindtap="tab"
           >
             语法
-          </button>
-          <button
+          </view>
+          <view
+            aria-role="button"
             class="chip {{tab === 'detail' ? 'active' : ''}}"
             data-tab="detail"
             bindtap="tab"
           >
             拆解
-          </button>
-          <button
+          </view>
+          <view
+            aria-role="button"
             class="chip {{tab === 'ask' ? 'active' : ''}}"
             data-tab="ask"
             bindtap="tab"
           >
             提问
-          </button>
-          <button
+          </view>
+          <view
+            aria-role="button"
             class="chip {{tab === 'note' ? 'active' : ''}}"
             data-tab="note"
             bindtap="tab"
           >
             笔记
-          </button>
+          </view>
         </view>
         <button
           class="icon-button"
