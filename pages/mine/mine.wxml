@@ -18,6 +18,14 @@
   </view>
   <view class="section-title">我的积累</view>
   <view class="card menu">
+    <view class="list-row" bindtap="go" data-page="memory">
+      <view class="menu-icon"><app-icon name="note" /></view>
+      <view class="grow">
+        <view class="menu-title">长期学习记忆</view>
+        <view class="caption">已掌握 · 待巩固 · 学过的文章</view>
+      </view>
+      <app-icon name="arrow" size="28" />
+    </view>
     <view class="list-row" bindtap="go" data-page="vocab">
       <view class="menu-icon"><app-icon name="book" /></view>
       <view class="grow">

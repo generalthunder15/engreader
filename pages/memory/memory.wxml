@@ -1,0 +1,41 @@
+<view class="page" style="{{themeStyle}}">
+  <view class="eyebrow">YOUR LEARNING MEMORY</view>
+  <view class="heading">每一课，都有积累</view>
+  <view class="sub">
+    所有学习对话共享这份记忆，每个对话保留自己的聊天。数据保存在本机，可通过设置导出备份。
+  </view>
+  <view class="section-title">你的情况与目标</view>
+  <view class="card">
+    <textarea
+      class="field textarea"
+      value="{{profile}}"
+      bindinput="input"
+      maxlength="5000"
+      placeholder="补充或纠正你的基础、目标和学习偏好…"
+    />
+    <button class="primary full" bindtap="save">保存个人情况</button>
+  </view>
+  <view class="section-title">已掌握 · {{memory.mastered.length}}</view>
+  <view class="card">
+    <view wx:for="{{memory.mastered}}" wx:key="point" class="list-row">
+      ✓ {{item.point}}
+    </view>
+    <view wx:if="{{!memory.mastered.length}}" class="sub">
+      完成练习后，有答题证据的知识点会记录在这里。
+    </view>
+  </view>
+  <view class="section-title">待巩固 · {{memory.weak.length}}</view>
+  <view class="card">
+    <view wx:for="{{memory.weak}}" wx:key="*this" class="list-row">
+      {{item}}
+    </view>
+    <view wx:if="{{!memory.weak.length}}" class="sub">
+      目前没有待巩固记录。
+    </view>
+  </view>
+  <view class="section-title">学过的文章 · {{memory.articles.length}}</view>
+  <view wx:for="{{memory.articles}}" wx:key="sessionId" class="card">
+    <view class="menu-title">{{item.title}}</view>
+    <view class="sub">{{item.summary}}</view>
+  </view>
+</view>

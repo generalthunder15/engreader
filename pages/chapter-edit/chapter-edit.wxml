@@ -2,6 +2,22 @@
   <view class="eyebrow">MAKE IT YOURS</view>
   <view class="heading">{{editing ? '编辑章节' : '新的阅读篇章'}}</view>
   <view class="sub">正文、词汇、句译，让一篇文章成为你的教材。</view>
+  <view class="row editor-types">
+    <button
+      data-kind="article"
+      bindtap="kind"
+      class="{{kind === 'article' ? 'primary' : ''}}"
+    >
+      纯文章
+    </button>
+    <button
+      data-kind="exam"
+      bindtap="kind"
+      class="{{kind === 'exam' ? 'primary' : ''}}"
+    >
+      文章与题目
+    </button>
+  </view>
   <view class="card">
     <view class="label">章节标题</view>
     <input
@@ -11,59 +27,210 @@
       placeholder="给这一章起个名字"
       disabled="{{busy}}"
     />
-    <view class="label">英文正文</view>
-    <textarea
-      class="field textarea content"
-      value="{{content}}"
-      bindinput="content"
-      placeholder="粘贴你想读的英文内容…"
-      maxlength="-1"
-      disabled="{{busy}}"
-    />
-  </view>
-  <view class="row between">
-    <view class="section-title">本章词表 · {{words.length}}</view>
-    <button class="small" bindtap="extract" disabled="{{busy}}">
-      AI 提取词表
-    </button>
-  </view>
-  <view class="caption">提取 B1 及以上词汇和常用搭配，也可以手动添加。</view>
-  <view class="card">
-    <view class="word-row" wx:for="{{words}}" wx:key="index">
-      <view class="grow">
-        <input
-          class="field"
-          value="{{item.word}}"
-          data-index="{{index}}"
-          data-field="word"
-          bindinput="word"
-          placeholder="英文单词或短语"
-          disabled="{{busy}}"
-        />
-        <input
-          class="field meaning"
-          value="{{item.meaning}}"
-          data-index="{{index}}"
-          data-field="meaning"
-          bindinput="word"
-          placeholder="中文释义"
-          disabled="{{busy}}"
-        />
-      </view>
-      <button
-        class="icon-button"
-        data-index="{{index}}"
-        bindtap="removeWord"
+    <block wx:if="{{kind === 'article'}}">
+      <view class="label">英文正文</view>
+      <textarea
+        class="field textarea content"
+        value="{{content}}"
+        bindinput="content"
+        placeholder="粘贴你想读的英文内容…"
+        maxlength="-1"
         disabled="{{busy}}"
-        aria-label="移除词语"
-      >
-        <app-icon name="close" size="32" />
+      />
+    </block>
+  </view>
+  <block wx:if="{{kind === 'article'}}">
+    <view class="row between">
+      <view class="section-title">本章词表 · {{words.length}}</view>
+      <button class="small" bindtap="extract" disabled="{{busy}}">
+        AI 提取词表
       </button>
     </view>
-    <button class="ghost full" bindtap="addWord" disabled="{{busy}}">
-      ＋ 添加词语
-    </button>
-  </view>
+    <view class="caption">提取 B1 及以上词汇和常用搭配，也可以手动添加。</view>
+    <view class="card">
+      <view class="word-row" wx:for="{{words}}" wx:key="index">
+        <view class="grow">
+          <input
+            class="field"
+            value="{{item.word}}"
+            data-index="{{index}}"
+            data-field="word"
+            bindinput="word"
+            placeholder="英文单词或短语"
+            disabled="{{busy}}"
+          />
+          <input
+            class="field meaning"
+            value="{{item.meaning}}"
+            data-index="{{index}}"
+            data-field="meaning"
+            bindinput="word"
+            placeholder="中文释义"
+            disabled="{{busy}}"
+          />
+        </view>
+        <button
+          class="icon-button"
+          data-index="{{index}}"
+          bindtap="removeWord"
+          disabled="{{busy}}"
+          aria-label="移除词语"
+        >
+          <app-icon name="close" size="32" />
+        </button>
+      </view>
+      <button class="ghost full" bindtap="addWord" disabled="{{busy}}">
+        ＋ 添加词语
+      </button>
+    </view>
+  </block>
+  <block wx:if="{{kind === 'exam'}}">
+    <view class="caption">
+      按阅读理解、完型、翻译等分组添加。材料可留空，题目需要参考答案和知识点供
+      AI 批改。
+    </view>
+    <view
+      wx:for="{{sections}}"
+      wx:key="id"
+      wx:for-item="section"
+      wx:for-index="si"
+      class="card"
+    >
+      <input
+        class="field"
+        value="{{section.title}}"
+        data-section="{{si}}"
+        data-field="title"
+        bindinput="sectionField"
+        placeholder="部分标题，如：阅读理解"
+      />
+      <textarea
+        class="field textarea"
+        value="{{section.material}}"
+        data-section="{{si}}"
+        data-field="material"
+        bindinput="sectionField"
+        maxlength="-1"
+        placeholder="文章材料（完型请在文中标注 [1] 等空位）"
+      />
+      <view
+        wx:for="{{section.questions}}"
+        wx:key="id"
+        wx:for-item="q"
+        wx:for-index="qi"
+        class="editor-question"
+      >
+        <view class="label">
+          第 {{qi + 1}} 题 · {{q.type === 'choice' ? '选择题' : q.type === 'fill' ? '填空题' : '翻译题'}}
+        </view>
+        <textarea
+          class="field textarea"
+          value="{{q.title}}"
+          data-section="{{si}}"
+          data-question="{{qi}}"
+          data-field="title"
+          bindinput="questionField"
+          placeholder="题干"
+          maxlength="5000"
+        />
+        <textarea
+          wx:if="{{q.type === 'choice'}}"
+          class="field textarea"
+          value="{{q.optionsText}}"
+          data-section="{{si}}"
+          data-question="{{qi}}"
+          data-field="optionsText"
+          bindinput="questionField"
+          placeholder="四个选项，每行一个，按 A/B/C/D 顺序"
+          maxlength="5000"
+        />
+        <picker
+          wx:if="{{q.type === 'translation'}}"
+          range="{{['英译汉', '汉译英']}}"
+          value="{{q.direction === 'zh-en' ? 1 : 0}}"
+          data-section="{{si}}"
+          data-question="{{qi}}"
+          data-field="direction"
+          bindchange="questionField"
+        >
+          <view class="field">
+            {{q.direction === 'zh-en' ? '汉译英' : '英译汉'}} · 点击切换
+          </view>
+        </picker>
+        <textarea
+          class="field textarea"
+          value="{{q.answer}}"
+          data-section="{{si}}"
+          data-question="{{qi}}"
+          data-field="answer"
+          bindinput="questionField"
+          placeholder="参考答案（选择题填写 A/B/C/D）"
+          maxlength="5000"
+        />
+        <textarea
+          class="field textarea"
+          value="{{q.explanation}}"
+          data-section="{{si}}"
+          data-question="{{qi}}"
+          data-field="explanation"
+          bindinput="questionField"
+          placeholder="答案解析"
+          maxlength="5000"
+        />
+        <input
+          class="field"
+          value="{{q.point}}"
+          data-section="{{si}}"
+          data-question="{{qi}}"
+          data-field="point"
+          bindinput="questionField"
+          placeholder="知识点，多个用顿号分隔"
+        />
+        <button
+          class="small ghost danger"
+          data-section="{{si}}"
+          data-question="{{qi}}"
+          bindtap="removeQuestion"
+        >
+          删除这道题
+        </button>
+      </view>
+      <view class="row editor-types">
+        <button
+          class="small"
+          data-section="{{si}}"
+          data-type="choice"
+          bindtap="addQuestion"
+        >
+          ＋ 选择
+        </button>
+        <button
+          class="small"
+          data-section="{{si}}"
+          data-type="fill"
+          bindtap="addQuestion"
+        >
+          ＋ 填空
+        </button>
+        <button
+          class="small"
+          data-section="{{si}}"
+          data-type="translation"
+          bindtap="addQuestion"
+        >
+          ＋ 翻译
+        </button>
+      </view>
+      <button
+        class="ghost danger"
+        data-section="{{si}}"
+        bindtap="removeSection"
+      >
+        删除这个部分
+      </button>
+    </view>
+    <button class="full" bindtap="addSection">＋ 添加题目部分</button>
+  </block>
   <view wx:if="{{busy}}" class="loading">{{progress}}</view>
   <view class="sticky-actions">
     <button
@@ -72,7 +239,7 @@
       loading="{{busy}}"
       disabled="{{busy}}"
     >
-      保存章节与句译
+      {{kind === 'exam' ? '保存题目章节' : '保存章节与句译'}}
     </button>
   </view>
 </view>

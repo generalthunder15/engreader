@@ -18,6 +18,8 @@ export interface Tokens {
   tokenCount: number;
 }
 export interface ChapterMeta {
+  kind?: "article" | "exam";
+  questionCount?: number;
   id: string;
   title: string;
   wordCount: number;
@@ -37,6 +39,9 @@ export interface Book {
   lastChapterId: string;
 }
 export interface Chapter {
+  kind?: "article" | "exam";
+  sessionId?: string;
+  sections?: import("./learning").ExamSection[];
   id: string;
   bookId: string;
   title: string;
@@ -95,32 +100,6 @@ export interface Message {
   role: "system" | "user" | "assistant";
   content: string;
   ts?: number;
-}
-export interface Question {
-  type: "choice" | "input";
-  title: string;
-  options?: string[];
-  answer?: string | number;
-  explain?: string;
-}
-export interface PlanChapter {
-  bookId: string;
-  chapterId: string;
-  title: string;
-  done: boolean;
-}
-export interface Plan {
-  text: string;
-  chapters: PlanChapter[];
-  createdAt: number;
-}
-export interface Study {
-  phase: "idle" | "assess" | "reading" | "qa";
-  createdAt: number;
-  assess: { total: number; asked: number } | null;
-  plan: Plan | null;
-  qa: { messages: Message[] } | null;
-  profile: string;
 }
 export interface Settings {
   baseUrl: string;

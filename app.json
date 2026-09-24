@@ -10,7 +10,8 @@
     "pages/vocab/vocab",
     "pages/sentences/sentences",
     "pages/favorites/favorites",
-    "pages/settings/settings"
+    "pages/settings/settings",
+    "pages/memory/memory"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F5F7F5",

@@ -19,6 +19,8 @@ interface Rect {
 Page({
   data: {
     themeStyle: "",
+    examChapter: "",
+    readerBookId: "",
     themeId: "default",
     themePrimary: "#416C64",
     book: null as Book | null,
@@ -86,6 +88,7 @@ Page({
   dayTheme: "default",
   onLoad(query: Record<string, string>) {
     this.bookId = query.bookId || "";
+    this.setData({ readerBookId: this.bookId });
     const book = store.book(this.bookId);
     this.setData({
       book,
@@ -120,13 +123,15 @@ Page({
       return;
     }
     this.closePanel();
+    const isExam = store.chapter(this.bookId, cid)?.kind === "exam";
+    this.setData({ examChapter: isExam ? cid : "", hasMore: false });
     this.flow = new ReaderFlow();
     this.loaded = [];
     this.published = [];
     this.setData({ blocks: [] });
     this.anchors = [];
     this.scrollTop = 0;
-    this.append(cid);
+    if (!isExam) this.append(cid);
     this.setCurrent(cid);
     this.setData({ toc: false, controls: false });
     wx.pageScrollTo({ scrollTop: 0, duration: 0 });
@@ -134,6 +139,10 @@ Page({
   append(cid: string) {
     const chapter = store.chapter(this.bookId, cid);
     if (!chapter || this.loaded.includes(cid)) return;
+    if (chapter.kind === "exam") {
+      this.setData({ hasMore: false });
+      return;
+    }
     this.flow.append(chapter, store.marks(cid), store.notes(cid));
     this.loaded.push(cid);
     const chapters = this.data.book?.chapters || [];
@@ -144,6 +153,7 @@ Page({
     wx.nextTick(() => this.measure());
   },
   onReachBottom() {
+    if (this.data.examChapter) return;
     const chapters = this.data.book?.chapters || [];
     const index = chapters.findIndex(
       (c) => c.id === this.loaded[this.loaded.length - 1],
@@ -545,6 +555,20 @@ Page({
       }
       if (this.alive && ticket === this.request) {
         this.setData({ definition });
+        if (single && definition.translation.trim()) {
+          store.addVocab({
+            word: text.trim().toLowerCase(),
+            translation: definition.translation,
+            phonetic: definition.phonetic || "",
+            pos: definition.pos || "",
+            bookId: this.bookId,
+            chapterId: this.selectedCid,
+            fromBook: this.data.book?.title || "",
+            fromChapter:
+              store.chapter(this.bookId, this.selectedCid)?.title || "",
+            createdAt: Date.now(),
+          });
+        }
         if (store.settings().autoPlay) void this.play();
       }
     } catch (error) {

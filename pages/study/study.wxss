@@ -50,3 +50,40 @@
 .composer input {
   min-width: 0;
 }
+.session-list {
+  white-space: nowrap;
+  width: 100%;
+  margin: 28rpx 0;
+}
+.session-chip {
+  display: inline-block;
+  vertical-align: top;
+  max-width: 360rpx;
+  padding: 22rpx;
+  margin-right: 12rpx;
+  background: var(--card);
+  border: 1rpx solid var(--line);
+  border-radius: 20rpx;
+  white-space: normal;
+}
+.session-chip.active {
+  border-color: var(--primary);
+  background: var(--soft);
+}
+.lesson-actions {
+  margin: 24rpx 0;
+  gap: 12rpx;
+}
+.lesson-actions button {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 20rpx 8rpx;
+}
+.chat-compose {
+  margin-top: 28rpx;
+}
+.chat-compose button {
+  margin-top: 14rpx;
+}

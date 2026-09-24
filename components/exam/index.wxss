@@ -1,0 +1,119 @@
+.exam {
+  padding: 32rpx 36rpx 80rpx;
+  color: var(--text, #263c37);
+}
+.title {
+  font-size: 40rpx;
+  font-weight: bold;
+  line-height: 1.5;
+  margin-bottom: 16rpx;
+}
+.muted {
+  font-size: 24rpx;
+  color: var(--muted, #758780);
+}
+.section {
+  margin-top: 48rpx;
+}
+.section-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  margin-bottom: 24rpx;
+}
+.material {
+  display: block;
+  white-space: pre-wrap;
+  font-family: var(--font-read, Georgia);
+  font-size: var(--read-size, 36rpx);
+  line-height: var(--read-line, 2);
+}
+.question {
+  background: var(--card, #fff);
+  border: 1rpx solid var(--line, #ddd);
+  border-radius: 24rpx;
+  padding: 24rpx;
+  margin-top: 28rpx;
+}
+.question-title {
+  font-size: 29rpx;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+  padding: 22rpx;
+  margin-top: 14rpx;
+  border: 2rpx solid var(--line, #ddd);
+  border-radius: 16rpx;
+  font-size: 27rpx;
+  line-height: 1.6;
+}
+.letter {
+  flex-shrink: 0;
+  font-weight: bold;
+}
+.selected {
+  background: var(--soft, #e8f1ec);
+  border-color: var(--primary, #416c64);
+}
+.answer {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 120rpx;
+  padding: 22rpx;
+  border: 1rpx solid var(--line, #ddd);
+  border-radius: 16rpx;
+  margin-top: 20rpx;
+  font-size: 28rpx;
+  line-height: 1.8;
+  background: var(--bg, #fafafa);
+}
+.feedback {
+  padding: 20rpx;
+  margin-top: 20rpx;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  background: var(--soft, #eef4f0);
+}
+.wrong {
+  border-left: 5rpx solid #b27544;
+}
+.right {
+  border-left: 5rpx solid #416c64;
+}
+.reference {
+  margin-top: 16rpx;
+}
+.result {
+  padding: 24rpx;
+  margin-top: 24rpx;
+  background: var(--soft, #eef4f0);
+  border-radius: 16rpx;
+}
+.submit,
+.return {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 26rpx 0 0;
+  font-size: 28rpx;
+  padding: 18rpx;
+  line-height: 1.6;
+  border-radius: 20rpx;
+}
+.submit {
+  background: var(--primary, #416c64);
+  color: white;
+}
+.return {
+  background: var(--soft, #eef4f0);
+  color: var(--text, #263c37);
+}
+.error {
+  color: #a44838;
+  font-size: 26rpx;
+  margin-top: 24rpx;
+}

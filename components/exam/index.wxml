@@ -1,0 +1,73 @@
+<view class="exam">
+  <view class="title">{{title}}</view>
+  <view class="muted">
+    {{submitted ? '答案已提交' : '答案自动保存'}} · {{answered}} / {{total}} 题
+  </view>
+  <view wx:if="{{graded}}" class="result">
+    答对 {{correct}} / {{total}} 题 · 请查看逐题反馈
+  </view>
+  <view wx:for="{{sections}}" wx:key="id" wx:for-item="section" class="section">
+    <view class="section-title">{{section.title}}</view>
+    <text wx:if="{{section.material}}" class="material" user-select>
+      {{section.material}}
+    </text>
+    <view
+      wx:for="{{section.questions}}"
+      wx:key="id"
+      wx:for-item="q"
+      class="question"
+    >
+      <view class="question-title">{{index + 1}}. {{q.title}}</view>
+      <block wx:if="{{q.type === 'choice'}}">
+        <view
+          wx:for="{{q.options}}"
+          wx:key="index"
+          wx:for-item="option"
+          class="option {{answers[q.id] === (index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D') ? 'selected' : ''}}"
+          aria-role="button"
+          aria-disabled="{{submitted}}"
+          data-id="{{q.id}}"
+          data-value="{{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}"
+          bindtap="pick"
+        >
+          <text class="letter">
+            {{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}
+          </text>
+          <text>{{option}}</text>
+        </view>
+      </block>
+      <textarea
+        wx:else
+        class="answer"
+        value="{{answers[q.id] || ''}}"
+        data-id="{{q.id}}"
+        bindinput="fill"
+        disabled="{{submitted || busy}}"
+        maxlength="5000"
+        auto-height
+        placeholder="{{q.type === 'translation' ? '在这里写下你的翻译…' : '在这里填写答案…'}}"
+      />
+      <view
+        wx:if="{{grades[q.id]}}"
+        class="feedback {{grades[q.id].correct ? 'right' : 'wrong'}}"
+      >
+        <view>{{grades[q.id].correct ? '✓ 回答正确' : '需要巩固'}}</view>
+        <text user-select>{{grades[q.id].feedback}}</text>
+        <view class="reference">参考答案：{{q.answer}}</view>
+        <view>{{q.explanation}}</view>
+      </view>
+    </view>
+  </view>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <button
+    wx:if="{{!graded}}"
+    class="submit"
+    bindtap="submit"
+    disabled="{{busy}}"
+  >
+    {{busy ? '正在逐题批改，请稍候…' : submitted ? '重新批改' : '提交整份试卷'}}
+  </button>
+  <button wx:if="{{sessionId}}" class="return" bindtap="study">
+    返回本课对话{{graded ? '，继续学习' : ''}}
+  </button>
+</view>

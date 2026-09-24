@@ -79,6 +79,7 @@ const fixtures: Record<string, Record<string, unknown>> = {
     content: c.text,
     words: c.words.slice(0, 4).map((w) => ({ word: w[0], meaning: w[1] })),
     editing: true,
+    kind: "article",
   },
   reader: {
     book: b,
@@ -93,7 +94,96 @@ const fixtures: Record<string, Record<string, unknown>> = {
     statusHeight: 24,
     showTrans: true,
   },
-  study: { state: store.emptyStudy(), bubbles: [] },
+  study: {
+    hasAssessment: true,
+    canNew: false,
+    label: "讲解与练习",
+    readonly: false,
+    current: {
+      id: "lesson-preview",
+      kind: "lesson",
+      phase: "teaching",
+      title: "第 1 课 · A Community Garden",
+      generationStep: 0,
+      messages: [
+        {
+          id: "m1",
+          role: "assistant",
+          content:
+            "这篇文章讲述了社区花园如何让邻里走得更近。我们先看一句话：People who work together often become friends.",
+        },
+      ],
+      pending: {
+        id: "q1",
+        type: "choice",
+        title: "句中的 who work together 修饰哪个词？",
+        options: ["People", "often", "become", "friends"],
+      },
+    },
+    sessions: [
+      {
+        id: "lesson-preview",
+        title: "第 1 课 · A Community Garden",
+        label: "讲解与练习",
+      },
+      { id: "assessment", title: "初始水平测评", label: "已归档 · 只读" },
+    ],
+  },
+  exam: {
+    title: "第 1 课 · 综合试卷",
+    total: 2,
+    answered: 1,
+    submitted: false,
+    answers: { q1: "B" },
+    grades: {},
+    sections: [
+      {
+        id: "reading",
+        title: "阅读理解",
+        material:
+          "A small community garden has changed the way people spend their weekends. Neighbors who rarely spoke now share seeds, stories, and fresh vegetables.",
+        questions: [
+          {
+            id: "q1",
+            type: "choice",
+            title: "What is the main benefit of the garden?",
+            options: [
+              "It provides more parking spaces.",
+              "It brings neighbors closer together.",
+              "It replaces all local supermarkets.",
+              "It makes weekends shorter.",
+            ],
+          },
+        ],
+      },
+      {
+        id: "translation",
+        title: "英汉互译",
+        material: "",
+        questions: [
+          {
+            id: "q2",
+            type: "translation",
+            title: "英译汉：Small changes can make a lasting difference.",
+          },
+        ],
+      },
+    ],
+  },
+  memory: {
+    profile: "准备考研，希望提升长难句理解能力。",
+    memory: {
+      mastered: [{ point: "一般现在时" }],
+      weak: ["定语从句"],
+      articles: [
+        {
+          sessionId: "a1",
+          title: "A Community Garden",
+          summary: "社区花园如何拉近邻里关系。",
+        },
+      ],
+    },
+  },
   settings: {
     form: store.defaults,
     themes,
@@ -234,7 +324,10 @@ function render(
   if (tag === "scroll-view")
     attrs.style = (attrs.style || "") + ";overflow:auto";
   const attributeText = Object.entries(attrs)
-    .map(([k, v]) => ` ${k}="${escape(k === "style" ? v.replace(/(-?[\d.]+)rpx/g, (_, n) => Number(n) / 2 + "px") : v)}"`)
+    .map(
+      ([k, v]) =>
+        ` ${k}="${escape(k === "style" ? v.replace(/(-?[\d.]+)rpx/g, (_, n) => Number(n) / 2 + "px") : v)}"`,
+    )
     .join("");
   if (["input", "img", "br"].includes(htmlTag))
     return `<${htmlTag}${attributeText}>`;
@@ -279,6 +372,8 @@ createServer((request, response) => {
     return;
   }
   const t = current();
+  const source =
+    name === "exam" ? "components/exam/index" : "pages/" + name + "/" + name;
   const state = {
     themeStyle: t.style,
     themePrimary: t.primary,
@@ -298,7 +393,7 @@ createServer((request, response) => {
     : "";
   response.writeHead(200, { "Content-Type": "text/html;charset=utf-8" });
   response.end(
-    `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>英语精读 · ${name} 外观预览</title><style>body{margin:0}button{font-family:inherit;border:0;cursor:pointer}input,textarea{font-family:inherit}img{vertical-align:middle}.icon{display:inline-block;flex-shrink:0}button:disabled{opacity:.5}${css("app.wxss")}${css("pages/" + name + "/" + name + ".wxss")}${css("custom-tab-bar/index.wxss")}</style></head><body>${template("pages/" + name + "/" + name + ".wxml", state)}${bar}</body></html>`,
+    `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>英语精读 · ${name} 外观预览</title><style>body{margin:0}button{font-family:inherit;border:0;cursor:pointer}input,textarea{font-family:inherit}img{vertical-align:middle}.icon{display:inline-block;flex-shrink:0}button:disabled{opacity:.5}${css("app.wxss")}${css(source + ".wxss")}${css("custom-tab-bar/index.wxss")}</style></head><body style="${escape(t.style)};max-width:390px;margin:0 auto">${template(source + ".wxml", state)}${bar}</body></html>`,
   );
 }).listen(4173, "127.0.0.1", () =>
   console.log(

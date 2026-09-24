@@ -2,6 +2,7 @@ import * as store from "../../services/storage";
 import { bind } from "../../services/theme";
 import { cover, data, navigate, confirm, fail, toast } from "../../services/ui";
 import { Book, UIEvent } from "../../core/models";
+import { AI_BOOK } from "../../core/learning";
 Page({
   data: { themeStyle: "", book: null as Book | null, cover: "", finished: 0 },
   bookId: "",
@@ -22,12 +23,17 @@ Page({
     if (book) wx.setNavigationBarTitle({ title: book.title });
   },
   add() {
+    if (this.bookId === AI_BOOK) {
+      wx.switchTab({ url: "/pages/study/study" });
+      return;
+    }
     navigate("chapter-edit", { bookId: this.bookId });
   },
   open(e: UIEvent) {
     navigate("reader", { bookId: this.bookId, chapterId: data(e, "id") });
   },
   edit(e: UIEvent) {
+    if (this.bookId === AI_BOOK) return toast("AI 课程章节由学习流程管理");
     navigate("chapter-edit", { bookId: this.bookId, chapterId: data(e, "id") });
   },
   resume() {

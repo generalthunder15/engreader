@@ -6,7 +6,7 @@ import vm from "node:vm";
 import { tokenize, splitSentences, joinTokens } from "../core/text";
 import { ReaderFlow } from "../core/reader";
 import { Quiz } from "../core/quiz";
-import { commitReply } from "../core/study";
+import { emptyLearning, newSession } from "../core/learning";
 import { Chapter } from "../core/models";
 import * as storage from "../services/storage";
 import { seedLibrary, clearUserData } from "../services/library";
@@ -158,18 +158,20 @@ test("backup round trip preserves annotations, user settings and learning histor
     { start: 0, end: 1, text: "Hello world", createdAt: 1 },
   ]);
   storage.saveSettings({ apiKey: "private-token" });
-  storage.write("study_state", {
-    ...storage.emptyStudy(),
-    phase: "assess",
-    assess: { total: 24, asked: 7 },
-  });
+  const learning = emptyLearning();
+  learning.sessions.push(newSession("assessment", "assessment"));
+  storage.write("learning_v1", learning);
   const backup = storage.exportBackup();
   mock.values.clear();
   storage.importBackup(backup);
   assert.equal(storage.books()[0].id, b.id);
   assert.equal(storage.marks("c1").length, 1);
   assert.equal(storage.settings().apiKey, "private-token");
-  assert.equal(storage.study().assess?.asked, 7);
+  assert.equal(
+    storage.read<typeof learning>("learning_v1", emptyLearning()).sessions[0]
+      .id,
+    "assessment",
+  );
 });
 test("malformed and incomplete backups do not alter current data", () => {
   storage.createBook("Keep");
@@ -207,7 +209,7 @@ test("seeding is idempotent and never clears marks or progress", () => {
   seedLibrary();
   assert.equal(storage.book(b.id), null);
 });
-test("deletion clears stale favorites and learning references but keeps saved sentences", () => {
+test("deletion clears stale favorites but keeps saved sentences", () => {
   const b = storage.createBook("Test");
   storage.saveChapter(chapter(b.id));
   storage.toggleFavorite({
@@ -224,36 +226,18 @@ test("deletion clears stale favorites and learning references but keeps saved se
     bookTitle: b.title,
     chapterTitle: "c1",
   });
-  storage.write("study_state", {
-    ...storage.emptyStudy(),
-    phase: "reading",
-    plan: {
-      text: "",
-      chapters: [{ bookId: b.id, chapterId: "c1", title: "", done: false }],
-      createdAt: 1,
-    },
-  });
+
   storage.deleteChapter(b.id, "c1");
   assert.equal(storage.favorites().length, 0);
-  assert.equal(storage.study().phase, "idle");
   assert.equal(storage.sentences().length, 1);
 });
-test("chapter completion updates plan and index in one transaction", () => {
+test("chapter completion updates chapter and index in one transaction", () => {
   const b = storage.createBook("Test");
   storage.saveChapter(chapter(b.id));
-  storage.write("study_state", {
-    ...storage.emptyStudy(),
-    phase: "reading",
-    plan: {
-      text: "",
-      chapters: [{ bookId: b.id, chapterId: "c1", title: "", done: false }],
-      createdAt: 1,
-    },
-  });
+
   storage.completeChapter(b.id, "c1");
   assert.equal(storage.chapter(b.id, "c1")?.quizDone, true);
   assert.equal(storage.book(b.id)?.chapters[0].quizDone, true);
-  assert.equal(storage.study().plan?.chapters[0].done, true);
 });
 test("clearing data retains built-in books and optionally keeps settings", () => {
   seedLibrary();
@@ -266,28 +250,4 @@ test("clearing data retains built-in books and optionally keeps settings", () =>
   assert.equal(storage.settings().apiKey, "saved-key");
   clearUserData(true);
   assert.equal(storage.settings().apiKey, "");
-});
-test("assessment counts actual successful answers, not the initial question", () => {
-  const initial = {
-    ...storage.emptyStudy(),
-    phase: "assess" as const,
-    assess: { total: 24, asked: 0 },
-    qa: { messages: [] },
-  };
-  const response = {
-    reply: "Question",
-    question: {
-      type: "choice" as const,
-      title: "Q",
-      options: ["a", "b", "c", "d"],
-    },
-    memory: "Profile",
-    plan: null,
-  };
-  const question = commitReply(initial, "start", response, 0);
-  assert.equal(question.assess?.asked, 0);
-  const answered = commitReply(question, "a", response, 1);
-  assert.equal(answered.assess?.asked, 1);
-  assert.equal(initial.assess.asked, 0);
-  assert.equal(answered.qa?.messages.length, 4);
 });

@@ -3,7 +3,19 @@
     <view class="eyebrow">{{book.title}}</view>
     <view class="caption">双击选词 · 长按选句 · 横向拖选 · 轻点显示菜单</view>
   </view>
-  <view class="reading-content" bindtap="toggleControls">
+  <app-exam
+    wx:if="{{examChapter}}"
+    book-id="{{readerBookId}}"
+    chapter-id="{{examChapter}}"
+  />
+  <button wx:if="{{examChapter}}" class="load-more" bindtap="back">
+    返回书籍
+  </button>
+  <view
+    wx:if="{{!examChapter}}"
+    class="reading-content"
+    bindtap="toggleControls"
+  >
     <block wx:for="{{blocks}}" wx:key="uid" wx:for-item="block">
       <view
         wx:if="{{block.type === 'title'}}"
@@ -33,7 +45,7 @@
       </view>
     </block>
   </view>
-  <view class="reading-end">
+  <view wx:if="{{!examChapter}}" class="reading-end">
     {{hasMore ? '继续上滑，阅读下一章' : '已读至本书末尾'}}
   </view>
   <button wx:if="{{hasMore}}" class="load-more" bindtap="onReachBottom">

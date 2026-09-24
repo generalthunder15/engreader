@@ -2,6 +2,7 @@ import * as store from "../../services/storage";
 import { bind } from "../../services/theme";
 import { cover, data, navigate, confirm, fail } from "../../services/ui";
 import { UIEvent } from "../../core/models";
+import { initialize } from "../../services/learning";
 Page({
   data: {
     themeStyle: "",
@@ -13,18 +14,21 @@ Page({
   },
   onShow() {
     bind(this, 1);
+    try {
+      initialize();
+    } catch (error) {
+      fail(error);
+    }
     this.refresh();
   },
   refresh() {
-    const books = store
-      .books()
-      .map((b) => ({
-        ...b,
-        cover: cover(b.hue),
-        subtitle: b.lastReadAt
-          ? "最近阅读 " + new Date(b.lastReadAt).toLocaleDateString()
-          : "尚未开始阅读",
-      }));
+    const books = store.books().map((b) => ({
+      ...b,
+      cover: cover(b.hue),
+      subtitle: b.lastReadAt
+        ? "最近阅读 " + new Date(b.lastReadAt).toLocaleDateString()
+        : "尚未开始阅读",
+    }));
     this.setData({
       books,
       totalChapters: books.reduce((n, b) => n + b.chapterCount, 0),

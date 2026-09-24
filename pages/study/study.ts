@@ -1,177 +1,238 @@
+import * as learning from "../../services/learning";
 import * as store from "../../services/storage";
-import { coach } from "../../services/ai";
-import { Question, Study, UIEvent, record } from "../../core/models";
-import { commitReply } from "../../core/study";
+import {
+  AI_BOOK,
+  Session,
+  canStart,
+  closed,
+  phaseLabel,
+  unresolved,
+} from "../../core/learning";
+import { UIEvent } from "../../core/models";
 import { bind } from "../../services/theme";
-import { data, input, navigate, confirm, fail, toast } from "../../services/ui";
-interface Bubble {
-  id: string;
-  role: string;
-  text: string;
-  question: Question | null;
-  actionable: boolean;
-}
+import { data, input, navigate, fail } from "../../services/ui";
+type SessionView = Pick<
+  Session,
+  | "id"
+  | "kind"
+  | "title"
+  | "phase"
+  | "articleId"
+  | "examId"
+  | "generationStep"
+  | "assessed"
+  | "pending"
+  | "messages"
+> & { submitted: boolean };
 Page({
   data: {
     themeStyle: "",
-    state: store.emptyStudy(),
-    bubbles: [] as Bubble[],
-    input: "",
-    sending: false,
-    done: 0,
-    scrollInto: "",
+    sessions: [] as { id: string; title: string; label: string }[],
+    current: null as SessionView | null,
+    label: "",
+    canNew: false,
+    hasAssessment: false,
+    text: "",
+    answer: "",
+    busy: false,
     error: "",
-    answered: 0,
+    progress: "",
+    readonly: false,
+    remaining: 0,
+    hasOlder: false,
+    historyPage: 0,
   },
-  active: true,
-  generation: 0,
+  selected: "",
+  alive: true,
   onShow() {
-    this.active = true;
+    this.alive = true;
     bind(this, 2);
-    this.refresh();
+    try {
+      learning.initialize();
+      const requested = store.read("open_learning_session", "");
+      if (requested) {
+        this.selected = requested;
+        wx.removeStorageSync("open_learning_session");
+      }
+      this.refresh();
+      if (
+        this.data.current?.phase === "reading" &&
+        store.chapter(AI_BOOK, this.data.current.articleId)?.quizDone
+      ) {
+        learning.unlockTeaching(this.data.current.id);
+        this.refresh();
+      }
+    } catch (error) {
+      fail(error);
+    }
+  },
+  onHide() {
+    this.alive = false;
   },
   onUnload() {
-    this.active = false;
-    this.generation++;
+    this.alive = false;
   },
   refresh() {
-    const state = store.study();
-    const messages = state.qa?.messages || [];
-    const bubbles: Bubble[] = messages.map((m, i) => {
-      let text = m.content;
-      let question: Question | null = null;
-      if (m.role === "assistant") {
-        try {
-          const r = record(JSON.parse(m.content));
-          text = String(r.reply || "");
-          question = (r.question as Question) || null;
-        } catch {
-          /* 兼容旧版纯文本 */
+    const state = learning.load();
+    if (!state.sessions.some((s) => s.id === this.selected))
+      this.selected = state.sessions[state.sessions.length - 1]?.id || "";
+    const selected = state.sessions.find((s) => s.id === this.selected) || null;
+    const end = selected
+      ? Math.max(0, selected.messages.length - this.data.historyPage * 20)
+      : 0;
+    const current: SessionView | null = selected
+      ? {
+          id: selected.id,
+          kind: selected.kind,
+          title: selected.title,
+          phase: selected.phase,
+          articleId: selected.articleId,
+          examId: selected.examId,
+          generationStep: selected.generationStep,
+          assessed: selected.assessed,
+          pending: selected.pending,
+          messages: selected.messages.slice(Math.max(0, end - 20), end),
+          submitted: !!selected.attempt,
         }
-      }
-      return {
-        id: "m" + i,
-        role: m.role,
-        text,
-        question,
-        actionable:
-          i === messages.length - 1 && ["assess", "qa"].includes(state.phase),
-      };
-    });
+      : null;
     this.setData({
-      state,
-      bubbles,
-      done: state.plan?.chapters.filter((c) => c.done).length || 0,
-      scrollInto: bubbles[bubbles.length - 1]?.id || "",
-      answered: state.assess?.asked || 0,
+      current,
+      hasOlder: end > 20,
+      sessions: [...state.sessions]
+        .reverse()
+        .map((s) => ({ id: s.id, title: s.title, label: phaseLabel[s.phase] })),
+      canNew: canStart(state),
+      hasAssessment: state.sessions.some((s) => s.kind === "assessment"),
+      label: current ? phaseLabel[current.phase] : "",
+      readonly: !!selected && closed(selected),
+      remaining: selected ? unresolved(selected).length : 0,
     });
   },
-  async start() {
-    if (this.data.sending) return;
-    const state: Study = {
-      ...store.emptyStudy(),
-      phase: "assess",
-      createdAt: Date.now(),
-      assess: { total: 24, asked: 0 },
-      qa: { messages: [] },
-    };
+  select(e: UIEvent) {
+    if (this.data.busy) return;
+    this.selected = data(e, "id");
+    this.setData({ text: "", answer: "", error: "", historyPage: 0 });
+    this.refresh();
+  },
+  older() {
+    this.setData({ historyPage: this.data.historyPage + 1 });
+    this.refresh();
+  },
+  latest() {
+    this.setData({ historyPage: 0 });
+    this.refresh();
+  },
+  start() {
     try {
-      store.write("study_state", state);
+      this.selected = learning.createAssessment();
       this.refresh();
-      await this.send("请开始摸底，出第一道题。", false);
     } catch (error) {
       fail(error);
     }
   },
-  input(e: UIEvent) {
-    this.setData({ input: input(e) });
-  },
-  async submit() {
-    const text = this.data.input.trim();
-    if (!text || !["assess", "qa"].includes(this.data.state.phase)) return;
-    if (await this.send(text, true)) this.setData({ input: "" });
-  },
-  async pick(e: UIEvent) {
-    if (
-      data(e, "id") !== this.data.bubbles[this.data.bubbles.length - 1]?.id ||
-      !["assess", "qa"].includes(this.data.state.phase)
-    )
-      return;
-    await this.send(data(e, "text"), true);
-  },
-  async send(text: string, answer: boolean): Promise<boolean> {
-    if (this.data.sending) return false;
-    const ticket = ++this.generation;
-    const state = store.study();
-    const answered =
-      (state.assess?.asked || 0) + (answer && state.phase === "assess" ? 1 : 0);
-    this.setData({ sending: true, error: "" });
+  async newLesson() {
+    if (this.data.busy) return;
     try {
-      const result = await coach(state, text, answered);
-      if (!this.active || ticket !== this.generation) return false;
-      if (store.study().createdAt !== state.createdAt) { this.refresh(); return false; }
-      store.write("study_state", commitReply(state, text, result, answered));
+      this.selected = learning.createLesson();
+      this.setData({ text: "", answer: "", error: "", historyPage: 0 });
       this.refresh();
-      return true;
+      await this.advance();
     } catch (error) {
-      if (this.active && ticket === this.generation)
+      fail(error);
+    }
+  },
+  text(e: UIEvent) {
+    this.setData({ text: input(e) });
+  },
+  answer(e: UIEvent) {
+    this.setData({ answer: input(e) });
+  },
+  async operate(work: () => Promise<void>) {
+    if (this.data.busy) return;
+    this.setData({ busy: true, error: "", progress: "" });
+    let success = false;
+    try {
+      await work();
+      success = true;
+    } catch (error) {
+      if (this.alive)
         this.setData({
-          error: error instanceof Error ? error.message : "请求失败，请重试",
+          error: error instanceof Error ? error.message : "操作失败，请重试",
         });
-      return false;
     } finally {
-      if (this.active && ticket === this.generation)
-        this.setData({ sending: false });
+      this.setData({ busy: false });
+      if (this.alive) {
+        this.setData({ historyPage: 0 });
+        this.refresh();
+        if (success) wx.pageScrollTo({ scrollTop: 10000000, duration: 200 });
+        if (success && this.data.current?.phase === "exam-generating")
+          void this.advance();
+      }
     }
   },
-  retry() {
-    if (!this.data.bubbles.length)
-      void this.send("请开始摸底，出第一道题。", false);
-    else toast("请重新选择答案或发送输入内容");
-  },
-  read(e: UIEvent) {
-    navigate("reader", {
-      bookId: data(e, "book"),
-      chapterId: data(e, "chapter"),
+  async advance() {
+    const sid = this.selected;
+    await this.operate(async () => {
+      let s = learning.session(sid);
+      const initialPhase = s.phase;
+      while (
+        this.alive &&
+        ["generating", "exam-generating"].includes(s.phase)
+      ) {
+        this.setData({ progress: learning.generationLabel(s) });
+        await learning.generateStep(sid);
+        s = learning.session(sid);
+        if (this.alive) this.refresh();
+      }
+      if (!this.alive) return;
+      if (s.phase === "grading") await learning.gradeExam(sid);
+      else if (s.phase === "reading" && initialPhase === "reading")
+        learning.unlockTeaching(sid);
+      s = learning.session(sid);
+      if (
+        ["assessment", "teaching", "remediation"].includes(s.phase) &&
+        !s.pending
+      )
+        await learning.continueConversation(sid);
     });
   },
-  quiz(e: UIEvent) {
-    store.write("quiz_target", {
-      bookId: data(e, "book"),
-      chapterId: data(e, "chapter"),
+  async send() {
+    const sid = this.selected,
+      text = this.data.text.trim();
+    if (!text) return;
+    await this.operate(async () => {
+      if (learning.session(sid).phase === "intro")
+        await learning.beginAssessment(sid, text);
+      else await learning.continueConversation(sid, text);
+      this.setData({ text: "" });
     });
+  },
+  async answerQuestion(e?: UIEvent) {
+    const text = (e && data(e, "option")) || this.data.answer.trim();
+    if (!text) return;
+    const sid = this.selected;
+    await this.operate(async () => {
+      await learning.continueConversation(sid, text, true);
+      this.setData({ answer: "" });
+      const s = learning.session(sid);
+      if (this.alive && !closed(s)) {
+        this.refresh();
+        await learning.continueConversation(sid);
+      }
+    });
+  },
+  read() {
+    const s = this.data.current;
+    if (s) navigate("reader", { bookId: AI_BOOK, chapterId: s.articleId });
+  },
+  exam() {
+    const s = this.data.current;
+    if (s) navigate("reader", { bookId: AI_BOOK, chapterId: s.examId });
+  },
+  quiz() {
+    const s = this.data.current;
+    if (!s) return;
+    store.write("quiz_target", { bookId: AI_BOOK, chapterId: s.articleId });
     wx.switchTab({ url: "/pages/quiz/quiz" });
-  },
-  async qa() {
-    const state = store.study();
-    if (
-      !state.plan?.chapters.length ||
-      !state.plan.chapters.every((c) => c.done)
-    )
-      return toast("请先完成计划中的章节闯关");
-    try {
-      store.write("study_state", { ...state, phase: "qa" });
-      this.refresh();
-      await this.send("已完成阅读和闯关，请出第一道理解题。", false);
-    } catch (error) {
-      fail(error);
-    }
-  },
-  async reset() {
-    if (
-      !(await confirm(
-        "重新开始学习",
-        "将清空测评、计划和教练对话。书籍与收藏保留。",
-      ))
-    )
-      return;
-    this.generation++;
-    try {
-      store.write("study_state", store.emptyStudy());
-      this.setData({ sending: false, error: "", input: "" });
-      this.refresh();
-    } catch (error) {
-      fail(error);
-    }
   },
 });

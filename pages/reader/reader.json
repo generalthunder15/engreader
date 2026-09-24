@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "阅读",
   "navigationStyle": "custom",
-  "onReachBottomDistance": 250
+  "onReachBottomDistance": 250,
+  "usingComponents": { "app-exam": "/components/exam/index" }
 }

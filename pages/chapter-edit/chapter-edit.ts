@@ -4,6 +4,23 @@ import { bind } from "../../services/theme";
 import { data, input, fail, toast, confirm } from "../../services/ui";
 import { Chapter, UIEvent, Word, id } from "../../core/models";
 import { tokenize } from "../../core/text";
+import { AI_BOOK, Exercise, parseExercise } from "../../core/learning";
+interface EditorQuestion {
+  id: string;
+  type: Exercise["type"];
+  title: string;
+  optionsText: string;
+  answer: string;
+  explanation: string;
+  point: string;
+  direction: "en-zh" | "zh-en";
+}
+interface EditorSection {
+  id: string;
+  title: string;
+  material: string;
+  questions: EditorQuestion[];
+}
 Page({
   data: {
     themeStyle: "",
@@ -13,12 +30,19 @@ Page({
     busy: false,
     progress: "",
     editing: false,
+    kind: "article",
+    sections: [] as EditorSection[],
   },
   bookId: "",
   original: null as Chapter | null,
   alive: true,
   onLoad(query: Record<string, string>) {
     this.bookId = query.bookId || "";
+    if (this.bookId === AI_BOOK) {
+      toast("AI 课程章节由学习流程管理");
+      wx.navigateBack();
+      return;
+    }
     this.original = store.chapter(this.bookId, query.chapterId || "");
     if (this.original)
       this.setData({
@@ -26,6 +50,20 @@ Page({
         content: this.original.rawText,
         words: this.original.words.map((w) => ({ ...w })),
         editing: true,
+        kind: this.original.kind || "article",
+        sections: (this.original.sections || []).map((s) => ({
+          ...s,
+          questions: s.questions.map((q) => ({
+            id: q.id,
+            type: q.type,
+            title: q.title,
+            optionsText: q.options.join("\n"),
+            answer: q.answer,
+            explanation: q.explanation,
+            point: q.points.join("、"),
+            direction: q.direction || "en-zh",
+          })),
+        })),
       });
   },
   onShow() {
@@ -36,6 +74,84 @@ Page({
   },
   title(e: UIEvent) {
     this.setData({ title: input(e) });
+  },
+  kind(e: UIEvent) {
+    if (!this.data.busy) this.setData({ kind: data(e, "kind") });
+  },
+  addSection() {
+    this.setData({
+      sections: [
+        ...this.data.sections,
+        { id: id(), title: "", material: "", questions: [] },
+      ],
+    });
+  },
+  sectionField(e: UIEvent) {
+    const sections = this.data.sections,
+      s = sections[Number(data(e, "section"))];
+    if (!s || !["title", "material"].includes(data(e, "field"))) return;
+    if (data(e, "field") === "title") s.title = input(e);
+    else s.material = input(e);
+    this.setData({ sections });
+  },
+  removeSection(e: UIEvent) {
+    this.setData({
+      sections: this.data.sections.filter(
+        (_, i) => i !== Number(data(e, "section")),
+      ),
+    });
+  },
+  addQuestion(e: UIEvent) {
+    const sections = this.data.sections,
+      s = sections[Number(data(e, "section"))];
+    if (!s) return;
+    const type = data(e, "type") as Exercise["type"];
+    s.questions.push({
+      id: id(),
+      type,
+      title: "",
+      optionsText: "",
+      answer: "",
+      explanation: "",
+      point: "",
+      direction: "en-zh",
+    });
+    this.setData({ sections });
+  },
+  questionField(e: UIEvent) {
+    const sections = this.data.sections,
+      q =
+        sections[Number(data(e, "section"))]?.questions[
+          Number(data(e, "question"))
+        ];
+    const field = data(e, "field");
+    if (
+      !q ||
+      ![
+        "title",
+        "optionsText",
+        "answer",
+        "explanation",
+        "point",
+        "direction",
+      ].includes(field)
+    )
+      return;
+    if (field === "direction")
+      q.direction = input(e) === "1" ? "zh-en" : "en-zh";
+    else
+      q[field as "title" | "optionsText" | "answer" | "explanation" | "point"] =
+        input(e);
+    this.setData({ sections });
+  },
+  removeQuestion(e: UIEvent) {
+    const sections = this.data.sections,
+      s = sections[Number(data(e, "section"))];
+    if (!s) return;
+    s.questions = s.questions.filter(
+      (_, i) => i !== Number(data(e, "question")),
+    );
+    this.setData({ sections });
   },
   content(e: UIEvent) {
     this.setData({ content: input(e) });
@@ -73,6 +189,69 @@ Page({
   },
   async save() {
     if (this.data.busy) return;
+    if (this.bookId === AI_BOOK) return toast("AI 课程章节不能手动修改");
+    if (this.data.kind === "exam") {
+      try {
+        if (!this.data.title.trim()) throw new Error("请填写章节标题");
+        if (
+          !this.data.sections.length ||
+          this.data.sections.some((s) => !s.title.trim() || !s.questions.length)
+        )
+          throw new Error("每个部分需要标题和至少一道题");
+        const sections = this.data.sections.map((s) => ({
+          id: s.id,
+          title: s.title.trim(),
+          material: s.material.trim(),
+          questions: s.questions.map((q) =>
+            parseExercise(
+              {
+                ...q,
+                options: q.optionsText
+                  .split(/\r?\n/)
+                  .map((v) => v.trim())
+                  .filter(Boolean),
+                points: q.point
+                  .split(/[、,，]/)
+                  .map((v) => v.trim())
+                  .filter(Boolean),
+              },
+              q.id,
+            ),
+          ),
+        }));
+        if (
+          this.original &&
+          !(await confirm(
+            "保存题目修改",
+            "修改试卷会清除本章旧答卷和批改结果，继续保存？",
+          ))
+        )
+          return;
+        const cid = this.original?.id || id(),
+          text = sections.map((s) => s.title + "\n" + s.material).join("\n\n");
+        const value: Chapter = {
+          id: cid,
+          bookId: this.bookId,
+          title: this.data.title.trim(),
+          kind: "exam",
+          sections,
+          rawText: text,
+          tokens: tokenize(text),
+          words: [],
+          translations: [],
+          translatedAt: 0,
+          quizDone: false,
+          createdAt: this.original?.createdAt || Date.now(),
+        };
+        store.saveChapter(value, true);
+        store.transaction({}, ["exam_draft_" + cid, "exam_attempt_" + cid]);
+        toast("题目章节已保存");
+        wx.navigateBack();
+      } catch (error) {
+        fail(error);
+      }
+      return;
+    }
     const title = this.data.title.trim(),
       text = this.data.content.trim();
     const words = this.data.words

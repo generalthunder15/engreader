@@ -3,9 +3,6 @@ import {
   Detail,
   Grammar,
   Message,
-  Plan,
-  Question,
-  Study,
   Word,
   record,
   strings,
@@ -82,10 +79,10 @@ const prompts = {
 type Task = keyof typeof prompts;
 const pending = new Map<string, Promise<unknown>>();
 function validTaskResult(task: Task, value: unknown): boolean {
-  if (task === 'ask') return typeof value === 'string' && !!value.trim();
+  if (task === "ask") return typeof value === "string" && !!value.trim();
   const result = record(value);
-  if (task === 'suggestions') return strings(result.questions).length > 0;
-  return typeof result.translation === 'string' && !!result.translation.trim();
+  if (task === "suggestions") return strings(result.questions).length > 0;
+  return typeof result.translation === "string" && !!result.translation.trim();
 }
 async function cached(
   task: Task,
@@ -102,7 +99,8 @@ async function cached(
     key,
     null,
   );
-  if (old?.identity === identity && validTaskResult(task, old.value)) return old.value;
+  if (old?.identity === identity && validTaskResult(task, old.value))
+    return old.value;
   const previous = pending.get(identity);
   if (previous) return previous;
   const promise = chat(
@@ -115,7 +113,8 @@ async function cached(
   )
     .then((result) => {
       const value: unknown = task === "ask" ? result : parseJSON(result);
-      if (!validTaskResult(task, value)) throw new Error('模型返回内容不完整，请重试');
+      if (!validTaskResult(task, value))
+        throw new Error("模型返回内容不完整，请重试");
       try {
         storage.write(key, { identity, value });
       } catch {
@@ -302,101 +301,4 @@ export async function fillMeanings(words: Word[]): Promise<Word[]> {
     ...w,
     meaning: w.meaning || result.get(w.word.toLowerCase()) || "",
   }));
-}
-export interface StudyReply {
-  reply: string;
-  question: Question | null;
-  memory: string;
-  plan: Plan | null;
-}
-export function parseStudyReply(raw: unknown): StudyReply {
-  const r = record(raw);
-  if (typeof r.reply !== "string" || !r.reply.trim())
-    throw new Error("学习教练未返回有效答复");
-  const q = record(r.question);
-  let question: Question | null = null;
-  if (typeof q.title === "string" && q.title.trim()) {
-    if (q.type === "choice") {
-      const options = strings(q.options);
-      if (options.length !== 4) throw new Error("测评选项不完整，请重试");
-      question = { type: "choice", title: q.title, options };
-    } else question = { type: "input", title: q.title };
-  }
-  const p = record(r.plan);
-  const plan: Plan | null = Array.isArray(p.chapters)
-    ? {
-        text: String(p.text || ""),
-        createdAt: Date.now(),
-        chapters: p.chapters
-          .map(record)
-          .filter(
-            (c) =>
-              typeof c.bookId === "string" && typeof c.chapterId === "string",
-          )
-          .map((c) => ({
-            bookId: String(c.bookId),
-            chapterId: String(c.chapterId),
-            title: String(c.title || ""),
-            done: false,
-          }))
-          .filter((c) => !!storage.chapter(c.bookId, c.chapterId)),
-      }
-    : null;
-  return {
-    reply: r.reply,
-    question,
-    memory: typeof r.memory === "string" ? r.memory : "",
-    plan: plan?.chapters.length ? plan : null,
-  };
-}
-export async function coach(
-  state: Study,
-  input: string,
-  answered: number,
-): Promise<StudyReply> {
-  const bookshelf = storage
-    .books()
-    .flatMap((b) =>
-      b.chapters.map((c) => ({
-        bookId: b.id,
-        chapterId: c.id,
-        title: b.title + " · " + c.title,
-      })),
-    );
-  const final =
-    state.phase === "assess" && answered >= (state.assess?.total || 24);
-  const prompt =
-    '你是私人英语教练。摸底共24题，逐题四选一，覆盖词汇、语法、阅读，根据回答调整难度。回答后点评再出下一题。摸底结束必须从书架选择真实章节生成计划。阅读后的 qa 阶段根据已读章节每次出一道填空或简答题并点评回答。返回严格JSON：{"reply":"中文反馈","question":{"type":"choice或input","title":"题干","options":["四个选项"]},"memory":"累计学习者画像","plan":{"text":"学习计划","chapters":[{"bookId":"真实id","chapterId":"真实id","title":"标题"}]}}。无需题目或计划时用null。\n当前阶段：' +
-    (final ? "plan-end，停止出题，生成计划" : state.phase) +
-    "\n已完成摸底题数：" +
-    answered +
-    "\n画像：" +
-    state.profile +
-    "\n书架：" +
-    JSON.stringify(bookshelf);
-  const context =
-    state.phase === "qa"
-      ? "\n已读章节原文：" +
-        (state.plan?.chapters || [])
-          .map((c) => storage.chapter(c.bookId, c.chapterId)?.rawText || "")
-          .join("\n")
-          .slice(0, 16000)
-      : "";
-  const response = parseStudyReply(
-    parseJSON(
-      await chat([
-        { role: "system", content: prompt + context },
-        ...(state.qa?.messages || [])
-          .slice(-48)
-          .map((m) => ({ role: m.role, content: m.content })),
-        { role: "user", content: input },
-      ]),
-    ),
-  );
-  if (final && !response.plan)
-    throw new Error("未生成有效的书架阅读计划，请重试");
-  if (!final && state.phase === "assess" && !response.question)
-    throw new Error("未生成测评题目，请重试");
-  if (!final) response.plan = null;
-  return response;
 }

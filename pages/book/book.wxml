@@ -15,7 +15,9 @@
     <button class="primary" bindtap="resume">继续阅读</button>
     <view class="row between">
       <view class="section-title">章节目录</view>
-      <button class="small ghost" bindtap="add">＋ 添加章节</button>
+      <button class="small ghost" bindtap="add">
+        {{book.id === 'ai_learning' ? '进入 AI 学习' : '＋ 添加章节'}}
+      </button>
     </view>
     <view class="card" wx:if="{{book.chapters.length}}">
       <view class="chapter" wx:for="{{book.chapters}}" wx:key="id">
@@ -23,14 +25,16 @@
           <text class="chapter-number">{{index + 1}}</text>
           <view class="grow">
             <view class="menu-title">{{item.title}}</view>
-            <view class="caption">
-              {{item.wordCount}} 个词语 · {{item.quizDone ? '已闯关' :
-              '待学习'}}{{item.translated ? ' · 已句译' : ''}}
+            <view wx:if="{{item.kind === 'exam'}}" class="caption">
+              试卷 · {{item.questionCount}} 道题
+            </view>
+            <view wx:else class="caption">
+              {{item.wordCount}} 个词语 · {{item.quizDone ? '已闯关' : '待学习'}}{{item.translated ? ' · 已句译' : ''}}
             </view>
           </view>
           <app-icon name="arrow" size="30" />
         </view>
-        <view class="row chapter-actions">
+        <view wx:if="{{book.id !== 'ai_learning'}}" class="row chapter-actions">
           <button class="small ghost" data-id="{{item.id}}" bindtap="edit">
             编辑
           </button>
@@ -47,8 +51,12 @@
     <view class="empty" wx:else>
       <app-icon name="note" size="80" />
       <view class="empty-title">还没有章节</view>
-      <view class="sub">添加正文与词表，开始这本书的精读。</view>
-      <button bindtap="add">添加第一章</button>
+      <view class="sub">
+        {{book.id === 'ai_learning' ? '完成初始测评后，开启新一课。AI 会为你生成文章与试卷。' : '添加正文与词表，开始这本书的精读。'}}
+      </view>
+      <button bindtap="add">
+        {{book.id === 'ai_learning' ? '进入 AI 学习' : '添加第一章'}}
+      </button>
     </view>
   </block>
   <view class="empty" wx:else>这本书已不存在</view>

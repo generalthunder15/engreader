@@ -1,130 +1,166 @@
 <view class="page tab-page" style="{{themeStyle}}">
-  <view class="row between">
-    <view>
-      <view class="eyebrow">YOUR PERSONAL COACH</view>
-      <view class="heading">一起，读得更好</view>
-    </view>
+  <view class="eyebrow">ONE LESSON AT A TIME</view>
+  <view class="heading">与你一起，循序渐进</view>
+  <view class="sub">一篇文章，一次深入学习。每三课，温习一次。</view>
+  <view class="row lesson-actions">
+    <button wx:if="{{!hasAssessment}}" class="primary" bindtap="start">
+      先认识一下你
+    </button>
     <button
-      wx:if="{{state.phase !== 'idle'}}"
-      class="small ghost"
-      bindtap="reset"
+      wx:else
+      class="primary"
+      bindtap="newLesson"
+      disabled="{{!canNew || busy}}"
     >
-      重置
+      开启新一课
     </button>
   </view>
-  <view class="sub">从你的水平出发，找到适合的阅读节奏。</view>
-  <view class="hero" wx:if="{{state.phase === 'idle'}}">
-    <app-icon name="chat" size="78" />
-    <view class="section-title">先认识一下你的英语</view>
-    <view class="sub">
-      24 道小测，了解词汇、语法与阅读能力。
-      <text>{{"\n"}}</text>
-      完成后，为你安排书架里的阅读计划。
-    </view>
-    <view class="spacer"></view>
-    <button class="primary" bindtap="start" disabled="{{sending}}">
-      开始水平测评
-    </button>
+  <view wx:if="{{hasAssessment && !canNew}}" class="caption">
+    完成测评或当前课程的全部错题复测后，才能开启下一课。
   </view>
-  <view wx:if="{{state.phase === 'assess'}}" class="hero">
-    <view class="row between">
-      <text>水平测评</text>
-      <text class="badge">{{answered}} / 24</text>
+  <scroll-view
+    wx:if="{{sessions.length}}"
+    scroll-x
+    class="session-list"
+    show-scrollbar="{{false}}"
+  >
+    <view
+      wx:for="{{sessions}}"
+      wx:key="id"
+      class="session-chip {{current.id === item.id ? 'active' : ''}}"
+      data-id="{{item.id}}"
+      bindtap="select"
+    >
+      <view>{{item.title}}</view>
+      <view class="caption">{{item.label}}</view>
     </view>
-    <view class="sub">一次一题，不用着急。</view>
-  </view>
-  <view wx:if="{{state.plan}}" class="card">
-    <view class="row between">
-      <view class="menu-title">你的阅读计划</view>
-      <text class="badge">{{done}} / {{state.plan.chapters.length}}</text>
-    </view>
-    <view class="sub">{{state.plan.text}}</view>
-    <view wx:for="{{state.plan.chapters}}" wx:key="chapterId" class="task">
-      <view class="row">
-        <app-icon name="{{item.done ? 'check' : 'book'}}" size="34" />
-        <text class="grow">{{item.title}}</text>
+  </scroll-view>
+  <block wx:if="{{current}}">
+    <view class="card">
+      <view class="menu-title">{{current.title}}</view>
+      <view class="sub">{{label}}</view>
+      <view wx:if="{{current.phase === 'assessment'}}" class="caption">
+        已完成 {{current.assessed}} / 24 题
       </view>
-      <view class="row task-actions">
+      <view wx:if="{{current.phase === 'remediation'}}" class="caption">
+        还有 {{remaining}} 个知识点需要通过新题复测
+      </view>
+      <view wx:if="{{current.phase === 'intro'}}" class="sub">
+        介绍一下你的英语基础、学习目标、薄弱项和每天可用的时间。按自己的方式说就好。
+      </view>
+      <view
+        wx:if="{{current.kind === 'lesson' && current.phase !== 'generating'}}"
+        class="row lesson-actions"
+      >
+        <button class="small" bindtap="read">阅读文章</button>
         <button
+          wx:if="{{current.phase === 'reading'}}"
           class="small"
-          data-book="{{item.bookId}}"
-          data-chapter="{{item.chapterId}}"
-          bindtap="read"
-        >
-          阅读
-        </button>
-        <button
-          class="small"
-          data-book="{{item.bookId}}"
-          data-chapter="{{item.chapterId}}"
           bindtap="quiz"
         >
-          {{item.done ? '再练一次' : '章节闯关'}}
+          单词闯关
+        </button>
+        <button
+          wx:if="{{current.generationStep === 21}}"
+          class="small"
+          bindtap="exam"
+        >
+          {{current.submitted ? '查看试卷' : '开始答卷'}}
         </button>
       </view>
     </view>
-    <button
-      wx:if="{{state.phase === 'reading'}}"
-      class="primary full"
-      bindtap="qa"
-      disabled="{{done !== state.plan.chapters.length || sending}}"
-    >
-      完成计划，进入问答
-    </button>
-  </view>
-  <view class="conversation">
+    <view class="row lesson-actions">
+      <button wx:if="{{hasOlder}}" class="small ghost" bindtap="older">
+        查看更早记录
+      </button>
+      <button wx:if="{{historyPage}}" class="small ghost" bindtap="latest">
+        回到最新记录
+      </button>
+    </view>
     <view
-      wx:for="{{bubbles}}"
+      wx:for="{{current.messages}}"
       wx:key="id"
-      id="{{item.id}}"
       class="bubble {{item.role === 'user' ? 'mine' : ''}}"
     >
-      <view class="caption">{{item.role === 'user' ? '我' : '阅读教练'}}</view>
-      <text class="body-text" user-select>{{item.text}}</text>
+      <view class="caption">{{item.role === 'user' ? '我' : '学习教练'}}</view>
+      <text class="body-text" user-select>{{item.content}}</text>
       <view wx:if="{{item.question}}" class="question">
-        <view class="question-title">{{item.question.title}}</view>
-        <button
+        <text class="body-text">{{item.question.title}}</text>
+        <view
           wx:for="{{item.question.options}}"
-          wx:for-item="option"
-          wx:for-index="oi"
           wx:key="index"
-          class="question-option"
-          data-id="{{item.id}}"
-          data-text="{{option}}"
-          bindtap="pick"
-          disabled="{{!item.actionable || sending}}"
+          wx:for-item="option"
+          class="sub"
         >
-          {{oi === 0 ? 'A' : oi === 1 ? 'B' : oi === 2 ? 'C' : 'D'}}. {{option}}
-        </button>
+          {{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}.
+          {{option}}
+        </view>
       </view>
     </view>
-  </view>
-  <view wx:if="{{sending}}" class="loading">教练正在思考…</view>
-  <view wx:if="{{error}}" class="error">
-    {{error}}
-    <button class="small ghost" bindtap="retry">重试</button>
-  </view>
-  <view
-    wx:if="{{state.phase === 'assess' || state.phase === 'qa'}}"
-    class="composer"
-  >
-    <input
-      class="field grow"
-      value="{{input}}"
-      bindinput="input"
-      bindconfirm="submit"
-      placeholder="写下你的回答或问题…"
-      disabled="{{sending}}"
-    />
+    <view wx:if="{{current.pending && !readonly}}" class="card">
+      <view class="caption">回答当前题目</view>
+      <view class="question-title">{{current.pending.title}}</view>
+      <view wx:if="{{current.pending.type === 'choice'}}">
+        <button
+          wx:for="{{current.pending.options}}"
+          wx:key="index"
+          class="question-option"
+          data-option="{{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}"
+          bindtap="answerQuestion"
+          disabled="{{busy}}"
+        >
+          {{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}.
+          {{item}}
+        </button>
+      </view>
+      <block wx:else>
+        <textarea
+          class="field textarea"
+          value="{{answer}}"
+          bindinput="answer"
+          placeholder="在这里填写答案…"
+          maxlength="5000"
+          disabled="{{busy}}"
+        />
+        <button
+          class="primary full"
+          bindtap="answerQuestion"
+          disabled="{{busy || !answer}}"
+        >
+          提交这道题
+        </button>
+      </block>
+    </view>
+    <view wx:if="{{busy}}" class="loading">
+      {{progress || '教练正在思考…'}}
+    </view>
+    <view wx:if="{{error}}" class="error">{{error}}</view>
     <button
-      class="primary small"
-      bindtap="submit"
-      disabled="{{sending || !input}}"
+      wx:if="{{!readonly && current.phase !== 'intro' && current.phase !== 'exam' && !current.pending}}"
+      class="full"
+      bindtap="advance"
+      disabled="{{busy}}"
     >
-      发送
+      {{current.phase === 'generating' || current.phase === 'exam-generating' ? '继续生成 / 重试' : current.phase === 'grading' ? '批改试卷 / 重试' : current.phase === 'reading' ? '已完成闯关，继续学习' : '继续学习 / 重试'}}
     </button>
-  </view>
-  <view class="sub" wx:if="{{state.phase === 'reading'}}">
-    完成上方阅读任务与章节闯关后，可以继续向教练提问。
-  </view>
+    <view
+      wx:if="{{current.phase === 'intro' || current.phase === 'teaching' || current.phase === 'remediation'}}"
+      class="chat-compose"
+    >
+      <textarea
+        class="field textarea"
+        value="{{text}}"
+        bindinput="text"
+        placeholder="{{current.phase === 'intro' ? '我的英语基础和目标是…' : '可以聊聊文章，或提出你的疑问…'}}"
+        maxlength="5000"
+        disabled="{{busy}}"
+      />
+      <button class="primary full" bindtap="send" disabled="{{busy || !text}}">
+        {{current.phase === 'intro' ? '介绍好了，开始测评' : '发送'}}
+      </button>
+    </view>
+    <view wx:if="{{readonly}}" class="sub">
+      这段对话已归档，可以随时回来查看。
+    </view>
+  </block>
 </view>

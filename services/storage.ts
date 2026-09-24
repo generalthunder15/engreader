@@ -7,11 +7,14 @@ import {
   Note,
   Sentence,
   Settings,
-  Study,
   Vocab,
   id,
   record,
 } from "../core/models";
+import {
+  validateLearningBackup,
+  discardLegacySessions,
+} from "../core/learning";
 
 export function read<T>(key: string, fallback: T): T {
   const value: unknown = wx.getStorageSync(key);
@@ -162,6 +165,9 @@ export function saveChapter(value: Chapter, resetAnnotations = false): void {
   const owner = list.find((b) => b.id === value.bookId);
   if (!owner) throw new Error("书籍已不存在");
   const meta: ChapterMeta = {
+    kind: value.kind || "article",
+    questionCount:
+      value.sections?.reduce((n, s) => n + s.questions.length, 0) || 0,
     id: value.id,
     title: value.title,
     wordCount: value.words.length,
@@ -198,22 +204,12 @@ function removeContent(
   owner.chapters = owner.chapters.filter((c) => !chapterIds.includes(c.id));
   owner.chapterCount = owner.chapters.length;
   if (chapterIds.includes(owner.lastChapterId)) owner.lastChapterId = "";
-  const learning = study();
-  if (learning.plan)
-    learning.plan.chapters = learning.plan.chapters.filter(
-      (c) => c.bookId !== bookId || !chapterIds.includes(c.chapterId),
-    );
-  if (learning.phase === "reading" && !learning.plan?.chapters.length) {
-    learning.phase = "idle";
-    learning.plan = null;
-  }
   transaction(
     {
       book_index: removeBook ? list.filter((b) => b.id !== bookId) : list,
       favors: favorites().filter(
         (f) => f.bookId !== bookId || !chapterIds.includes(f.chapterId),
       ),
-      study_state: learning,
     },
     chapterIds.flatMap((c) => [
       chapterKey(bookId, c),
@@ -223,9 +219,13 @@ function removeContent(
   );
 }
 export function deleteBook(bookId: string): void {
+  if (bookId === "ai_learning")
+    throw new Error("AI 学习书籍关联课程记录，不能单独删除");
   removeContent(bookId, book(bookId)?.chapters.map((c) => c.id) || [], true);
 }
 export function deleteChapter(bookId: string, chapterId: string): void {
+  if (bookId === "ai_learning")
+    throw new Error("AI 章节关联课程记录，不能单独删除");
   removeContent(bookId, [chapterId], false);
 }
 export const marks = (chapterId: string): Mark[] =>
@@ -264,18 +264,6 @@ export function toggleFavorite(
   );
   return !active;
 }
-export const emptyStudy = (): Study => ({
-  phase: "idle",
-  createdAt: 0,
-  assess: null,
-  plan: null,
-  qa: null,
-  profile: "",
-});
-export const study = (): Study => ({
-  ...emptyStudy(),
-  ...read<Partial<Study>>("study_state", {}),
-});
 export function completeChapter(bookId: string, chapterId: string): void {
   const value = chapter(bookId, chapterId);
   if (!value) throw new Error("章节已不存在");
@@ -283,14 +271,9 @@ export function completeChapter(bookId: string, chapterId: string): void {
   const owner = list.find((b) => b.id === bookId);
   const meta = owner?.chapters.find((c) => c.id === chapterId);
   if (meta) meta.quizDone = true;
-  const learning = study();
-  learning.plan?.chapters.forEach((c) => {
-    if (c.bookId === bookId && c.chapterId === chapterId) c.done = true;
-  });
   transaction({
     [chapterKey(bookId, chapterId)]: { ...value, quizDone: true },
     book_index: list,
-    study_state: learning,
   });
 }
 export function exportBackup(): {
@@ -300,17 +283,26 @@ export function exportBackup(): {
 } {
   const data: Record<string, unknown> = {};
   wx.getStorageInfoSync()
-    .keys.filter((k) => !/^tts_/.test(k))
+    .keys.filter((k) => k !== "study_state" && !/^tts_/.test(k))
     .forEach((k) => {
       data[k] = wx.getStorageSync(k);
     });
-  return { version: 3, exportedAt: new Date().toISOString(), data };
+  if (data.learning_v1)
+    data.learning_v1 = discardLegacySessions(
+      data.learning_v1 as import("../core/learning").Learning,
+    );
+  return { version: 4, exportedAt: new Date().toISOString(), data };
 }
 export function importBackup(input: unknown): number {
   const backup = record(input);
-  const data = record(backup.data);
+  const data = { ...record(backup.data) };
+  delete data.study_state;
+  if (data.learning_v1)
+    data.learning_v1 = discardLegacySessions(
+      data.learning_v1 as import("../core/learning").Learning,
+    );
   if (!Object.keys(data).length) throw new Error("备份内容为空或格式不正确");
-  if (Number(backup.version) > 3)
+  if (Number(backup.version) > 4)
     throw new Error("此备份来自更新版本，请先升级应用");
   for (const key of Object.keys(data))
     if (["__proto__", "prototype", "constructor"].includes(key))
@@ -346,6 +338,10 @@ export function importBackup(input: unknown): number {
           throw new Error("备份缺少完整章节：" + String(c.title || c.id));
       }
     }
-  transaction(data);
+  if ("learning_v1" in data) validateLearningBackup(data.learning_v1, data);
+  transaction(
+    data,
+    "learning_v1" in data ? ["study_state"] : ["study_state", "learning_v1"],
+  );
   return Object.keys(data).length;
 }
