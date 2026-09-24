@@ -1,6 +1,7 @@
 import { Block, ReaderFlow } from "../../core/reader";
 import { Book, Definition, Detail, Note, UIEvent } from "../../core/models";
 import { joinTokens } from "../../core/text";
+import { placeSelectionMenu } from "../../core/selection-menu";
 import * as store from "../../services/storage";
 import * as ai from "../../services/ai";
 import * as dictionary from "../../services/dictionary";
@@ -31,6 +32,10 @@ Page({
     toc: false,
     selectedText: "",
     toolbar: false,
+    toolbarReady: false,
+    toolbarStyle: "",
+    toolbarSide: "below",
+    toolbarArrow: 24,
     showTrans: false,
     favored: false,
     hasMore: false,
@@ -77,6 +82,7 @@ Page({
   touchX: 0,
   touchY: 0,
   rects: [] as Rect[],
+  toolbarMeasure: 0,
   dayTheme: "default",
   onLoad(query: Record<string, string>) {
     this.bookId = query.bookId || "";
@@ -175,6 +181,7 @@ Page({
   },
   onPageScroll(event: { scrollTop: number }) {
     this.scrollTop = event.scrollTop;
+    if (this.data.toolbar) this.positionToolbar();
     if (this.data.controls) this.setData({ controls: false });
     let current = this.anchors[0];
     for (const anchor of this.anchors)
@@ -208,8 +215,12 @@ Page({
       const serialized = JSON.stringify(block);
       if (this.published[index] === serialized) return;
       // Bound each bridge message, even when reading an entire book continuously.
-      if (size + serialized.length * 3 > 250000 && size) { this.setData(patch); patch = {}; size = 0; }
-      patch['blocks[' + index + ']'] = block;
+      if (size + serialized.length * 3 > 250000 && size) {
+        this.setData(patch);
+        patch = {};
+        size = 0;
+      }
+      patch["blocks[" + index + "]"] = block;
       size += serialized.length * 3;
       this.published[index] = serialized;
     });
@@ -372,9 +383,50 @@ Page({
     this.setData({
       selectedText: joinTokens(tokens),
       toolbar: !!tokens.length,
+      toolbarReady: false,
       controls: false,
     });
     this.publishBlocks();
+    this.positionToolbar();
+  },
+  positionToolbar() {
+    const ticket = ++this.toolbarMeasure;
+    wx.nextTick(() => {
+      if (!this.alive || !this.data.toolbar || ticket !== this.toolbarMeasure)
+        return;
+      const q = wx.createSelectorQuery().in(this);
+      q.selectAll(".token.selected").boundingClientRect();
+      q.select(".selection-bar").boundingClientRect();
+      q.exec((result) => {
+        if (!this.alive || !this.data.toolbar || ticket !== this.toolbarMeasure)
+          return;
+        const rects = result[0] as Rect[];
+        const menu = result[1] as { width: number; height: number } | null;
+        if (!menu) return;
+        const info = wx.getWindowInfo();
+        const bottomInset = info.safeArea
+          ? Math.max(0, info.screenHeight - info.safeArea.bottom)
+          : 0;
+        const position = placeSelectionMenu(rects || [], menu, {
+          width: info.windowWidth,
+          top: (info.statusBarHeight || 24) + 44,
+          bottom: info.windowHeight - bottomInset - 12,
+        });
+        this.setData(
+          position
+            ? {
+                toolbarReady: true,
+                toolbarStyle: `left:${position.left}px;top:${position.top}px;`,
+                toolbarSide: position.side,
+                toolbarArrow: position.arrow,
+              }
+            : { toolbarReady: false },
+        );
+      });
+    });
+  },
+  onResize() {
+    if (this.data.toolbar) this.positionToolbar();
   },
   clearSelection() {
     this.flow.clear();

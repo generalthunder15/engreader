@@ -89,9 +89,18 @@
       </button>
     </view>
   </view>
-  <view class="selection-bar" wx:if="{{toolbar}}">
-    <scroll-view scroll-x class="selection-actions">
-      <button
+  <view
+    class="selection-bar {{toolbarReady ? '' : 'selection-hidden'}} {{toolbarSide}}"
+    style="{{toolbarStyle}}"
+    wx:if="{{toolbar}}"
+    catchtap="noop"
+  >
+    <view class="selection-arrow" style="left:{{toolbarArrow}}px"></view>
+    <scroll-view scroll-x class="selection-actions" show-scrollbar="{{false}}">
+      <view
+        class="selection-action"
+        aria-role="button"
+        hover-class="selection-action-hover"
         wx:for="{{actions}}"
         wx:key="id"
         data-action="{{item.id}}"
@@ -99,11 +108,16 @@
       >
         <app-icon name="{{item.icon}}" size="34" />
         <text>{{item.text}}</text>
-      </button>
-      <button bindtap="clearSelection">
+      </view>
+      <view
+        class="selection-action"
+        aria-role="button"
+        hover-class="selection-action-hover"
+        bindtap="clearSelection"
+      >
         <app-icon name="close" size="34" />
         <text>取消</text>
-      </button>
+      </view>
     </scroll-view>
   </view>
   <block wx:if="{{toc}}">

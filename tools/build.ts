@@ -28,7 +28,9 @@ const expected = new Set(
 function copyAsset(source: string) {
   const destination = resolve(output, source);
   mkdirSync(resolve(destination, ".."), { recursive: true });
-  writeFileSync(destination, readFileSync(source));
+  const contents = readFileSync(source);
+  if (!existsSync(destination) || !readFileSync(destination).equals(contents))
+    writeFileSync(destination, contents);
   expected.add(destination);
 }
 function copyAssets(dir: string) {
