@@ -49,7 +49,7 @@ export function current(): {
       ? mode === "sepia"
         ? "literata"
         : mode === "night"
-          ? "inter"
+          ? "literata"
           : "system"
       : s.fontRead;
   const fontId = fonts.list().some((f) => f.id === requested)

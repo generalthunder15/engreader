@@ -31,14 +31,16 @@ const system: Font[] = [
     kind: "system",
   },
 ];
-const builtin: Font[] = ["literata", "garamond", "inter"].map((key, i) => ({
-  id: key,
-  name: ["Literata", "EB Garamond", "Inter"][i],
-  family: "EngReader " + ["Literata", "Garamond", "Inter"][i],
-  kind: "builtin",
-  file: key + ".ttf",
-  boldFile: key + "-bold.ttf",
-}));
+const builtin: Font[] = [
+  {
+    id: "literata",
+    name: "Literata",
+    family: "EngReader Literata",
+    kind: "builtin",
+    file: "literata.ttf",
+    boldFile: "literata-bold.ttf",
+  },
+];
 const loaded = new Set<string>();
 const pending = new Map<string, Promise<boolean>>();
 export const list = (): Font[] => [

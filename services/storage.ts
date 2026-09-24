@@ -109,6 +109,9 @@ export function settings(): Settings {
     "fontUi",
   ] as const)
     if (typeof value[key] !== "string") value[key] = defaults[key];
+  for (const key of ["fontRead", "fontUi"] as const)
+    if (value[key] === "garamond" || value[key] === "inter")
+      value[key] = "literata";
   for (const [key, min, max, fallback] of [
     ["ttsSpeed", 0.5, 2, 1],
     ["quizCount", 5, 100, 30],
