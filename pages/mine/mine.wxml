@@ -1,52 +1,69 @@
-<view class="page has-tabbar" style="{{themeStyle}}">
-  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
-  <view class="page-body">
-    <view class="head">
-      <view class="head-title">我的</view>
+<view class="page tab-page" style="{{themeStyle}}">
+  <view class="eyebrow">MY LEARNING JOURNEY</view>
+  <view class="heading">每一步，都算数</view>
+  <view class="sub">读过的内容，留下的思考，都在这里。</view>
+  <view class="hero stats">
+    <view>
+      <view class="count">{{books}}</view>
+      <view class="caption">书架藏书</view>
     </view>
-
-    <view class="menu">
-      <view class="mi" bindtap="go" data-url="/pages/vocab/vocab">
-        <view class="mi-ico">📕</view>
-        <view class="mi-name">生词本</view>
-        <view class="mi-sub">{{stat.vocab}} 个</view>
-        <view class="mi-arrow">›</view>
-      </view>
-      <view class="mi" bindtap="go" data-url="/pages/sentences/sentences">
-        <view class="mi-ico">💬</view>
-        <view class="mi-name">收藏句子</view>
-        <view class="mi-sub">{{stat.sentences}} 句</view>
-        <view class="mi-arrow">›</view>
-      </view>
-      <view class="mi" bindtap="go" data-url="/pages/favorites/favorites">
-        <view class="mi-ico">⭐</view>
-        <view class="mi-name">收藏文章</view>
-        <view class="mi-sub">{{stat.favors}} 章</view>
-        <view class="mi-arrow">›</view>
-      </view>
-      <view class="mi dim">
-        <view class="mi-ico">🧠</view>
-        <view class="mi-name">收藏知识点</view>
-        <view class="mi-sub">敬请期待</view>
-        <view class="mi-arrow">›</view>
-      </view>
+    <view>
+      <view class="count">{{vocab}}</view>
+      <view class="caption">收藏生词</view>
     </view>
-
-    <view class="menu">
-      <view class="mi" bindtap="go" data-url="/pages/settings/settings">
-        <view class="mi-ico">⚙️</view>
-        <view class="mi-name">系统设置</view>
-        <view class="mi-sub">API 配置 · 闯关词数 · 备份</view>
-        <view class="mi-arrow">›</view>
-      </view>
-      <view class="mi danger" bindtap="onClearData">
-        <view class="mi-ico">🧹</view>
-        <view class="mi-name">清除数据</view>
-        <view class="mi-sub">保留内置书，清空其余全部</view>
-        <view class="mi-arrow">›</view>
-      </view>
+    <view>
+      <view class="count">{{sentences}}</view>
+      <view class="caption">收藏句子</view>
     </view>
-
-    <view class="about">英语精读 v3.0 · 个人单机版</view>
   </view>
+  <view class="section-title">我的积累</view>
+  <view class="card menu">
+    <view class="list-row" bindtap="go" data-page="vocab">
+      <view class="menu-icon"><app-icon name="book" /></view>
+      <view class="grow">
+        <view class="menu-title">生词本</view>
+        <view class="caption">让生词成为熟悉的朋友</view>
+      </view>
+      <text class="muted">{{vocab}}</text>
+      <app-icon name="arrow" size="28" />
+    </view>
+    <view class="list-row" bindtap="go" data-page="sentences">
+      <view class="menu-icon"><app-icon name="chat" /></view>
+      <view class="grow">
+        <view class="menu-title">收藏句子</view>
+        <view class="caption">值得反复读的表达</view>
+      </view>
+      <text class="muted">{{sentences}}</text>
+      <app-icon name="arrow" size="28" />
+    </view>
+    <view class="list-row" bindtap="go" data-page="favorites">
+      <view class="menu-icon"><app-icon name="bookmark" /></view>
+      <view class="grow">
+        <view class="menu-title">收藏章节</view>
+        <view class="caption">回到喜欢的那一篇</view>
+      </view>
+      <text class="muted">{{favorites}}</text>
+      <app-icon name="arrow" size="28" />
+    </view>
+  </view>
+  <view class="section-title">偏好与数据</view>
+  <view class="card menu">
+    <view class="list-row" bindtap="go" data-page="settings">
+      <view class="menu-icon"><app-icon name="settings" /></view>
+      <view class="grow">
+        <view class="menu-title">系统设置</view>
+        <view class="caption">阅读外观 · 模型配置 · 备份</view>
+      </view>
+      <app-icon name="arrow" size="28" />
+    </view>
+    <view class="list-row" bindtap="clear">
+      <view class="menu-icon"><app-icon name="delete" /></view>
+      <view class="grow">
+        <view class="menu-title">清除数据</view>
+        <view class="caption">保留内置读物，重新开始</view>
+      </view>
+      <app-icon name="arrow" size="28" />
+    </view>
+  </view>
+  <view class="about">英语精读 · 为每一次认真阅读</view>
 </view>

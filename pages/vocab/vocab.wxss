@@ -1,9 +1,16 @@
-.list { padding-bottom: 40rpx; }
-.w-line { display: flex; align-items: center; gap: 14rpx; }
-.w { font-size: 34rpx; font-weight: 500; color: var(--c-text, #1A1D24); font-family: var(--font-read); }
-.pos { background: var(--c-primary-weak, #EAF1FA); color: var(--c-primary, #2B6CB0); font-size: 22rpx; padding: 2rpx 12rpx; border-radius: 6rpx; }
-.phon { color: var(--c-text-hint, #8A8F99); font-size: 26rpx; }
-.speaker { margin-left: auto; font-size: 30rpx; }
-.trans { font-size: 28rpx; color: var(--c-text-sub, #4B5563); margin-top: 10rpx; }
-.from { font-size: 22rpx; color: var(--c-text-faint, #C3C8D0); margin-top: 8rpx; }
-.tip { text-align: center; color: var(--c-text-faint, #C3C8D0); font-size: 24rpx; padding: 10rpx 0 30rpx; }
+.search-row {
+  padding: 22rpx 24rpx;
+  background: var(--card);
+  border: 1rpx solid var(--line);
+  border-radius: 20rpx;
+  margin: 28rpx 0;
+}
+.word {
+  font-family: Georgia, serif;
+  font-size: 40rpx;
+  word-break: break-word;
+}
+.meaning {
+  line-height: 1.8;
+  margin: 18rpx 0;
+}

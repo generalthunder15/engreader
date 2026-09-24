@@ -1,0 +1,7 @@
+<image
+  class="icon"
+  src="/assets/icons/{{name}}.svg"
+  style="width:{{size}}rpx;height:{{size}}rpx"
+  mode="aspectFit"
+  aria-hidden="true"
+/>

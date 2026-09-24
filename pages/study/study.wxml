@@ -1,93 +1,130 @@
-<view class="page" style="{{themeStyle}}">
-  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
-  <view class="page-body">
-
-    <!-- 空闲：开始摸底 -->
-    <view class="hero" wx:if="{{phase === 'idle'}}">
-      <view class="hero-icon">🎓</view>
-      <view class="hero-title">AI 学习教练</view>
-      <view class="hero-desc">
-        AI 会先通过 24 道选择题了解你的英语水平，
-        再从书架里挑选适合你的章节制定阅读计划；
-        完成阅读与章节单词闯关后，AI 会针对内容继续考察你的掌握情况。
-      </view>
-      <view class="hero-btn" bindtap="startAssess">开始水平摸底</view>
+<view class="page tab-page" style="{{themeStyle}}">
+  <view class="row between">
+    <view>
+      <view class="eyebrow">YOUR PERSONAL COACH</view>
+      <view class="heading">一起，读得更好</view>
     </view>
-
-    <!-- 阅读任务横幅 -->
-    <view class="plan-card" wx:if="{{plan && (phase === 'reading' || phase === 'qa')}}">
-      <view class="plan-title">学习计划{{phase === 'qa' ? ' · 问答中' : ''}}</view>
-      <view class="plan-text" wx:if="{{plan.text}}">{{plan.text}}</view>
-      <view class="plan-progress">{{planDoneCount}}/{{planTotal}} 章完成闯关</view>
-      <view
-        class="plan-ch {{item.done ? 'done' : ''}}"
-        wx:for="{{plan.chapters}}"
-        wx:key="chapterId"
-      >
-        <view class="plan-ch-name">{{item.title}}{{item.done ? ' ✓' : ''}}</view>
-        <view class="plan-ch-btns">
-          <view class="pch-btn" catchtap="goRead" data-book="{{item.bookId}}" data-chapter="{{item.chapterId}}">去阅读</view>
-          <view class="pch-btn alt" catchtap="goQuiz" data-book="{{item.bookId}}" data-chapter="{{item.chapterId}}">去闯关</view>
-        </view>
+    <button
+      wx:if="{{state.phase !== 'idle'}}"
+      class="small ghost"
+      bindtap="reset"
+    >
+      重置
+    </button>
+  </view>
+  <view class="sub">从你的水平出发，找到适合的阅读节奏。</view>
+  <view class="hero" wx:if="{{state.phase === 'idle'}}">
+    <app-icon name="chat" size="78" />
+    <view class="section-title">先认识一下你的英语</view>
+    <view class="sub">
+      24 道小测，了解词汇、语法与阅读能力。
+      <text>{{"\n"}}</text>
+      完成后，为你安排书架里的阅读计划。
+    </view>
+    <view class="spacer"></view>
+    <button class="primary" bindtap="start" disabled="{{sending}}">
+      开始水平测评
+    </button>
+  </view>
+  <view wx:if="{{state.phase === 'assess'}}" class="hero">
+    <view class="row between">
+      <text>水平测评</text>
+      <text class="badge">{{answered}} / 24</text>
+    </view>
+    <view class="sub">一次一题，不用着急。</view>
+  </view>
+  <view wx:if="{{state.plan}}" class="card">
+    <view class="row between">
+      <view class="menu-title">你的阅读计划</view>
+      <text class="badge">{{done}} / {{state.plan.chapters.length}}</text>
+    </view>
+    <view class="sub">{{state.plan.text}}</view>
+    <view wx:for="{{state.plan.chapters}}" wx:key="chapterId" class="task">
+      <view class="row">
+        <app-icon name="{{item.done ? 'check' : 'book'}}" size="34" />
+        <text class="grow">{{item.title}}</text>
       </view>
-      <view class="plan-start-qa" wx:if="{{phase === 'reading' && planDoneCount === planTotal && planTotal > 0}}" bindtap="startQA">
-        任务完成，开始 AI 问答
+      <view class="row task-actions">
+        <button
+          class="small"
+          data-book="{{item.bookId}}"
+          data-chapter="{{item.chapterId}}"
+          bindtap="read"
+        >
+          阅读
+        </button>
+        <button
+          class="small"
+          data-book="{{item.bookId}}"
+          data-chapter="{{item.chapterId}}"
+          bindtap="quiz"
+        >
+          {{item.done ? '再练一次' : '章节闯关'}}
+        </button>
       </view>
     </view>
-
-    <!-- 对话区 -->
-    <scroll-view scroll-y class="chat" scroll-into-view="{{scrollInto}}" wx:if="{{phase !== 'idle'}}">
-      <block wx:for="{{msgs}}" wx:key="id">
-        <view id="wrap-{{item.id}}" class="row {{item.role === 'me' ? 'me' : ''}}">
-          <view class="bubble {{item.role === 'me' ? 'me' : ''}}">
-            <text>{{item.text}}</text>
-            <!-- 交互题卡片 -->
-            <view class="qcard" wx:if="{{item.q}}">
-              <view class="q-title">{{item.q.title}}</view>
-              <block wx:if="{{item.q.type === 'choice'}}">
-                <view
-                  class="q-opt"
-                  wx:for="{{item.q.options}}"
-                  wx:for-item="opt"
-                  wx:for-index="oi"
-                  wx:key="oi"
-                  catchtap="pickOption"
-                  data-i="{{oi}}"
-                  data-text="{{opt}}"
-                >{{['A','B','C','D'][oi]}}. {{opt}}</view>
-              </block>
-              <view class="q-input-hint" wx:else>在下方输入框作答</view>
-            </view>
-          </view>
-        </view>
-      </block>
-      <view class="typing" wx:if="{{sending}}">AI 正在思考…</view>
-      <view class="chat-pad"></view>
-    </scroll-view>
-
-    <!-- 输入区 -->
-    <view class="inputbar" wx:if="{{phase !== 'idle'}}">
-      <view class="locked" wx:if="{{!inputEnabled}}">
-        <view class="locked-icon">🔒</view>
-        <view class="locked-text">{{inputTip || '等待任务解锁'}}</view>
+    <button
+      wx:if="{{state.phase === 'reading'}}"
+      class="primary full"
+      bindtap="qa"
+      disabled="{{done !== state.plan.chapters.length || sending}}"
+    >
+      完成计划，进入问答
+    </button>
+  </view>
+  <view class="conversation">
+    <view
+      wx:for="{{bubbles}}"
+      wx:key="id"
+      id="{{item.id}}"
+      class="bubble {{item.role === 'user' ? 'mine' : ''}}"
+    >
+      <view class="caption">{{item.role === 'user' ? '我' : '阅读教练'}}</view>
+      <text class="body-text" user-select>{{item.text}}</text>
+      <view wx:if="{{item.question}}" class="question">
+        <view class="question-title">{{item.question.title}}</view>
+        <button
+          wx:for="{{item.question.options}}"
+          wx:for-item="option"
+          wx:for-index="oi"
+          wx:key="index"
+          class="question-option"
+          data-id="{{item.id}}"
+          data-text="{{option}}"
+          bindtap="pick"
+          disabled="{{!item.actionable || sending}}"
+        >
+          {{oi === 0 ? 'A' : oi === 1 ? 'B' : oi === 2 ? 'C' : 'D'}}. {{option}}
+        </button>
       </view>
-      <block wx:else>
-        <input
-          class="chat-input"
-          value="{{input}}"
-          bindinput="onInput"
-          bindconfirm="sendInput"
-          confirm-type="send"
-          disabled="{{sending}}"
-          placeholder="{{sending ? 'AI 正在思考…' : '输入你的回答或问题…'}}"
-          placeholder-class="ph"
-          show-confirm-bar="{{false}}"
-          adjust-position="{{true}}"
-        />
-        <view class="send-btn {{sending || !input ? 'dim' : ''}}" bindtap="sendInput">发送</view>
-      </block>
-      <view class="reset-link" bindtap="resetAll">重置</view>
     </view>
-
+  </view>
+  <view wx:if="{{sending}}" class="loading">教练正在思考…</view>
+  <view wx:if="{{error}}" class="error">
+    {{error}}
+    <button class="small ghost" bindtap="retry">重试</button>
+  </view>
+  <view
+    wx:if="{{state.phase === 'assess' || state.phase === 'qa'}}"
+    class="composer"
+  >
+    <input
+      class="field grow"
+      value="{{input}}"
+      bindinput="input"
+      bindconfirm="submit"
+      placeholder="写下你的回答或问题…"
+      disabled="{{sending}}"
+    />
+    <button
+      class="primary small"
+      bindtap="submit"
+      disabled="{{sending || !input}}"
+    >
+      发送
+    </button>
+  </view>
+  <view class="sub" wx:if="{{state.phase === 'reading'}}">
+    完成上方阅读任务与章节闯关后，可以继续向教练提问。
   </view>
 </view>

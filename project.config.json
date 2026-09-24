@@ -40,8 +40,15 @@
   "packOptions": {
     "ignore": [],
     "include": [
-      { "value": "fonts", "type": "folder" },
-      { "value": "themes", "type": "folder" }
+      {
+        "value": "fonts",
+        "type": "folder"
+      },
+      {
+        "value": "themes",
+        "type": "folder"
+      }
     ]
-  }
+  },
+  "miniprogramRoot": "dist/"
 }

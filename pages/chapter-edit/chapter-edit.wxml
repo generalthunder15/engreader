@@ -1,47 +1,78 @@
 <view class="page" style="{{themeStyle}}">
-  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
-  <view class="page-body">
-    <view class="field">
-      <view class="label">章节标题</view>
-      <input class="input" value="{{title}}" bindinput="onTitle" placeholder="如：Chapter 1 The Beginning" placeholder-class="ph" />
-    </view>
-
-    <view class="field">
-      <view class="label">章节正文（英文，支持多段）</view>
-      <textarea
-        class="input content"
-        value="{{content}}"
-        bindinput="onContent"
-        maxlength="-1"
-        auto-height
-        placeholder="粘贴本章英文正文…"
-        placeholder-class="ph"
-        show-confirm-bar="{{false}}"
-      />
-    </view>
-
-    <view class="field">
-      <view class="label-row">
-        <view class="label">本章单词 / 短语（{{wordCount}}）</view>
-        <view class="extract-btn {{extracting ? 'busy' : ''}}" bindtap="extractWords">
-          {{extracting ? (extractTip || '提取中…') : 'AI 提取词表'}}
-        </view>
+  <view class="eyebrow">MAKE IT YOURS</view>
+  <view class="heading">{{editing ? '编辑章节' : '新的阅读篇章'}}</view>
+  <view class="sub">正文、词汇、句译，让一篇文章成为你的教材。</view>
+  <view class="card">
+    <view class="label">章节标题</view>
+    <input
+      class="field"
+      value="{{title}}"
+      bindinput="title"
+      placeholder="给这一章起个名字"
+      disabled="{{busy}}"
+    />
+    <view class="label">英文正文</view>
+    <textarea
+      class="field textarea content"
+      value="{{content}}"
+      bindinput="content"
+      placeholder="粘贴你想读的英文内容…"
+      maxlength="-1"
+      disabled="{{busy}}"
+    />
+  </view>
+  <view class="row between">
+    <view class="section-title">本章词表 · {{words.length}}</view>
+    <button class="small" bindtap="extract" disabled="{{busy}}">
+      AI 提取词表
+    </button>
+  </view>
+  <view class="caption">提取 B1 及以上词汇和常用搭配，也可以手动添加。</view>
+  <view class="card">
+    <view class="word-row" wx:for="{{words}}" wx:key="index">
+      <view class="grow">
+        <input
+          class="field"
+          value="{{item.word}}"
+          data-index="{{index}}"
+          data-field="word"
+          bindinput="word"
+          placeholder="英文单词或短语"
+          disabled="{{busy}}"
+        />
+        <input
+          class="field meaning"
+          value="{{item.meaning}}"
+          data-index="{{index}}"
+          data-field="meaning"
+          bindinput="word"
+          placeholder="中文释义"
+          disabled="{{busy}}"
+        />
       </view>
-      <view class="hint">保存章节前必须有词表（学习阶段的章节闯关会用到）。AI 提取后可手动增删改。</view>
-
-      <view class="word-list" wx:if="{{words.length}}">
-        <view class="word-row" wx:for="{{words}}" wx:key="index">
-          <input class="input w-word" value="{{item.word}}" data-i="{{index}}" data-f="word" bindinput="onWordInput" placeholder="单词/短语" placeholder-class="ph" />
-          <input class="input w-meaning" value="{{item.meaning}}" data-i="{{index}}" data-f="meaning" bindinput="onWordInput" placeholder="中文释义" placeholder-class="ph" />
-          <view class="w-del" catchtap="removeWordRow" data-i="{{index}}">✕</view>
-        </view>
-      </view>
-      <view class="add-word" bindtap="addWordRow">＋ 手动添加一个词</view>
+      <button
+        class="icon-button"
+        data-index="{{index}}"
+        bindtap="removeWord"
+        disabled="{{busy}}"
+        aria-label="移除词语"
+      >
+        <app-icon name="close" size="32" />
+      </button>
     </view>
-
-    <view class="save-btn {{saving ? 'busy' : ''}}" bindtap="save">
-      {{saving ? saveStep : (isEdit ? '保存章节' : '创建章节')}}
-    </view>
-    <view class="save-hint" wx:if="{{saving}}">保存时会自动逐句批量翻译并缓存，翻译只在保存时花费一次调用</view>
+    <button class="ghost full" bindtap="addWord" disabled="{{busy}}">
+      ＋ 添加词语
+    </button>
+  </view>
+  <view wx:if="{{busy}}" class="loading">{{progress}}</view>
+  <view class="sticky-actions">
+    <button
+      class="primary"
+      bindtap="save"
+      loading="{{busy}}"
+      disabled="{{busy}}"
+    >
+      保存章节与句译
+    </button>
   </view>
 </view>

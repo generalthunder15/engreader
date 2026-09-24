@@ -1,38 +1,52 @@
-<view class="page" style="{{themeStyle}}">
-  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
-  <view class="page-body">
-    <view class="head">
-      <view class="head-title">书架</view>
-      <view class="head-sub">{{books.length ? books.length + ' 本书' : ''}}</view>
+<view class="page tab-page" style="{{themeStyle}}">
+  <view class="row between">
+    <view>
+      <view class="eyebrow">YOUR READING SPACE</view>
+      <view class="heading">我的书架</view>
     </view>
-
-    <view class="grid" wx:if="{{books.length}}">
-      <view
-        class="book-card"
-        wx:for="{{books}}"
-        wx:key="id"
-        bindtap="openBook"
-        bindlongpress="removeBook"
-        data-id="{{item.id}}"
-        data-title="{{item.title}}"
-      >
-        <view class="cover" style="{{item.coverStyle}}">
-          <view class="cover-title">{{item.title}}</view>
-          <view class="cover-author" wx:if="{{item.author}}">{{item.author}}</view>
-        </view>
-        <view class="book-meta">
-          <view class="book-name">{{item.title}}</view>
-          <view class="book-sub">{{item.chapterCount}} 章 · {{item.timeText}}</view>
-        </view>
-      </view>
-    </view>
-
-    <view class="empty" wx:else>
-      <view class="empty-icon">📚</view>
-      <view class="empty-text">书架还是空的</view>
-      <view class="empty-hint">点击下方按钮创建你的第一本书</view>
-    </view>
-
-    <view class="fab" bindtap="createBook">＋ 新建书籍</view>
+    <button class="icon-button" bindtap="create" aria-label="新建书籍">
+      <app-icon name="plus" size="48" />
+    </button>
   </view>
+  <view class="sub">把每一次阅读，变成一点进步。</view>
+  <view class="hero row between">
+    <view>
+      <view class="menu-title">慢慢读，认真懂。</view>
+      <view class="sub">{{books.length}} 本书 · {{totalChapters}} 个章节</view>
+    </view>
+    <app-icon name="leaf" size="72" />
+  </view>
+  <view class="row between">
+    <view class="section-title">全部书籍</view>
+    <text class="caption">长按书籍可删除</text>
+  </view>
+  <view class="books" wx:if="{{books.length}}">
+    <view
+      class="book"
+      wx:for="{{books}}"
+      wx:key="id"
+      data-id="{{item.id}}"
+      bindtap="open"
+      bindlongpress="remove"
+    >
+      <view class="cover" style="{{item.cover}}">
+        <view class="cover-line"></view>
+        <text class="cover-label">ENGLISH READER</text>
+        <view class="cover-title">{{item.title}}</view>
+        <text class="cover-author">{{item.author || '我的阅读集'}}</text>
+        <view class="cover-footer">{{item.chapterCount}} CHAPTERS</view>
+      </view>
+      <view class="book-name">{{item.title}}</view>
+      <view class="caption">{{item.subtitle}}</view>
+    </view>
+  </view>
+  <view class="empty" wx:else>
+    <app-icon name="book" size="88" />
+    <view class="empty-title">从第一本书开始</view>
+    <view class="sub">创建书籍，粘贴你想精读的英语文章。</view>
+    <button class="primary" bindtap="create">创建书籍</button>
+  </view>
+  <button wx:if="{{books.length}}" bindtap="create" class="add-book">
+    ＋ 创建新书
+  </button>
 </view>

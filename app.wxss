@@ -1,110 +1,316 @@
-/* page 级默认变量 = 「经典蓝」主题（utils/theme.js 的 DEFAULT_TOKENS）。
-   页面根节点 .page 会在运行时注入当前主题的变量，覆盖这里的默认值；
-   组件与子元素通过 var() 继承，主题缺字段时回退到这里 */
 page {
-  --c-primary: #2B6CB0;
-  --c-primary-weak: #EAF1FA;
-  --c-primary-soft: #EBF2FC;
-  --c-primary-quote: #F3F6FB;
-  --c-on-primary: #FFFFFF;
-  --c-bg: #F6F7F9;
-  --c-card: #FFFFFF;
-  --c-sunken: #FAFBFC;
-  --c-mask: rgba(0, 0, 0, 0.35);
-  --c-text: #1A1D24;
-  --c-text-strong: #22242A;
-  --c-text-sub: #4B5563;
-  --c-text-muted: #6B7280;
-  --c-text-hint: #9AA0AA;
-  --c-text-faint: #C3C8D0;
-  --c-border: #F0F1F4;
-  --c-mark-bg: #FBF3E4;
-  --c-mark-line: #E3B04B;
-  --c-tag-bg: #FBF3E4;
-  --c-tag-text: #B4690E;
-  --c-sel-bg: #2B6CB0;
-  --c-sel-text: #FFFFFF;
-  --c-badge-border: #A8A296;
-  --c-danger: #E24B4A;
-  --c-danger-strong: #A32D2D;
-  --c-toolbar-bg: #1F2430;
-  --c-toolbar-text: #FFFFFF;
-  --c-toolbar-line: rgba(255, 255, 255, 0.18);
-  --c-tabbar-bg: #FFFFFF;
-  --c-tabbar-text: #8A8F99;
-  --c-tabbar-on: #2B6CB0;
-  --r-card: 20rpx;
-  --r-btn: 16rpx;
-  --r-sheet: 28rpx;
-  --r-sm: 12rpx;
-  --read-font: 34rpx;
-  --read-line: 2.1;
-  --read-indent: 34rpx;
-  --read-para-gap: 16rpx;
-  /* 字体兜底：运行时由 utils/font.js 解析当前字体包后，在 .page 上重新注入 */
-  --font-ui: -apple-system, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
-  --font-read: -apple-system, 'PingFang SC', 'Helvetica Neue', 'Microsoft YaHei', sans-serif;
-  background: #F6F7F9;
+  background: #f5f7f5;
+  color: #203530;
   font-size: 28rpx;
-  color: #22242A;
-  font-family: var(--font-ui);
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  --bg: #f5f7f5;
+  --card: #fff;
+  --text: #203530;
+  --muted: #70817b;
+  --line: #e3eae6;
+  --primary: #416c64;
+  --soft: #e9f1ed;
+  --danger: #b95046;
+  --on-primary: #fff;
 }
-
-/* 页面根容器：承接主题变量注入点；theme-bg 铺整页背景图 */
+view,
+text,
+button,
+input,
+textarea {
+  box-sizing: border-box;
+}
+button {
+  font-size: 27rpx;
+  line-height: 1.45;
+  margin: 0;
+  border-radius: 20rpx;
+  padding: 23rpx 28rpx;
+  background: var(--soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+button::after {
+  border: 0;
+}
+button[disabled] {
+  opacity: 0.45;
+  color: var(--muted);
+}
+button.primary,
+.primary {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+button.ghost {
+  background: transparent;
+  color: var(--muted);
+}
+button.small {
+  padding: 15rpx 22rpx;
+  font-size: 24rpx;
+  border-radius: 14rpx;
+}
+button.danger,
+.danger {
+  color: var(--danger);
+}
 .page {
   min-height: 100vh;
-  box-sizing: border-box;
-  background: var(--c-bg, #F6F7F9);
-  /* 注入点在这里，所以字体也要在这一层接一次（page 选择器读不到这里的变量） */
+  background: var(--bg);
+  color: var(--text);
   font-family: var(--font-ui);
+  padding: 32rpx 36rpx 64rpx;
 }
-/* tab 页给自定义底栏留出高度 */
-.page.has-tabbar {
-  padding-bottom: calc(130rpx + env(safe-area-inset-bottom));
+.tab-page {
+  padding-bottom: calc(190rpx + env(safe-area-inset-bottom));
 }
-.theme-bg {
-  position: fixed;
-  left: 0; top: 0;
-  width: 100vw; height: 100vh;
-  z-index: 0;
+.eyebrow {
+  font-size: 21rpx;
+  letter-spacing: 4rpx;
+  color: var(--primary);
+  font-weight: 600;
+  margin-bottom: 14rpx;
 }
-.page-body {
-  position: relative;
-  z-index: 1;
+.heading {
+  font-size: 50rpx;
+  font-weight: 650;
+  letter-spacing: -1rpx;
+  line-height: 1.3;
 }
-
+.sub {
+  color: var(--muted);
+  font-size: 25rpx;
+  line-height: 1.7;
+  margin-top: 14rpx;
+}
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin: 36rpx 0 20rpx;
+}
 .card {
-  background: var(--c-card, #ffffff);
-  border-radius: var(--r-card, 20rpx);
-  padding: 30rpx;
-  margin: 20rpx 24rpx;
+  background: var(--card);
+  border: 1rpx solid var(--line);
+  border-radius: 26rpx;
+  padding: 28rpx;
+  margin: 22rpx 0;
 }
-
-.btn-primary {
-  background: var(--c-primary, #2B6CB0);
-  color: var(--c-on-primary, #fff);
-  border-radius: var(--r-btn, 16rpx);
-  font-size: 30rpx;
-  padding: 20rpx 0;
-  text-align: center;
+.hero {
+  padding: 38rpx 32rpx;
+  background: var(--soft);
+  border-radius: 30rpx;
+  margin: 26rpx 0;
 }
-
-.btn-primary.disabled { opacity: 0.5; }
-
-.btn-plain {
-  background: var(--c-card, #fff);
-  color: var(--c-primary, #2B6CB0);
-  border: 1rpx solid var(--c-primary, #2B6CB0);
-  border-radius: var(--r-btn, 16rpx);
-  font-size: 30rpx;
-  padding: 18rpx 0;
-  text-align: center;
+.row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
 }
-
+.between {
+  justify-content: space-between;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.wrap {
+  flex-wrap: wrap;
+}
+.muted {
+  color: var(--muted);
+}
+.label {
+  font-size: 25rpx;
+  color: var(--muted);
+  margin: 26rpx 0 12rpx;
+}
+.badge {
+  display: inline-block;
+  padding: 7rpx 15rpx;
+  border-radius: 12rpx;
+  background: var(--soft);
+  color: var(--primary);
+  font-size: 21rpx;
+}
+.divider {
+  height: 1rpx;
+  background: var(--line);
+  margin: 24rpx 0;
+}
 .empty {
+  padding: 90rpx 20rpx;
   text-align: center;
-  color: var(--c-text-hint, #9AA0AA);
-  padding: 120rpx 40rpx;
-  font-size: 28rpx;
   line-height: 1.8;
+}
+.empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-top: 24rpx;
+}
+.empty .sub {
+  margin: 12rpx auto 32rpx;
+  max-width: 480rpx;
+}
+.empty button {
+  display: inline-block;
+}
+.field {
+  width: 100%;
+  background: var(--bg);
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  padding: 22rpx;
+  color: var(--text);
+  font-size: 27rpx;
+  min-height: 86rpx;
+}
+.textarea {
+  width: 100%;
+  height: 240rpx;
+  line-height: 1.7;
+}
+.field-placeholder {
+  color: var(--muted);
+}
+.chips {
+  display: flex;
+  gap: 14rpx;
+  flex-wrap: wrap;
+}
+.chip {
+  padding: 14rpx 22rpx;
+  background: var(--bg);
+  border: 1rpx solid var(--line);
+  border-radius: 16rpx;
+  font-size: 24rpx;
+}
+.chip.active {
+  background: var(--soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.icon-button {
+  width: 76rpx;
+  height: 76rpx;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  flex-shrink: 0;
+}
+.progress {
+  height: 8rpx;
+  background: var(--line);
+  border-radius: 20rpx;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 20rpx;
+  transition: width 0.2s;
+}
+.error {
+  padding: 22rpx;
+  border-radius: 18rpx;
+  background: var(--soft);
+  color: var(--danger);
+  font-size: 25rpx;
+  line-height: 1.7;
+  margin: 20rpx 0;
+}
+.loading {
+  padding: 30rpx;
+  text-align: center;
+  color: var(--muted);
+}
+.sticky-actions {
+  position: sticky;
+  bottom: 24rpx;
+  display: flex;
+  gap: 16rpx;
+  background: var(--bg);
+  padding-top: 18rpx;
+}
+.sticky-actions button {
+  flex: 1;
+}
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 24, 18, 0.42);
+  z-index: 90;
+}
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 91;
+  background: var(--card);
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 24rpx 32rpx calc(28rpx + env(safe-area-inset-bottom));
+  max-height: 88vh;
+  box-shadow: 0 -8rpx 40rpx rgba(0, 0, 0, 0.08);
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+.sheet-scroll {
+  max-height: 65vh;
+  height: 60vh;
+}
+.quote {
+  font-family: var(--font-read, Georgia, serif);
+  font-size: 32rpx;
+  line-height: 1.8;
+  background: var(--soft);
+  border-radius: 18rpx;
+  padding: 22rpx;
+}
+.body-text {
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--line);
+}
+.list-row:last-child {
+  border-bottom: 0;
+}
+.menu-title {
+  font-size: 28rpx;
+  font-weight: 500;
+}
+.count {
+  font-size: 52rpx;
+  font-weight: 600;
+  color: var(--primary);
+}
+.caption {
+  font-size: 22rpx;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.full {
+  width: 100%;
+}
+.spacer {
+  height: 24rpx;
 }

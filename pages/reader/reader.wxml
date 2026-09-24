@@ -1,262 +1,371 @@
-<view class="page" style="{{themeStyle}}">
-  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
-
-  <!-- 顶部状态栏挡板：正文滚动时从挡板下方穿过，不与系统状态栏重叠 -->
-  <view class="status-shield" style="height:{{statusBarH + 6}}px"></view>
-
-  <!-- 自定义顶栏（小说式沉浸）：返回 + 章节名/进度 + 收藏 -->
-  <view class="topbar {{ctl.show ? 'on' : ''}}" style="padding-top:{{statusBarH}}px" wx:if="{{ctl.show}}">
-    <view class="tb-back" bindtap="onBack">‹</view>
-    <view class="tb-mid">
-      <view class="tb-title">{{article.title}}</view>
-      <view class="tb-sub">{{book.title}} · {{chIndex + 1}}/{{chTotal}} · {{progressPct}}%</view>
-    </view>
-    <view class="tb-fav {{favored ? 'on' : ''}}" bindtap="toggleFavor">{{favored ? '★' : '☆'}}</view>
+<view class="reader" style="{{themeStyle}}">
+  <view class="reader-head" style="padding-top:{{statusHeight + 14}}px">
+    <view class="eyebrow">{{book.title}}</view>
+    <view class="caption">双击选词 · 长按选句 · 横向拖选 · 轻点显示菜单</view>
   </view>
-
-  <view class="page-body">
-  <view class="reader" style="padding-top:{{statusBarH + 12}}px" bindtap="onReaderTap">
-  <!-- 连续滚动流：章节标题 + 段落，读完自动接下一章 -->
-  <block wx:for="{{blocks}}" wx:key="uid">
-    <view wx:if="{{item.type === 'title'}}" class="art-title ch-anchor" data-cid="{{item.cid}}">{{item.text}}</view>
-
-    <view wx:else class="paragraph">
-      <text class="indent"></text>
-      <block wx:for="{{item.tokens}}" wx:key="id" wx:for-item="tk">
-        <text
-          id="tok-{{tk.id}}"
-          class="tok {{marksMap[tk.id] ? 'marked' : ''}} {{spaceMarks[tk.id] ? 'mark-cont' : ''}} {{tk.id >= selStart && tk.id <= selEnd ? 'sel' : ''}} {{tk.id >= selStart && tk.id < selEnd ? 'sel-cont' : ''}}"
-          data-id="{{tk.id}}"
-          catchtap="noop"
-          bindtouchstart="onTouchStart"
-          bindtouchend="onTouchEnd"
-          bindlongpress="onLongPress"
-        >{{tk.w}}</text>
-        <text
-          wx:if="{{tk.sp}}"
-          class="sp"
-          data-id="{{tk.id}}"
-          catchtap="noop"
-          bindtouchstart="onTouchStart"
-          bindtouchend="onTouchEnd"
-          bindlongpress="onLongPress"
-        ></text>
-      </block>
+  <view class="reading-content" bindtap="toggleControls">
+    <block wx:for="{{blocks}}" wx:key="uid" wx:for-item="block">
       <view
-        wx:if="{{noteCounts[item.uid]}}"
-        class="note-badge"
-        data-uid="{{item.uid}}"
-        catchtap="onNoteBadge"
-      >{{noteCounts[item.uid]}}</view>
-      <!-- 句译：创建章节时批量翻译并缓存，这里零成本展示 -->
-      <view class="para-trans" wx:if="{{showTrans && transMap[item.uid]}}">{{transMap[item.uid]}}</view>
-    </view>
-  </block>
-
-  <!-- 续章状态 -->
-  <view class="reader-more" wx:if="{{hasMore}}">
-    <view class="more-tip" bindtap="appendNext">{{loadingMore ? '正在加载下一章…' : '上拉或点击加载下一章'}}</view>
-  </view>
-  <view class="reader-more" wx:else>
-    <view class="more-end">— 全书已读完 —</view>
-  </view>
-  <view class="reader-foot-tip">双击选词 · 长按选整句 · 单击呼出菜单 · 滑动继续下一章</view>
-</view>
-
-<!-- 底部控制条（小说式）：上一章/进度/下一章 + 目录/夜间/设置/翻译 -->
-<view class="ctlbar {{ctl.show ? 'on' : ''}}" wx:if="{{ctl.show}}">
-  <view class="ctl-nav">
-    <view class="ctl-nav-btn {{chIndex <= 0 ? 'dim' : ''}}" bindtap="prevChapter">上一章</view>
-    <slider
-      class="ctl-slider"
-      min="0"
-      max="{{chTotal - 1}}"
-      value="{{chIndex}}"
-      activeColor="{{themePrimary}}"
-      block-size="20"
-      bindchange="onSlider"
-    />
-    <view class="ctl-nav-btn {{chIndex >= chTotal - 1 ? 'dim' : ''}}" bindtap="nextChapter">下一章</view>
-  </view>
-  <view class="ctl-menu">
-    <view class="ctl-item" bindtap="openToc">
-      <view class="ctl-ico">☰</view>
-      <view class="ctl-txt">目录</view>
-    </view>
-    <view class="ctl-item" bindtap="toggleNight">
-      <view class="ctl-ico">{{rsTheme === 'night' ? '☀' : '☾'}}</view>
-      <view class="ctl-txt">{{rsTheme === 'night' ? '白天' : '夜间'}}</view>
-    </view>
-    <view class="ctl-item" bindtap="openRS">
-      <view class="ctl-ico">⚙</view>
-      <view class="ctl-txt">设置</view>
-    </view>
-    <view class="ctl-item" bindtap="toggleTrans">
-      <view class="ctl-ico {{showTrans ? 'on' : ''}}">译</view>
-      <view class="ctl-txt">{{showTrans ? '关句译' : '显示翻译'}}</view>
-    </view>
-  </view>
-</view>
-
-<!-- 目录抽屉 -->
-<view class="toc-wrap" wx:if="{{toc.show}}" catchtouchmove="noop">
-  <view class="toc-mask" bindtap="closeToc"></view>
-  <view class="toc-panel">
-    <view class="toc-head">
-      <view class="toc-title">{{book.title}}</view>
-      <view class="toc-close" bindtap="closeToc">✕</view>
-    </view>
-    <scroll-view scroll-y class="toc-body" scroll-into-view="toc-cur">
-      <view
-        wx:for="{{toc.list}}"
-        wx:key="id"
-        id="{{toc.current === item.id ? 'toc-cur' : ''}}"
-        class="toc-item {{toc.current === item.id ? 'on' : ''}}"
-        bindtap="pickChapter"
-        data-id="{{item.id}}"
+        wx:if="{{block.type === 'title'}}"
+        class="chapter-anchor"
+        id="{{block.uid}}"
       >
-        <text class="toc-idx">{{item.idx}}</text>
-        <text class="toc-name">{{item.title}}</text>
+        <view class="chapter-title">{{block.text}}</view>
+        <view class="chapter-rule"></view>
       </view>
+      <view wx:else class="paragraph">
+        <!-- prettier-ignore -->
+        <view class="english"><block wx:for="{{block.tokens}}" wx:key="globalId" wx:for-item="token"><text id="tok-{{token.globalId}}" class="token {{token.marked ? 'marked' : ''}} {{token.selected ? 'selected' : ''}}" data-token="{{token.globalId}}" catchtap="noop" bindtouchstart="touchStart" bindtouchmove="touchMove" bindtouchend="touchEnd" bindlongpress="hold">{{token.w}}</text><text>{{token.sp ? ' ' : ''}}</text></block></view>
+        <view
+          wx:if="{{showTrans && block.translation}}"
+          class="sentence-translation"
+        >
+          {{block.translation}}
+        </view>
+        <button
+          wx:if="{{block.notes.length}}"
+          class="note-badge"
+          catchtap="openNotes"
+          data-uid="{{block.uid}}"
+        >
+          笔记 {{block.notes.length}}
+        </button>
+      </view>
+    </block>
+  </view>
+  <view class="reading-end">
+    {{hasMore ? '继续上滑，阅读下一章' : '已读至本书末尾'}}
+  </view>
+  <button wx:if="{{hasMore}}" class="load-more" bindtap="onReachBottom">
+    加载下一章
+  </button>
+  <view
+    class="reader-top"
+    wx:if="{{controls}}"
+    style="padding-top:{{statusHeight}}px"
+  >
+    <button class="icon-button" bindtap="back" aria-label="返回">
+      <app-icon name="back" />
+    </button>
+    <text class="top-title">{{chapterTitle}}</text>
+    <button class="icon-button" bindtap="favorite" aria-label="收藏章节">
+      <app-icon name="{{favored ? 'check' : 'bookmark'}}" />
+    </button>
+  </view>
+  <view class="reader-controls" wx:if="{{controls}}">
+    <view class="row between">
+      <button class="small ghost" bindtap="previous">上一章</button>
+      <text class="caption">{{index + 1}} / {{total}} · {{percent}}%</text>
+      <button class="small ghost" bindtap="next">下一章</button>
+    </view>
+    <slider
+      min="0"
+      max="{{total > 1 ? total - 1 : 1}}"
+      value="{{index}}"
+      disabled="{{total < 2}}"
+      bindchange="slider"
+      activeColor="{{themePrimary}}"
+    />
+    <view class="reader-tools">
+      <button bindtap="showToc">
+        <app-icon name="list" />
+        <text>目录</text>
+      </button>
+      <button bindtap="translation">
+        <app-icon name="translate" />
+        <text>{{showTrans ? '隐藏句译' : '句译'}}</text>
+      </button>
+      <button bindtap="night">
+        <app-icon name="moon" />
+        <text>{{themeId === 'night' ? '日间' : '夜间'}}</text>
+      </button>
+      <button bindtap="quiz">
+        <app-icon name="spark" />
+        <text>闯关</text>
+      </button>
+      <button bindtap="settings">
+        <app-icon name="settings" />
+        <text>设置</text>
+      </button>
+    </view>
+  </view>
+  <view class="selection-bar" wx:if="{{toolbar}}">
+    <scroll-view scroll-x class="selection-actions">
+      <button
+        wx:for="{{actions}}"
+        wx:key="id"
+        data-action="{{item.id}}"
+        bindtap="action"
+      >
+        <app-icon name="{{item.icon}}" size="34" />
+        <text>{{item.text}}</text>
+      </button>
+      <button bindtap="clearSelection">
+        <app-icon name="close" size="34" />
+        <text>取消</text>
+      </button>
     </scroll-view>
   </view>
-</view>
-
-<!-- 段落笔记弹层 -->
-<view class="np-wrap" wx:if="{{noteView.show}}" catchtouchmove="noop">
-  <view class="np-mask" bindtap="closeNoteView"></view>
-  <view class="np-panel">
-    <view class="np-head">
-      <view class="np-tabs">
-        <view class="np-tab">本段笔记 · {{noteView.list.length}}</view>
+  <block wx:if="{{toc}}">
+    <view class="mask" bindtap="closeToc"></view>
+    <view class="sheet">
+      <view class="sheet-head">
+        <text>章节目录</text>
+        <button class="icon-button" bindtap="closeToc" aria-label="关闭目录">
+          <app-icon name="close" />
+        </button>
       </view>
-      <view class="np-close" bindtap="closeNoteView">✕</view>
-    </view>
-
-    <scroll-view scroll-y class="np-body">
-      <view class="np-sel">{{noteView.paraText}}</view>
-      <view class="np-item" wx:for="{{noteView.list}}" wx:key="createdAt">
-        <view class="np-note">{{item.note}}</view>
-        <view class="np-meta">
-          <text class="np-time">{{item.timeText}}</text>
-          <text class="np-del" data-idx="{{index}}" catchtap="delParaNote">删除</text>
-        </view>
-      </view>
-      <view class="np-hint" wx:if="{{!noteView.list.length}}">本段还没有笔记</view>
-    </scroll-view>
-
-    <view class="np-foot">
-      <view class="np-btn" bindtap="closeNoteView">关闭</view>
-    </view>
-  </view>
-</view>
-
-<!-- 阅读设置抽屉 -->
-<view class="rs-wrap" wx:if="{{rs.show}}" catchtouchmove="noop">
-  <view class="rs-mask" bindtap="closeRS"></view>
-  <view class="rs-panel">
-    <view class="rs-head">
-      <view class="rs-tabs"><view class="rs-tab">阅读设置</view></view>
-      <view class="rs-close" bindtap="closeRS">✕</view>
-    </view>
-
-    <scroll-view scroll-y class="rs-body">
-      <view class="rs-sec">主题</view>
-      <view class="rs-theme-list">
+      <scroll-view scroll-y class="sheet-scroll">
         <view
-          class="rs-theme-item {{rsTheme === item.id ? 'on' : ''}}"
-          wx:for="{{rsThemes}}"
+          wx:for="{{book.chapters}}"
           wx:key="id"
-          bindtap="pickTheme"
+          class="list-row {{chapterId === item.id ? 'toc-current' : ''}}"
           data-id="{{item.id}}"
+          bindtap="pickChapter"
         >
-          <image class="rs-theme-cover" src="{{item.cover}}" mode="aspectFill"></image>
-          <view class="rs-theme-name">{{item.name}}</view>
-          <view class="rs-check" wx:if="{{rsTheme === item.id}}">✓</view>
-        </view>
-      </view>
-
-      <view class="rs-sec">阅读字体</view>
-      <scroll-view class="rs-font-scroll" scroll-x enable-flex>
-        <view
-          class="rs-font-item {{rsFont === item.id ? 'on' : ''}}"
-          wx:for="{{rsFonts}}"
-          wx:key="id"
-          bindtap="pickFont"
-          data-id="{{item.id}}"
-        >
-          <view class="rs-font-sample" style="font-family:{{item.css}}">Aa Bb</view>
-          <view class="rs-font-name">{{item.name}}</view>
-          <view class="rs-font-meta">{{item.metaText}}</view>
-          <view
-            class="rs-font-del"
-            wx:if="{{item.kind === 'custom'}}"
-            catchtap="removeFont"
-            data-id="{{item.id}}"
-            data-name="{{item.name}}"
-          >✕</view>
+          <text class="caption">{{index + 1}}</text>
+          <text class="grow">{{item.title}}</text>
+          <app-icon wx:if="{{chapterId === item.id}}" name="check" size="30" />
         </view>
       </scroll-view>
-
-      <view class="rs-field">
-        <view class="rs-label">阅读字号 · 当前 {{rsEff.size}}rpx</view>
-        <view class="rs-seg">
-          <view class="rs-seg-item {{rsEff.size === item.v ? 'on' : ''}}" wx:for="{{sizeOptions}}" wx:key="v" data-v="{{item.v}}" bindtap="setSize">{{item.t}}</view>
+    </view>
+  </block>
+  <block wx:if="{{panel}}">
+    <view class="mask" bindtap="closePanel"></view>
+    <view class="sheet analysis-sheet">
+      <view class="sheet-head">
+        <view class="chips panel-tabs">
+          <button
+            class="chip {{tab === 'translation' ? 'active' : ''}}"
+            data-tab="translation"
+            bindtap="tab"
+          >
+            释义
+          </button>
+          <button
+            class="chip {{tab === 'grammar' ? 'active' : ''}}"
+            data-tab="grammar"
+            bindtap="tab"
+          >
+            语法
+          </button>
+          <button
+            class="chip {{tab === 'detail' ? 'active' : ''}}"
+            data-tab="detail"
+            bindtap="tab"
+          >
+            拆解
+          </button>
+          <button
+            class="chip {{tab === 'ask' ? 'active' : ''}}"
+            data-tab="ask"
+            bindtap="tab"
+          >
+            提问
+          </button>
+          <button
+            class="chip {{tab === 'note' ? 'active' : ''}}"
+            data-tab="note"
+            bindtap="tab"
+          >
+            笔记
+          </button>
         </view>
+        <button
+          class="icon-button"
+          bindtap="closePanel"
+          aria-label="关闭精读面板"
+        >
+          <app-icon name="close" size="32" />
+        </button>
       </view>
-      <view class="rs-field">
-        <view class="rs-label">行距 · 当前 {{rsEff.line}}</view>
-        <view class="rs-seg">
-          <view class="rs-seg-item {{rsEff.line === item.v ? 'on' : ''}}" wx:for="{{lineOptions}}" wx:key="v" data-v="{{item.v}}" bindtap="setLine">{{item.t}}</view>
+      <scroll-view scroll-y class="sheet-scroll">
+        <view class="quote">{{selectedText}}</view>
+        <view wx:if="{{busy}}" class="loading">正在分析，请稍候…</view>
+        <view wx:if="{{panelError}}" class="error">{{panelError}}</view>
+        <block wx:if="{{tab === 'translation'}}">
+          <view wx:if="{{definition}}">
+            <view class="definition">{{definition.translation}}</view>
+            <view class="caption">
+              {{definition.phonetic}} {{definition.pos}}
+            </view>
+            <view class="badge" wx:if="{{definition.source === 'offline'}}">
+              内置离线释义
+            </view>
+            <view class="sub" wx:for="{{definition.senses}}" wx:key="index">
+              {{item}}
+            </view>
+            <view wx:if="{{definition.example}}" class="card">
+              <text class="body-text">{{definition.example}}</text>
+              <view class="caption">{{definition.exampleTranslation}}</view>
+            </view>
+          </view>
+          <view class="row wrap panel-actions">
+            <button class="small" bindtap="play">
+              {{playing ? '停止朗读' : '朗读'}}
+            </button>
+            <button class="small" bindtap="addVocab" disabled="{{!definition}}">
+              加入生词本
+            </button>
+            <button class="small" bindtap="retry" disabled="{{busy}}">
+              AI 精解 / 重试
+            </button>
+          </view>
+        </block>
+        <block wx:elif="{{tab === 'grammar'}}">
+          <block wx:if="{{definition.grammar}}">
+            <view class="section-title">句子主干</view>
+            <text class="body-text">{{definition.grammar.structure}}</text>
+            <view
+              wx:for="{{definition.grammar.clauses}}"
+              wx:key="index"
+              class="card"
+            >
+              <view class="badge">{{item.type}}</view>
+              <view class="sub">{{item.text}}</view>
+              <text class="body-text">{{item.explain}}</text>
+            </view>
+            <view
+              class="card"
+              wx:for="{{definition.grammar.phrases}}"
+              wx:key="index"
+            >
+              <view>{{item.text}}</view>
+              <view class="sub">{{item.explain}}</view>
+            </view>
+            <view class="sub">{{definition.grammar.difficultPoints}}</view>
+          </block>
+          <view wx:else class="empty">
+            <view class="sub">点击 AI 精解，了解句子结构。</view>
+            <button bindtap="retry" disabled="{{busy}}">AI 精解</button>
+          </view>
+        </block>
+        <block wx:elif="{{tab === 'detail'}}">
+          <block wx:if="{{detail}}">
+            <view class="definition">{{detail.translation}}</view>
+            <view class="sub">{{detail.structure}}</view>
+            <view class="section-title">词汇</view>
+            <view wx:for="{{detail.words}}" wx:key="index" class="list-row">
+              <view class="grow">
+                <view>{{item.word}} · {{item.meaning}}</view>
+                <view class="caption">{{item.note}}</view>
+              </view>
+              <button
+                class="icon-button"
+                data-text="{{item.word}}"
+                bindtap="speakText"
+                aria-label="朗读词语"
+              >
+                <app-icon name="volume" size="32" />
+              </button>
+            </view>
+            <view class="section-title">短语与搭配</view>
+            <view wx:for="{{detail.phrases}}" wx:key="index" class="card">
+              <view class="row">
+                <text class="grow">{{item.text}}</text>
+                <button
+                  class="icon-button"
+                  data-text="{{item.text}}"
+                  bindtap="speakText"
+                  aria-label="朗读短语"
+                >
+                  <app-icon name="volume" size="30" />
+                </button>
+              </view>
+              <view class="sub">{{item.meaning}}</view>
+              <view class="caption">{{item.usage}}</view>
+            </view>
+            <view class="section-title">语法要点</view>
+            <view wx:for="{{detail.grammar}}" wx:key="index" class="card">
+              <view>{{item.point}}</view>
+              <view class="sub">{{item.explain}}</view>
+              <view
+                class="quote"
+                wx:if="{{item.example}}"
+                data-text="{{item.example}}"
+                bindtap="speakText"
+              >
+                {{item.example}}
+              </view>
+            </view>
+            <view class="sub">{{detail.summary}}</view>
+          </block>
+          <button wx:if="{{!detail && !busy}}" data-tab="detail" bindtap="tab">
+            生成详细拆解
+          </button>
+        </block>
+        <block wx:elif="{{tab === 'ask'}}">
+          <view class="chips question-chips">
+            <button
+              wx:for="{{suggestions}}"
+              wx:key="index"
+              class="chip"
+              data-text="{{item}}"
+              bindtap="suggestion"
+              disabled="{{busy}}"
+            >
+              {{item}}
+            </button>
+          </view>
+          <textarea
+            class="field textarea"
+            value="{{question}}"
+            data-key="question"
+            bindinput="field"
+            placeholder="针对原文写下你的问题…"
+            maxlength="1000"
+          />
+          <button
+            class="primary full ask-button"
+            bindtap="ask"
+            disabled="{{busy || !question}}"
+          >
+            向 AI 提问
+          </button>
+          <view class="body-text answer" wx:if="{{answer}}">
+            <text user-select>{{answer}}</text>
+          </view>
+        </block>
+        <block wx:elif="{{tab === 'note'}}">
+          <view class="spacer"></view>
+          <textarea
+            class="field textarea"
+            value="{{note}}"
+            data-key="note"
+            bindinput="field"
+            placeholder="记下你的理解，原文会一同保存。"
+            maxlength="2000"
+          />
+          <button class="primary full ask-button" bindtap="saveNote">
+            保存笔记
+          </button>
+        </block>
+      </scroll-view>
+    </view>
+  </block>
+  <block wx:if="{{notesOpen}}">
+    <view class="mask" bindtap="closeNotes"></view>
+    <view class="sheet">
+      <view class="sheet-head">
+        <text>阅读笔记</text>
+        <button class="icon-button" bindtap="closeNotes" aria-label="关闭笔记">
+          <app-icon name="close" />
+        </button>
+      </view>
+      <scroll-view scroll-y class="sheet-scroll">
+        <view class="card" wx:for="{{noteList}}" wx:key="createdAt">
+          <view class="quote">{{item.sel}}</view>
+          <view class="body-text sub">{{item.note}}</view>
+          <button
+            class="small ghost danger"
+            bindtap="deleteNote"
+            data-time="{{item.createdAt}}"
+          >
+            删除笔记
+          </button>
         </view>
-      </view>
-      <view class="rs-field rs-row">
-        <view class="rs-label">首行缩进两个字母</view>
-        <switch checked="{{rsEff.indent}}" color="{{themePrimary}}" bindchange="onIndent" />
-      </view>
-      <view class="rs-field rs-row">
-        <view class="rs-label">字体同时用到界面文字</view>
-        <switch checked="{{rsUiSame}}" color="{{themePrimary}}" bindchange="onUiSame" />
-      </view>
-      <view class="btn-plain rs-import" bindtap="importFont">导入字体包（.ttf / .otf）</view>
-      <view class="rs-hint">主题、字体、排版设置全局生效并自动保存。中文字体（如霞鹜文楷）体积较大，用「导入字体包」从微信聊天记录安装，不占小程序包体。</view>
-    </scroll-view>
-  </view>
-</view>
-
-<selection-toolbar
-  style="{{themeStyle}}"
-  show="{{bar.show}}"
-  left="{{bar.left}}"
-  top="{{bar.top}}"
-  bindaction="onBarAction"
-/>
-
-<ai-panel
-  style="{{themeStyle}}"
-  show="{{panel.show}}"
-  loading="{{panel.loading}}"
-  type="{{panel.type}}"
-  tab="{{panel.tab}}"
-  result="{{panel.result}}"
-  detailResult="{{panel.detailResult}}"
-  detailLoading="{{panel.detailLoading}}"
-  qaLoading="{{panel.qaLoading}}"
-  qaResult="{{panel.qaResult}}"
-  qSuggestions="{{panel.qaSuggestions}}"
-  playing="{{panel.playing}}"
-  selectedText="{{selectedText}}"
-  bindtabchange="onPanelTab"
-  bindclose="onPanelClose"
-  bindplay="onPanelPlay"
-  bindstop="onPanelStop"
-  bindaddvocab="onAddVocab"
-  bindretry="onPanelRetry"
-  binddetail="onPanelDetail"
-  binddeep="onPanelDeep"
-  bindspeak="onPanelSpeak"
-  bindask="onPanelAsk"
-  bindsavenote="onSaveNote"
-/>
-  </view>
+        <view wx:if="{{!noteList.length}}" class="empty">笔记已删除</view>
+      </scroll-view>
+    </view>
+  </block>
 </view>

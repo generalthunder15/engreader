@@ -1,20 +1,9 @@
-.page { min-height: 100vh; background: var(--c-bg); position: relative; }
-.theme-bg { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 0; }
-.page-body { position: relative; z-index: 1; padding: 24rpx 30rpx calc(60rpx + env(safe-area-inset-bottom)); }
-
-.empty { padding: 180rpx 0; text-align: center; }
-.empty-icon { font-size: 90rpx; }
-.empty-text { margin-top: 24rpx; font-size: 32rpx; color: var(--c-text-sub); font-weight: 600; }
-.empty-hint { margin-top: 12rpx; font-size: 24rpx; color: var(--c-text-hint); }
-
-.s-item {
-  background: var(--c-card); border-radius: var(--r-card);
-  padding: 26rpx 28rpx; margin-bottom: 20rpx;
+.sentence {
+  font-family: Georgia, serif;
+  font-size: 34rpx;
+  line-height: 1.85;
 }
-.s-text { font-size: 30rpx; color: var(--c-text); line-height: 1.7; font-family: var(--font-read); }
-.s-trans { font-size: 26rpx; color: var(--c-text-hint); line-height: 1.7; margin-top: 12rpx; }
-.s-meta {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: 16rpx; font-size: 22rpx; color: var(--c-text-faint);
+.actions {
+  margin-top: 20rpx;
+  justify-content: flex-end;
 }
-.s-del { color: var(--c-danger); padding: 6rpx 0 6rpx 20rpx; }

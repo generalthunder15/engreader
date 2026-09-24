@@ -1,24 +1,28 @@
 <view class="page" style="{{themeStyle}}">
-  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
-  <view class="page-body">
-    <view class="empty" wx:if="{{!list.length}}">
-      <view class="empty-icon">⭐</view>
-      <view class="empty-text">还没有收藏章节</view>
-      <view class="empty-hint">阅读时点顶栏 ☆ 即可收藏本章</view>
-    </view>
-
+  <view class="eyebrow">BACK TO YOUR FAVORITES</view>
+  <view class="heading">值得再读</view>
+  <view class="sub">收藏的 {{items.length}} 个章节，随时回来看看。</view>
+  <view class="card" wx:for="{{items}}" wx:key="id">
     <view
-      class="f-item"
-      wx:for="{{list}}"
-      wx:key="id"
+      class="row"
+      bindtap="open"
       data-book="{{item.bookId}}"
       data-chapter="{{item.chapterId}}"
-      data-title="{{item.title}}"
-      bindtap="open"
-      bindlongpress="remove"
     >
-      <view class="f-title">{{item.title}}</view>
-      <view class="f-book">{{item.bookTitle}}</view>
+      <app-icon name="bookmark" size="52" />
+      <view class="grow">
+        <view class="menu-title">{{item.title}}</view>
+        <view class="sub">{{item.bookTitle}}</view>
+      </view>
+      <app-icon name="arrow" size="30" />
     </view>
+    <button class="small ghost remove" bindtap="remove" data-id="{{item.id}}">
+      取消收藏
+    </button>
+  </view>
+  <view class="empty" wx:if="{{!items.length}}">
+    <app-icon name="bookmark" size="88" />
+    <view class="empty-title">还没有收藏章节</view>
+    <view class="sub">在阅读器中点亮书签，把好文章留住。</view>
   </view>
 </view>

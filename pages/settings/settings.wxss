@@ -1,43 +1,20 @@
-.page { min-height: 100vh; background: var(--c-bg); position: relative; }
-.theme-bg { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 0; }
-.page-body { position: relative; z-index: 1; padding: 30rpx 30rpx calc(80rpx + env(safe-area-inset-bottom)); }
-
-.card { background: var(--c-card); border-radius: var(--r-card); padding: 28rpx; margin-bottom: 26rpx; }
-.sec { font-size: 30rpx; font-weight: 700; color: var(--c-text-strong); margin-bottom: 22rpx; }
-.field { margin-bottom: 24rpx; }
-.field:last-child { margin-bottom: 0; }
-.label { font-size: 26rpx; color: var(--c-text-muted); margin-bottom: 10rpx; }
-.row { display: flex; align-items: center; justify-content: space-between; }
-.row .label { margin-bottom: 0; }
-.ipt {
-  background: var(--c-sunken); border-radius: var(--r-btn);
-  height: 88rpx; line-height: 88rpx;
-  padding: 0 24rpx; font-size: 28rpx; color: var(--c-text); width: 100%; box-sizing: border-box;
+.label:first-child {
+  margin-top: 0;
 }
-.ph { color: var(--c-text-faint); }
-.btn-primary {
-  background: var(--c-primary); color: var(--c-on-primary);
-  font-size: 30rpx; font-weight: 700; text-align: center;
-  border-radius: var(--r-btn); padding: 24rpx; margin-bottom: 26rpx;
+.font-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
 }
-.stat { font-size: 24rpx; color: var(--c-text-hint); margin-bottom: 20rpx; }
-.row-btns { display: flex; gap: 16rpx; margin: 16rpx 0; }
-.btn-plain {
-  flex: 1; text-align: center; border: 1rpx solid var(--c-primary);
-  color: var(--c-primary); border-radius: var(--r-btn); font-size: 26rpx; padding: 16rpx 0;
+.font-row button {
+  text-align: left;
 }
-.btn-plain.danger { border-color: var(--c-danger); color: var(--c-danger); }
-.ta {
-  width: 100%; box-sizing: border-box; min-height: 160rpx;
-  background: var(--c-sunken); border-radius: var(--r-btn);
-  padding: 20rpx 24rpx; font-size: 26rpx; color: var(--c-text); margin-bottom: 16rpx;
+.diagnostic {
+  padding: 18rpx 0;
+  border-top: 1rpx solid var(--line);
 }
-.field.row { gap: 16rpx; justify-content: flex-start; }
-.btn-plain.disabled { opacity: 0.5; }
-.diag {
-  background: var(--c-sunken); border-radius: var(--r-btn);
-  padding: 20rpx 24rpx; margin-top: 16rpx;
-  font-size: 24rpx; line-height: 1.8; color: var(--c-text);
-  white-space: pre-wrap; word-break: break-all;
+.diagnostic .caption {
+  margin-top: 10rpx;
+  word-break: break-all;
 }
-.hint { font-size: 22rpx; color: var(--c-text-hint); line-height: 1.7; margin-top: 12rpx; }

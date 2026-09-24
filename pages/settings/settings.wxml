@@ -1,93 +1,248 @@
 <view class="page" style="{{themeStyle}}">
-  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
-  <view class="page-body">
-    <!-- 主 AI 配置 -->
-    <view class="card">
-      <view class="sec">AI 配置（DeepSeek · 翻译/划词问答/词表提取/批量句译/学习教练）</view>
-      <view class="field">
-        <view class="label">API 地址（OpenAI 兼容）</view>
-        <input class="ipt" value="{{form.baseUrl}}" bindinput="onInput" data-k="baseUrl" placeholder="https://api.deepseek.com" placeholder-class="ph" />
-      </view>
-      <view class="field">
-        <view class="label">模型</view>
-        <input class="ipt" value="{{form.model}}" bindinput="onInput" data-k="model" placeholder="deepseek-v4-flash" placeholder-class="ph" />
-      </view>
-      <view class="field">
-        <view class="label">API Key</view>
-        <input class="ipt" password value="{{form.apiKey}}" bindinput="onInput" data-k="apiKey" placeholder="sk-..." placeholder-class="ph" />
-      </view>
+  <view class="eyebrow">MAKE READING FEEL RIGHT</view>
+  <view class="heading">按你的习惯来</view>
+  <view class="sub">外观即时生效；接口与练习选项修改后请保存。</view>
+  <view class="section-title">阅读外观</view>
+  <view class="card">
+    <view class="label">主题</view>
+    <view class="chips">
+      <button
+        wx:for="{{themes}}"
+        wx:key="id"
+        class="chip {{form.theme === item.id ? 'active' : ''}}"
+        data-key="theme"
+        data-value="{{item.id}}"
+        bindtap="appearance"
+      >
+        {{item.name}}
+      </button>
     </view>
-
-    <!-- 连接自检 -->
-    <view class="card">
-      <view class="sec">连接自检（翻译用不了时先点这里）</view>
-      <view class="field row">
-        <view class="btn-plain {{testing ? 'disabled' : ''}}" bindtap="runDiag">{{testing ? '检测中…' : '开始自检'}}</view>
-        <view class="btn-plain" bindtap="copyDomains">复制域名清单</view>
-      </view>
-      <view class="diag" wx:if="{{testLog}}"><text user-select>{{testLog}}</text></view>
-      <view class="hint">逐项验证：域名放行 → 词典 → 单词翻译 → 句子翻译 → 批量句译 → 词表提取 → 学习教练</view>
+    <view class="label">字号</view>
+    <view class="chips">
+      <button
+        wx:for="{{sizes}}"
+        wx:key="*this"
+        class="chip {{form.readFontSize === item ? 'active' : ''}}"
+        data-key="readFontSize"
+        data-value="{{item}}"
+        bindtap="appearance"
+      >
+        {{item}}
+      </button>
+      <button
+        class="chip"
+        data-key="readFontSize"
+        data-value="0"
+        bindtap="appearance"
+      >
+        默认
+      </button>
     </view>
-
-    <!-- 硅基流动（备用，当前未使用） -->
-    <view class="card">
-      <view class="sec">硅基流动（备用 Key，当前功能未使用，可留空）</view>
-      <view class="field">
-        <view class="label">API 地址</view>
-        <input class="ipt" value="{{form.sfBaseUrl}}" bindinput="onInput" data-k="sfBaseUrl" placeholder="https://api.siliconflow.cn" placeholder-class="ph" />
-      </view>
-      <view class="field">
-        <view class="label">模型（轻量即可）</view>
-        <input class="ipt" value="{{form.sfModel}}" bindinput="onInput" data-k="sfModel" placeholder="Qwen/Qwen2.5-7B-Instruct" placeholder-class="ph" />
-      </view>
-      <view class="field">
-        <view class="label">API Key</view>
-        <input class="ipt" password value="{{form.sfApiKey}}" bindinput="onInput" data-k="sfApiKey" placeholder="sk-..." placeholder-class="ph" />
-      </view>
+    <view class="label">行距</view>
+    <view class="chips">
+      <button
+        wx:for="{{lines}}"
+        wx:key="*this"
+        class="chip {{form.readLineHeight === item ? 'active' : ''}}"
+        data-key="readLineHeight"
+        data-value="{{item}}"
+        bindtap="appearance"
+      >
+        {{item}}
+      </button>
     </view>
-
-    <!-- 学习与朗读 -->
-    <view class="card">
-      <view class="sec">学习与朗读</view>
-      <view class="field">
-        <view class="label">单词闯关每次取生词本最近 {{form.quizCount}} 个</view>
-        <slider min="5" max="100" step="5" value="{{form.quizCount}}" show-value activeColor="{{themePrimary}}" bindchange="onQuizCount" />
-      </view>
-      <view class="field row">
-        <view class="label">翻译结果自动朗读</view>
-        <switch checked="{{form.autoPlay}}" color="{{themePrimary}}" bindchange="onSwitch" />
-      </view>
-      <view class="field row">
-        <view class="label">本地兜底（网络失败时用内置词库顶上）</view>
-        <switch checked="{{form.localFallback}}" color="{{themePrimary}}" bindchange="onFallbackSwitch" />
-      </view>
-      <view class="hint">测 API 时请保持关闭：关闭后网络失败会直接报错，不会用本地释义掩盖问题</view>
-      <view class="field">
-        <view class="label">朗读语速（{{form.ttsSpeed}}x，{{form.ttsSpeed < 1 ? '慢' : form.ttsSpeed > 1 ? '快' : '正常'}}）</view>
-        <slider min="0.5" max="2" step="0.25" value="{{form.ttsSpeed}}" show-value activeColor="{{themePrimary}}" bindchange="onSpeed" />
-      </view>
-      <view class="field">
-        <view class="label">朗读 TTS Key（可选，硅基流动）</view>
-        <input class="ipt" password value="{{form.ttsApiKey}}" bindinput="onInput" data-k="ttsApiKey" placeholder="留空使用免费合成接口" placeholder-class="ph" />
-      </view>
+    <view class="list-row between">
+      <text>首行缩进</text>
+      <switch
+        checked="{{form.readIndent !== 0}}"
+        bindchange="indent"
+        color="{{themePrimary}}"
+      />
     </view>
-
-    <view class="btn-primary" bindtap="saveSettings">保存设置</view>
-
-    <!-- 数据管理 -->
-    <view class="card">
-      <view class="sec">数据管理（全部存于本机）</view>
-      <view class="stat">书籍 {{stat.books}} 本 · 生词 {{stat.vocab}} 个 · AI 缓存 {{stat.cache}} 条</view>
-      <view class="row-btns">
-        <view class="btn-plain" bindtap="exportBackup">导出备份到剪贴板</view>
-        <view class="btn-plain" bindtap="toggleImport">{{importing ? '收起导入' : '从剪贴板导入'}}</view>
+    <view class="list-row between">
+      <text>界面使用阅读字体</text>
+      <switch
+        checked="{{form.fontUi !== 'system'}}"
+        bindchange="sameFont"
+        color="{{themePrimary}}"
+      />
+    </view>
+    <view class="label">阅读字体</view>
+    <view class="font-row" wx:for="{{fonts}}" wx:key="id">
+      <button
+        class="chip grow {{form.fontRead === item.id ? 'active' : ''}}"
+        data-key="fontRead"
+        data-value="{{item.id}}"
+        bindtap="appearance"
+      >
+        {{item.name}}
+        <text class="caption">
+          {{item.kind === 'custom' ? '已导入' : item.kind === 'builtin' ? '内置'
+          : '系统'}}
+        </text>
+      </button>
+      <button
+        wx:if="{{item.kind === 'custom'}}"
+        class="small ghost"
+        data-id="{{item.id}}"
+        bindtap="removeFont"
+      >
+        删除
+      </button>
+    </view>
+    <button class="ghost full" bindtap="importFont">＋ 导入字体文件</button>
+  </view>
+  <view class="section-title">AI 模型</view>
+  <view class="card">
+    <view class="caption">
+      支持 OpenAI 兼容接口，主模型用于精读与学习教练。
+    </view>
+    <view class="label">接口地址</view>
+    <input
+      class="field"
+      value="{{form.baseUrl}}"
+      data-key="baseUrl"
+      bindinput="field"
+      placeholder="https://api.example.com/v1"
+    />
+    <view class="label">模型名称</view>
+    <input
+      class="field"
+      value="{{form.model}}"
+      data-key="model"
+      bindinput="field"
+    />
+    <view class="label">API Key</view>
+    <input
+      class="field"
+      password
+      value="{{form.apiKey}}"
+      data-key="apiKey"
+      bindinput="field"
+      placeholder="填写你的 API Key"
+    />
+    <view class="divider"></view>
+    <view class="menu-title">辅助模型（可选）</view>
+    <view class="caption">用于词表提取和批量翻译，留空 Key 时使用主模型。</view>
+    <view class="label">接口地址</view>
+    <input
+      class="field"
+      value="{{form.sfBaseUrl}}"
+      data-key="sfBaseUrl"
+      bindinput="field"
+    />
+    <view class="label">模型名称</view>
+    <input
+      class="field"
+      value="{{form.sfModel}}"
+      data-key="sfModel"
+      bindinput="field"
+    />
+    <view class="label">API Key</view>
+    <input
+      class="field"
+      password
+      value="{{form.sfApiKey}}"
+      data-key="sfApiKey"
+      bindinput="field"
+    />
+  </view>
+  <view class="section-title">朗读与练习</view>
+  <view class="card">
+    <view class="label">高品质朗读 Key（可选）</view>
+    <input
+      class="field"
+      password
+      value="{{form.ttsApiKey}}"
+      data-key="ttsApiKey"
+      bindinput="field"
+      placeholder="硅基流动 Key，留空使用免费朗读"
+    />
+    <view class="label">朗读语速 · {{form.ttsSpeed}}×</view>
+    <slider
+      min="0.5"
+      max="2"
+      step="0.1"
+      value="{{form.ttsSpeed}}"
+      data-key="ttsSpeed"
+      bindchange="number"
+      activeColor="{{themePrimary}}"
+    />
+    <view class="label">每轮生词数量 · {{form.quizCount}} 个</view>
+    <slider
+      min="5"
+      max="100"
+      step="5"
+      value="{{form.quizCount}}"
+      data-key="quizCount"
+      bindchange="number"
+      activeColor="{{themePrimary}}"
+    />
+    <view class="list-row between">
+      <text>自动朗读</text>
+      <switch
+        checked="{{form.autoPlay}}"
+        data-key="autoPlay"
+        bindchange="toggle"
+        color="{{themePrimary}}"
+      />
+    </view>
+    <view class="list-row between">
+      <text>显示句译</text>
+      <switch
+        checked="{{form.showTrans}}"
+        data-key="showTrans"
+        bindchange="toggle"
+        color="{{themePrimary}}"
+      />
+    </view>
+    <view class="list-row between">
+      <view class="grow">
+        <text>本地兜底</text>
+        <view class="caption">联网失败时使用内置词库和已有句译</view>
       </view>
-      <textarea wx:if="{{importing}}" class="ta" placeholder="粘贴备份 JSON…" placeholder-class="ph" value="{{importText}}" bindinput="onImportText" maxlength="-1" show-confirm-bar="{{false}}"></textarea>
-      <view class="btn-primary" wx:if="{{importing}}" bindtap="doImport">确认导入（覆盖同名数据）</view>
-      <view class="row-btns">
-        <view class="btn-plain danger" bindtap="clearCache">清空 AI 缓存</view>
+      <switch
+        checked="{{form.localFallback}}"
+        data-key="localFallback"
+        bindchange="toggle"
+        color="{{themePrimary}}"
+      />
+    </view>
+  </view>
+  <button class="primary full" bindtap="save">保存接口与练习设置</button>
+  <view class="section-title">数据与连接</view>
+  <view class="card stack">
+    <button bindtap="export">导出备份到剪贴板</button>
+    <view class="caption">备份含本机模型配置，请保存在你信任的位置。</view>
+    <button bindtap="toggleImport">恢复备份</button>
+    <block wx:if="{{importing}}">
+      <textarea
+        class="field textarea"
+        value="{{backup}}"
+        bindinput="backup"
+        maxlength="-1"
+        placeholder="粘贴备份内容"
+      />
+      <button class="primary" bindtap="import">确认恢复</button>
+    </block>
+    <button class="ghost" bindtap="clearCache">清理可再生成的缓存</button>
+  </view>
+  <view class="card stack">
+    <button bindtap="test" loading="{{testing}}" disabled="{{testing}}">
+      检测接口连通性
+    </button>
+    <button bindtap="testModel" disabled="{{testing}}">测试主模型响应</button>
+    <button class="ghost" bindtap="domains">复制使用的域名</button>
+    <view class="caption">
+      检测使用已保存的设置，不会按服务所在地区阻止请求。
+    </view>
+    <view class="body-text sub">{{testMessage}}</view>
+    <view wx:for="{{results}}" wx:key="url" class="diagnostic">
+      <view class="row between">
+        <text>{{item.name}}{{item.optional ? '（可选）' : ''}}</text>
+        <text class="badge">{{item.ok ? '可连接' : '未连接'}}</text>
       </view>
-      <view class="hint">清理微信缓存会丢失本地学习数据，建议定期导出备份</view>
+      <view class="caption">{{item.detail}}</view>
     </view>
   </view>
 </view>

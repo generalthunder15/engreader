@@ -1,9 +1,5 @@
 {
-  "navigationStyle": "custom",
   "navigationBarTitleText": "阅读",
-  "onReachBottomDistance": 300,
-  "usingComponents": {
-    "selection-toolbar": "/components/selection-toolbar/index",
-    "ai-panel": "/components/ai-panel/index"
-  }
+  "navigationStyle": "custom",
+  "onReachBottomDistance": 250
 }

@@ -13,10 +13,10 @@
     "pages/settings/settings"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#2B6CB0",
-    "navigationBarTextStyle": "white",
+    "navigationBarBackgroundColor": "#F5F7F5",
+    "navigationBarTextStyle": "black",
     "navigationBarTitleText": "英语精读",
-    "backgroundColor": "#F6F7F9"
+    "backgroundColor": "#F5F7F5"
   },
   "tabBar": {
     "custom": true,
@@ -25,12 +25,27 @@
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
-      { "pagePath": "pages/quiz/quiz", "text": "单词闯关" },
-      { "pagePath": "pages/shelf/shelf", "text": "书架" },
-      { "pagePath": "pages/study/study", "text": "学习" },
-      { "pagePath": "pages/mine/mine", "text": "我的" }
+      {
+        "pagePath": "pages/quiz/quiz",
+        "text": "单词闯关"
+      },
+      {
+        "pagePath": "pages/shelf/shelf",
+        "text": "书架"
+      },
+      {
+        "pagePath": "pages/study/study",
+        "text": "学习"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的"
+      }
     ]
   },
   "style": "v2",
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "usingComponents": {
+    "app-icon": "/components/icon/index"
+  }
 }

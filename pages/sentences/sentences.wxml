@@ -1,19 +1,31 @@
 <view class="page" style="{{themeStyle}}">
-  <image wx:if="{{themeBg}}" class="theme-bg" src="{{themeBg}}" mode="{{themeBgMode}}"></image>
-  <view class="page-body">
-    <view class="empty" wx:if="{{!list.length}}">
-      <view class="empty-icon">💬</view>
-      <view class="empty-text">还没有收藏句子</view>
-      <view class="empty-hint">阅读时选中文本 → 点「收藏」即可保存</view>
+  <view class="eyebrow">LINES WORTH KEEPING</view>
+  <view class="heading">收藏的句子</view>
+  <view class="sub">{{items.length}} 句表达，慢慢变成自己的语言。</view>
+  <view class="card" wx:for="{{items}}" wx:key="id">
+    <text class="sentence" user-select>{{item.text}}</text>
+    <view class="sub">{{item.translation}}</view>
+    <view class="divider"></view>
+    <view
+      class="caption"
+      bindtap="open"
+      data-book="{{item.bookId}}"
+      data-chapter="{{item.chapterId}}"
+    >
+      {{item.bookTitle}} · {{item.chapterTitle}} ›
     </view>
-
-    <view class="s-item" wx:for="{{list}}" wx:key="id" bindlongpress="remove" data-id="{{item.id}}" data-text="{{item.text}}">
-      <view class="s-text" bindtap="play" data-text="{{item.text}}">{{item.text}}</view>
-      <view class="s-trans" wx:if="{{item.translation}}">{{item.translation}}</view>
-      <view class="s-meta">
-        <text wx:if="{{item.bookTitle}}">{{item.bookTitle}} · {{item.chapterTitle}}</text>
-        <text class="s-del" catchtap="remove" data-id="{{item.id}}" data-text="{{item.text}}">删除</text>
-      </view>
+    <view class="row actions">
+      <button class="small" bindtap="speak" data-text="{{item.text}}">
+        朗读
+      </button>
+      <button class="small ghost" bindtap="remove" data-id="{{item.id}}">
+        删除
+      </button>
     </view>
+  </view>
+  <view class="empty" wx:if="{{!items.length}}">
+    <app-icon name="chat" size="88" />
+    <view class="empty-title">把好句子留在这里</view>
+    <view class="sub">阅读时长按句子，点击收藏。</view>
   </view>
 </view>
