@@ -230,9 +230,14 @@
   <button class="primary full" bindtap="save">保存接口与练习设置</button>
   <view class="section-title">数据与连接</view>
   <view class="card stack">
-    <button bindtap="export">导出备份到剪贴板</button>
+    <view class="settings-actions">
+      <button bindtap="export" aria-label="导出备份到剪贴板">导出备份</button>
+      <button bindtap="toggleImport">恢复备份</button>
+      <button bindtap="clearCache" aria-label="清理可再生成的缓存">
+        清理缓存
+      </button>
+    </view>
     <view class="caption">备份含本机模型配置，请保存在你信任的位置。</view>
-    <button bindtap="toggleImport">恢复备份</button>
     <block wx:if="{{importing}}">
       <textarea
         class="field textarea"
@@ -243,14 +248,21 @@
       />
       <button class="primary" bindtap="import">确认恢复</button>
     </block>
-    <button class="ghost" bindtap="clearCache">清理可再生成的缓存</button>
   </view>
   <view class="card stack">
-    <button bindtap="test" loading="{{testing}}" disabled="{{testing}}">
-      检测接口连通性
-    </button>
-    <button bindtap="testModel" disabled="{{testing}}">测试主模型响应</button>
-    <button class="ghost" bindtap="domains">复制使用的域名</button>
+    <view class="settings-actions">
+      <button bindtap="test" disabled="{{testing}}" aria-label="检测接口连通性">
+        {{testing ? '检测中…' : '检测连接'}}
+      </button>
+      <button
+        bindtap="testModel"
+        disabled="{{testing}}"
+        aria-label="测试主模型响应"
+      >
+        测试模型
+      </button>
+      <button bindtap="domains" aria-label="复制使用的域名">复制域名</button>
+    </view>
     <view class="caption">
       检测使用已保存的设置，不会按服务所在地区阻止请求。
     </view>
