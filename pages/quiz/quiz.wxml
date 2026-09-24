@@ -21,25 +21,34 @@
     <view class="word-card">
       <view class="caption">认识这个词吗？</view>
       <view class="quiz-word">{{current.word}}</view>
-      <button class="speak" bindtap="speak" aria-label="朗读单词">
+      <view
+        class="speak"
+        bindtap="speak"
+        role="button"
+        aria-role="button"
+        aria-label="朗读单词"
+        hover-class="speak-hover"
+      >
         <app-icon name="volume" size="38" />
         <text>听发音</text>
-      </button>
+      </view>
     </view>
     <view class="options">
-      <button
+      <view
         wx:for="{{current.options}}"
         wx:key="index"
         class="option {{result && index === current.answer ? 'correct' : ''}} {{result === 'wrong' && index === picked ? 'incorrect' : ''}}"
         data-index="{{index}}"
         bindtap="pick"
-        disabled="{{!!result}}"
+        role="button"
+        aria-role="button"
+        aria-disabled="{{!!result}}"
+        hover-class="{{result ? 'none' : 'option-hover'}}"
       >
-        <text class="option-letter">
-          {{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}
-        </text>
-        <text class="grow">{{item}}</text>
-      </button>
+        <!-- prettier-ignore -->
+        <view class="option-letter">{{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}</view>
+        <text class="option-meaning">{{item}}</text>
+      </view>
     </view>
     <view class="feedback {{result === 'wrong' ? 'danger' : ''}}">
       {{result === 'right' ? '答对了，继续保持' : result === 'wrong' ?
