@@ -55,13 +55,14 @@ Page({
         this.selected = requested;
         wx.removeStorageSync("open_learning_session");
       }
-      this.refresh();
+      this.setData({ historyPage: 0 });
+      this.refresh(true);
       if (
         this.data.current?.phase === "reading" &&
         store.chapter(AI_BOOK, this.data.current.articleId)?.quizDone
       ) {
         learning.unlockTeaching(this.data.current.id);
-        this.refresh();
+        this.refresh(true);
       }
     } catch (error) {
       fail(error);
@@ -73,7 +74,7 @@ Page({
   onUnload() {
     this.alive = false;
   },
-  refresh() {
+  refresh(scrollToBottom = false) {
     const state = learning.load();
     if (!state.sessions.some((s) => s.id === this.selected))
       this.selected = state.sessions[state.sessions.length - 1]?.id || "";
@@ -108,6 +109,10 @@ Page({
       label: current ? phaseLabel[current.phase] : "",
       readonly: !!selected && closed(selected),
       remaining: selected ? unresolved(selected).length : 0,
+    }, () => {
+      if (scrollToBottom && this.alive) {
+        wx.pageScrollTo({ scrollTop: 10000000, duration: 0 });
+      }
     });
   },
   select(e: UIEvent) {
@@ -116,7 +121,7 @@ Page({
     if (!selected) return;
     this.selected = selected.id;
     this.setData({ text: "", answer: "", error: "", historyPage: 0 });
-    this.refresh();
+    this.refresh(true);
   },
   older() {
     this.setData({ historyPage: this.data.historyPage + 1 });
@@ -124,7 +129,7 @@ Page({
   },
   latest() {
     this.setData({ historyPage: 0 });
-    this.refresh();
+    this.refresh(true);
   },
   start() {
     try {
