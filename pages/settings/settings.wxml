@@ -112,24 +112,7 @@
   </view>
   <view class="section-title">AI 模型</view>
   <view class="card">
-    <view class="caption">
-      支持 OpenAI 兼容接口，主模型用于精读与学习教练。
-    </view>
-    <view class="label">接口地址</view>
-    <input
-      class="field"
-      value="{{form.baseUrl}}"
-      data-key="baseUrl"
-      bindinput="field"
-      placeholder="https://api.example.com/v1"
-    />
-    <view class="label">模型名称</view>
-    <input
-      class="field"
-      value="{{form.model}}"
-      data-key="model"
-      bindinput="field"
-    />
+    <view class="caption">统一使用硅基流动，精读、学习教练和朗读共用一个 API Key。模型由系统维护，随版本更新。</view>
     <view class="label">API Key</view>
     <input
       class="field"
@@ -137,45 +120,11 @@
       value="{{form.apiKey}}"
       data-key="apiKey"
       bindinput="field"
-      placeholder="填写你的 API Key"
-    />
-    <view class="divider"></view>
-    <view class="menu-title">辅助模型（可选）</view>
-    <view class="caption">用于词表提取和批量翻译，留空 Key 时使用主模型。</view>
-    <view class="label">接口地址</view>
-    <input
-      class="field"
-      value="{{form.sfBaseUrl}}"
-      data-key="sfBaseUrl"
-      bindinput="field"
-    />
-    <view class="label">模型名称</view>
-    <input
-      class="field"
-      value="{{form.sfModel}}"
-      data-key="sfModel"
-      bindinput="field"
-    />
-    <view class="label">API Key</view>
-    <input
-      class="field"
-      password
-      value="{{form.sfApiKey}}"
-      data-key="sfApiKey"
-      bindinput="field"
+      placeholder="填写硅基流动 API Key"
     />
   </view>
   <view class="section-title">朗读与练习</view>
   <view class="card">
-    <view class="label">高品质朗读 Key（可选）</view>
-    <input
-      class="field"
-      password
-      value="{{form.ttsApiKey}}"
-      data-key="ttsApiKey"
-      bindinput="field"
-      placeholder="硅基流动 Key，留空使用免费朗读"
-    />
     <view class="label">朗读语速 · {{form.ttsSpeed}}×</view>
     <slider
       min="0.5"
@@ -231,23 +180,11 @@
   <view class="section-title">数据与连接</view>
   <view class="card stack">
     <view class="settings-actions">
-      <button bindtap="export" aria-label="导出备份到剪贴板">导出备份</button>
-      <button bindtap="toggleImport">恢复备份</button>
       <button bindtap="clearCache" aria-label="清理可再生成的缓存">
         清理缓存
       </button>
     </view>
-    <view class="caption">备份含本机模型配置，请保存在你信任的位置。</view>
-    <block wx:if="{{importing}}">
-      <textarea
-        class="field textarea"
-        value="{{backup}}"
-        bindinput="backup"
-        maxlength="-1"
-        placeholder="粘贴备份内容"
-      />
-      <button class="primary" bindtap="import">确认恢复</button>
-    </block>
+    <view class="caption">清理可重新生成的缓存，保留书籍、笔记和学习记录。</view>
   </view>
   <view class="card stack">
     <view class="settings-actions">

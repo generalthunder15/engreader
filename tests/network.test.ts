@@ -52,7 +52,7 @@ test("URL assembly respects custom paths without adding an extra version prefix"
     "https://example.com/chat/completions",
   );
 });
-test("cached AI output can be read without a key and is separated by model", async () => {
+test("cached AI output survives ignored user model overrides", async () => {
   storage.saveSettings({ apiKey: "token", model: "first" });
   let requests = 0;
   respond('{"translation":"苹果"}', () => requests++);
@@ -61,7 +61,9 @@ test("cached AI output can be read without a key and is separated by model", asy
   assert.equal((await explain("apple", true)).translation, "苹果");
   assert.equal(requests, 1);
   storage.saveSettings({ model: "second" });
-  await assert.rejects(explain("apple", true), /API Key/);
+  assert.equal((await explain("apple", true)).translation, "苹果");
+  assert.equal(requests, 1);
+  await assert.rejects(explain("uncached", true), /API Key/);
 });
 test("missing meanings are returned in the field consumed by quiz", async () => {
   storage.saveSettings({ apiKey: "token" });

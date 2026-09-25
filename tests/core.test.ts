@@ -125,15 +125,16 @@ test("quiz options are distinct, missed words repeat, first-try score is stable"
   assert.equal(session.passed, 2);
   assert.equal(session.right, 3);
 });
-test("settings preserve nonstandard user keys and custom endpoints", () => {
+test("settings enforce built-in models and discard unrelated provider keys", () => {
   storage.write("settings", {
     apiKey: "custom-token",
     baseUrl: "https://custom.example/v1",
     model: "my-model",
     sfApiKey: "",
   });
-  assert.equal(storage.settings().apiKey, "custom-token");
-  assert.equal(storage.settings().baseUrl, "https://custom.example/v1");
+  assert.equal(storage.settings().apiKey, "");
+  assert.equal(storage.settings().baseUrl, storage.defaults.baseUrl);
+  assert.equal(storage.settings().model, storage.defaults.model);
   assert.equal(storage.settings().sfApiKey, "");
   storage.write("settings", { quizCount: "bad", ttsSpeed: 9 });
   assert.equal(storage.settings().quizCount, 30);
@@ -250,4 +251,21 @@ test("clearing data retains built-in books and optionally keeps settings", () =>
   assert.equal(storage.settings().apiKey, "saved-key");
   clearUserData(true);
   assert.equal(storage.settings().apiKey, "");
+});
+
+ test("SiliconFlow key migration and settings save keep all services unified", () => {
+  storage.write("settings", { baseUrl: "https://api.deepseek.com", apiKey: "old-key",
+    sfBaseUrl: "https://api.siliconflow.cn/v1", sfApiKey: "silicon-key", ttsApiKey: "other-key" });
+  assert.equal(storage.settings().apiKey, "silicon-key");
+  assert.equal(storage.settings().ttsApiKey, "silicon-key");
+  storage.saveSettings({ apiKey: "new-key", baseUrl: "https://other.example", model: "other", sfModel: "other" });
+  const s = storage.settings();
+  assert.equal(s.baseUrl, storage.defaults.baseUrl);
+  assert.equal(s.model, storage.defaults.model);
+  assert.equal(s.sfModel, storage.defaults.sfModel);
+  assert.equal(s.sfApiKey, "new-key");
+  assert.equal(s.ttsApiKey, "new-key");
+  storage.saveSettings({ apiKey: "" });
+  assert.equal(storage.settings().sfApiKey, "");
+  assert.equal(storage.settings().ttsApiKey, "");
 });

@@ -52,9 +52,7 @@ export async function chat(
       temperature: 0.3,
       max_tokens: 8192,
       ...(json ? { response_format: { type: "json_object" } } : {}),
-      ...(/^https?:\/\/api\.deepseek\.com(?:\/|$)/i.test(base)
-        ? { thinking: { type: "disabled" } }
-        : {}),
+      ...(!auxiliary ? { enable_thinking: false } : {}),
     },
   });
   const choices = record(result).choices;

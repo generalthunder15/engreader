@@ -78,8 +78,8 @@ export function transaction(
   }
 }
 export const defaults: Settings = {
-  baseUrl: "https://api.deepseek.com",
-  model: "deepseek-chat",
+  baseUrl: "https://api.siliconflow.cn/v1",
+  model: "deepseek-ai/DeepSeek-V4-Flash",
   apiKey: "",
   sfBaseUrl: "https://api.siliconflow.cn/v1",
   sfModel: "Qwen/Qwen2.5-7B-Instruct",
@@ -125,11 +125,26 @@ export function settings(): Settings {
     const n = Number(value[key]);
     value[key] = Number.isFinite(n) && n >= min && n <= max ? n : fallback;
   }
+  const siliconKey = /^https:\/\/api\.siliconflow\.cn(?:\/|$)/i.test(value.baseUrl)
+    ? value.apiKey.trim()
+    : (/^https:\/\/api\.siliconflow\.cn(?:\/|$)/i.test(value.sfBaseUrl)
+        ? value.sfApiKey.trim() : "") || value.ttsApiKey.trim();
+  Object.assign(value, {
+    baseUrl: defaults.baseUrl, model: defaults.model,
+    sfBaseUrl: defaults.sfBaseUrl, sfModel: defaults.sfModel,
+    apiKey: siliconKey, sfApiKey: siliconKey, ttsApiKey: siliconKey,
+  });
   value.quizCount = Math.round(value.quizCount);
   return value;
 }
 export function saveSettings(patch: Partial<Settings>): void {
-  write("settings", { ...settings(), ...patch });
+  const value = { ...settings(), ...patch };
+  const key = value.apiKey.trim();
+  write("settings", { ...value,
+    baseUrl: defaults.baseUrl, model: defaults.model,
+    sfBaseUrl: defaults.sfBaseUrl, sfModel: defaults.sfModel,
+    apiKey: key, sfApiKey: key, ttsApiKey: key,
+  });
 }
 export function books(): Book[] {
   return read<Book[]>("book_index", []).map((b) => ({

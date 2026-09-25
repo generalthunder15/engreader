@@ -9,8 +9,6 @@ Page({
   data: {
     themeStyle: "",
     form: { ...store.defaults },
-    importing: false,
-    backup: "",
     testing: false,
     results: [] as Probe[],
     testMessage: "",
@@ -25,17 +23,7 @@ Page({
   },
   field(e: UIEvent) {
     const key = data(e, "key");
-    if (
-      [
-        "baseUrl",
-        "apiKey",
-        "model",
-        "sfBaseUrl",
-        "sfApiKey",
-        "sfModel",
-        "ttsApiKey",
-      ].includes(key)
-    )
+    if (key === "apiKey")
       this.setData({ ["form." + key]: input(e) });
   },
   toggle(e: UIEvent) {
@@ -51,19 +39,9 @@ Page({
   save() {
     try {
       const form = { ...this.data.form };
-      for (const key of [
-        "baseUrl",
-        "apiKey",
-        "model",
-        "sfBaseUrl",
-        "sfApiKey",
-        "sfModel",
-        "ttsApiKey",
-      ] as const)
-        form[key] = form[key].trim();
-      if (!/^https?:\/\/[^/\s]+/.test(form.baseUrl))
-        return toast("请填写有效的主模型地址");
+      form.apiKey = form.apiKey.trim();
       store.saveSettings(form);
+      this.setData({ form: store.settings() });
       toast("设置已保存");
     } catch (error) {
       fail(error);
@@ -108,37 +86,6 @@ Page({
   },
   domains() {
     wx.setClipboardData({ data: domainList() });
-  },
-  export() {
-    try {
-      wx.setClipboardData({
-        data: JSON.stringify(store.exportBackup()),
-        success: () => toast("备份已复制，请妥善保存"),
-      });
-    } catch (error) {
-      fail(error);
-    }
-  },
-  toggleImport() {
-    this.setData({ importing: !this.data.importing });
-  },
-  backup(e: UIEvent) {
-    this.setData({ backup: input(e) });
-  },
-  async import() {
-    if (
-      !(await confirm("恢复备份", "备份中同名记录会覆盖本机记录，是否继续？"))
-    )
-      return;
-    try {
-      const count = store.importBackup(JSON.parse(this.data.backup));
-      fonts.gc();
-      this.setData({ importing: false, backup: "" });
-      this.onShow();
-      toast("已恢复 " + count + " 项");
-    } catch (error) {
-      fail(error);
-    }
   },
   clearCache() {
     try {
