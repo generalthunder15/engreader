@@ -36,13 +36,21 @@ Page({
     if (["ttsSpeed", "quizCount"].includes(key))
       this.setData({ ["form." + key]: Number(e.detail.value) });
   },
-  save() {
+  saveAI() {
     try {
-      const form = { ...this.data.form };
-      form.apiKey = form.apiKey.trim();
-      store.saveSettings(form);
-      this.setData({ form: store.settings() });
-      toast("设置已保存");
+      const apiKey = this.data.form.apiKey.trim();
+      store.saveSettings({ apiKey });
+      this.setData({ "form.apiKey": apiKey });
+      toast("AI 设置已保存");
+    } catch (error) {
+      fail(error);
+    }
+  },
+  savePractice() {
+    try {
+      const { ttsSpeed, quizCount, autoPlay, showTrans, localFallback } = this.data.form;
+      store.saveSettings({ ttsSpeed, quizCount, autoPlay, showTrans, localFallback });
+      toast("朗读与练习设置已保存");
     } catch (error) {
       fail(error);
     }

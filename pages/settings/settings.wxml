@@ -150,6 +150,7 @@
     </view>
   </view>
   </view>
+  <button class="primary full" bindtap="saveAI" disabled="{{testing}}">保存 AI 设置</button>
   <view class="section-title">朗读与练习</view>
   <view class="card">
     <view class="label">朗读语速 · {{form.ttsSpeed}}×</view>
@@ -203,7 +204,7 @@
       />
     </view>
   </view>
-  <button class="primary full" bindtap="save">保存接口与练习设置</button>
+  <button class="primary full" bindtap="savePractice">保存朗读与练习设置</button>
   <view class="section-title">数据与连接</view>
   <view class="card stack">
     <view class="settings-actions">
