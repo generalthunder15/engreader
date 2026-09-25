@@ -24,7 +24,7 @@ Page({
   field(e: UIEvent) {
     const key = data(e, "key");
     if (key === "apiKey")
-      this.setData({ ["form." + key]: input(e) });
+      this.setData({ ["form." + key]: input(e), testMessage: "", results: [] });
   },
   toggle(e: UIEvent) {
     const key = data(e, "key");
@@ -52,13 +52,13 @@ Page({
     this.setData({
       testing: true,
       results: [],
-      testMessage: "正在检测已保存的接口配置…",
+      testMessage: "正在检测接口连通性…",
     });
     try {
       const results = await diagnose();
       this.setData({
         results,
-        testMessage: "连通性检测完成；模型鉴权请点下方测试",
+        testMessage: "连通性检测完成；请点“测试模型”验证 Key",
       });
     } catch (error) {
       fail(error);
@@ -68,12 +68,13 @@ Page({
   },
   async testModel() {
     if (this.data.testing) return;
-    this.setData({ testing: true, testMessage: "正在测试已保存的模型…" });
+    this.setData({ testing: true, testMessage: "正在使用当前填写的 Key 测试模型…" });
     try {
       const r = await ai.chat(
         [{ role: "user", content: "Reply with OK." }],
         false,
         false,
+        this.data.form.apiKey.trim(),
       );
       this.setData({ testMessage: "主模型响应：" + r.slice(0, 160) });
     } catch (error) {

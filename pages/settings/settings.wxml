@@ -119,9 +119,36 @@
       password
       value="{{form.apiKey}}"
       data-key="apiKey"
+      disabled="{{testing}}"
       bindinput="field"
       placeholder="填写硅基流动 API Key"
     />
+    <view class="stack api-test">
+    <view class="settings-actions">
+      <button bindtap="test" disabled="{{testing}}" aria-label="检测接口连通性">
+        {{testing ? '检测中…' : '检测连接'}}
+      </button>
+      <button
+        bindtap="testModel"
+        disabled="{{testing}}"
+        aria-label="测试主模型响应"
+      >
+        测试模型
+      </button>
+      <button bindtap="domains" aria-label="复制使用的域名">复制域名</button>
+    </view>
+    <view class="caption">
+      填写 Key 后可直接测试模型，测试通过后记得保存设置。
+    </view>
+    <view class="body-text sub">{{testMessage}}</view>
+    <view wx:for="{{results}}" wx:key="url" class="diagnostic">
+      <view class="row between">
+        <text>{{item.name}}{{item.optional ? '（可选）' : ''}}</text>
+        <text class="badge">{{item.ok ? '可连接' : '未连接'}}</text>
+      </view>
+      <view class="caption">{{item.detail}}</view>
+    </view>
+  </view>
   </view>
   <view class="section-title">朗读与练习</view>
   <view class="card">
@@ -186,30 +213,5 @@
     </view>
     <view class="caption">清理可重新生成的缓存，保留书籍、笔记和学习记录。</view>
   </view>
-  <view class="card stack">
-    <view class="settings-actions">
-      <button bindtap="test" disabled="{{testing}}" aria-label="检测接口连通性">
-        {{testing ? '检测中…' : '检测连接'}}
-      </button>
-      <button
-        bindtap="testModel"
-        disabled="{{testing}}"
-        aria-label="测试主模型响应"
-      >
-        测试模型
-      </button>
-      <button bindtap="domains" aria-label="复制使用的域名">复制域名</button>
-    </view>
-    <view class="caption">
-      检测使用已保存的设置，不会按服务所在地区阻止请求。
-    </view>
-    <view class="body-text sub">{{testMessage}}</view>
-    <view wx:for="{{results}}" wx:key="url" class="diagnostic">
-      <view class="row between">
-        <text>{{item.name}}{{item.optional ? '（可选）' : ''}}</text>
-        <text class="badge">{{item.ok ? '可连接' : '未连接'}}</text>
-      </view>
-      <view class="caption">{{item.detail}}</view>
-    </view>
-  </view>
+
 </view>

@@ -35,10 +35,11 @@ export async function chat(
   messages: Message[],
   lightweight = false,
   json = true,
+  apiKeyOverride?: string,
 ): Promise<string> {
   const s = storage.settings();
   const auxiliary = lightweight && !!s.sfApiKey;
-  const key = auxiliary ? s.sfApiKey : s.apiKey;
+  const key = apiKeyOverride ?? (auxiliary ? s.sfApiKey : s.apiKey);
   const base = auxiliary ? s.sfBaseUrl : s.baseUrl;
   const model = auxiliary ? s.sfModel : s.model;
   if (!key.trim()) throw new Error("请先在系统设置中填写模型 API Key");
