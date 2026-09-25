@@ -29,7 +29,7 @@
     />
     <block wx:if="{{kind === 'article'}}">
       <view class="label">英文正文</view>
-      <textarea
+      <textarea show-confirm-bar="{{false}}"
         class="field textarea content"
         value="{{content}}"
         bindinput="content"
@@ -104,7 +104,7 @@
         bindinput="sectionField"
         placeholder="部分标题，如：阅读理解"
       />
-      <textarea
+      <textarea show-confirm-bar="{{false}}"
         class="field textarea"
         value="{{section.material}}"
         data-section="{{si}}"
@@ -123,7 +123,7 @@
         <view class="label">
           第 {{qi + 1}} 题 · {{q.type === 'choice' ? '选择题' : q.type === 'fill' ? '填空题' : '翻译题'}}
         </view>
-        <textarea
+        <textarea show-confirm-bar="{{false}}"
           class="field textarea"
           value="{{q.title}}"
           data-section="{{si}}"
@@ -133,7 +133,7 @@
           placeholder="题干"
           maxlength="5000"
         />
-        <textarea
+        <textarea show-confirm-bar="{{false}}"
           wx:if="{{q.type === 'choice'}}"
           class="field textarea"
           value="{{q.optionsText}}"
@@ -157,7 +157,7 @@
             {{q.direction === 'zh-en' ? '汉译英' : '英译汉'}} · 点击切换
           </view>
         </picker>
-        <textarea
+        <textarea show-confirm-bar="{{false}}"
           class="field textarea"
           value="{{q.answer}}"
           data-section="{{si}}"
@@ -167,7 +167,7 @@
           placeholder="参考答案（选择题填写 A/B/C/D）"
           maxlength="5000"
         />
-        <textarea
+        <textarea show-confirm-bar="{{false}}"
           class="field textarea"
           value="{{q.explanation}}"
           data-section="{{si}}"

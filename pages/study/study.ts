@@ -1,5 +1,10 @@
 import * as learning from "../../services/learning";
+import { optionLabel } from "../../core/text";
 import * as store from "../../services/storage";
+import { placeSelectionMenu } from "../../core/selection-menu";
+import * as audio from "../../services/audio";
+import { lookup } from "../../services/dictionary";
+import { explain } from "../../services/ai";
 import {
   AI_BOOK,
   Session,
@@ -8,7 +13,7 @@ import {
   phaseLabel,
   unresolved,
 } from "../../core/learning";
-import { UIEvent } from "../../core/models";
+import { Definition, UIEvent } from "../../core/models";
 import { bind } from "../../services/theme";
 import { data, input, navigate, fail } from "../../services/ui";
 type SessionView = Pick<
@@ -35,6 +40,7 @@ Page({
     hasAssessment: false,
     text: "",
     answer: "",
+    selectedOption: "",
     busy: false,
     error: "",
     progress: "",
@@ -42,9 +48,63 @@ Page({
     remaining: 0,
     hasOlder: false,
     historyPage: 0,
+    selectedWord: "",
+    wordDefinition: null as Definition | null,
+    wordPanel: false,
+    wordMenuStyle: "",
+    wordMenuSide: "below",
+    wordArrow: 18,
+    wordPlaying: false,
+    wordError: "",
+    wordBusy: false,
   },
   selected: "",
   alive: true,
+  wordRequest: 0,
+  closeWord() {
+    this.wordRequest++;
+    audio.stop();
+    this.setData({ selectedWord: "", wordBusy: false, wordPanel: false, wordPlaying: false });
+  },
+  onPageScroll() { if (!this.data.wordPanel) this.closeWord(); },
+  selectWord(e: WechatMiniprogram.CustomEvent<{ word: string; y: number; x: number }>) {
+    this.closeWord();
+    const window = wx.getWindowInfo();
+    const width = Math.min(144, window.windowWidth - 24);
+    const position = placeSelectionMenu([{ left: e.detail.x, right: e.detail.x, top: e.detail.y - 12, bottom: e.detail.y + 12 }],
+      { width, height: 66 }, { width: window.windowWidth, top: 12, bottom: window.windowHeight - 90 });
+    if (!position) return;
+    this.setData({ selectedWord: e.detail.word, wordDefinition: null, wordError: "",
+      wordMenuStyle: `left:${position.left}px;top:${position.top}px;width:${width}px;`,
+      wordMenuSide: position.side, wordArrow: position.arrow });
+  },
+  async playWord() {
+    if (this.data.wordPlaying) { audio.stop(); this.setData({ wordPlaying: false }); return; }
+    const ticket = this.wordRequest;
+    this.setData({ wordPlaying: true });
+    try { await audio.speak(this.data.selectedWord); } catch (error) { fail(error); }
+    finally { if (this.alive && ticket === this.wordRequest) this.setData({ wordPlaying: false }); }
+  },
+  async translateWord(force: unknown = false) {
+    if (this.data.wordBusy || !this.data.selectedWord) return;
+    const word = this.data.selectedWord;
+    const ticket = ++this.wordRequest;
+    this.setData({ wordPanel: true, wordBusy: true, wordError: "" });
+    try {
+      const definition = force === true ? await explain(word, true) : await lookup(word).catch(() => explain(word, true));
+      if (!this.alive || ticket !== this.wordRequest) return;
+      store.addVocab({ word: word.toLowerCase(), translation: definition.translation,
+        phonetic: definition.phonetic || "", pos: definition.pos || "",
+        bookId: AI_BOOK, chapterId: this.data.current?.articleId || "",
+        fromBook: "AI 学习", fromChapter: this.data.current?.title || "AI 对话", createdAt: Date.now() });
+      this.setData({ wordDefinition: definition });
+    } catch (error) {
+      if (this.alive && ticket === this.wordRequest)
+        this.setData({ wordError: error instanceof Error ? error.message : "翻译失败，请点击重试" });
+    } finally {
+      if (this.alive && ticket === this.wordRequest) this.setData({ wordBusy: false });
+    }
+  },
   onShow() {
     this.alive = true;
     bind(this, 2);
@@ -69,12 +129,15 @@ Page({
     }
   },
   onHide() {
+    this.closeWord();
     this.alive = false;
   },
   onUnload() {
+    this.wordRequest++;
     this.alive = false;
   },
   refresh(scrollToBottom = false) {
+    this.closeWord();
     const state = learning.load();
     if (!state.sessions.some((s) => s.id === this.selected))
       this.selected = state.sessions[state.sessions.length - 1]?.id || "";
@@ -93,7 +156,13 @@ Page({
           generationStep: selected.generationStep,
           assessed: selected.assessed,
           pending: selected.pending,
-          messages: selected.messages.slice(Math.max(0, end - 20), end),
+          messages: selected.messages.slice(Math.max(0, end - 20), end).map(message => ({
+            ...message,
+            question: message.question ? {
+              ...message.question,
+              options: message.question.options?.map(optionLabel),
+            } : undefined,
+          })),
           submitted: !!selected.attempt,
         }
       : null;
@@ -120,7 +189,7 @@ Page({
     const selected = this.data.sessions[Number(input(e))];
     if (!selected) return;
     this.selected = selected.id;
-    this.setData({ text: "", answer: "", error: "", historyPage: 0 });
+    this.setData({ text: "", answer: "", selectedOption: "", error: "", historyPage: 0 });
     this.refresh(true);
   },
   older() {
@@ -143,7 +212,7 @@ Page({
     if (this.data.busy) return;
     try {
       this.selected = learning.createLesson();
-      this.setData({ text: "", answer: "", error: "", historyPage: 0 });
+      this.setData({ text: "", answer: "", selectedOption: "", error: "", historyPage: 0 });
       this.refresh();
       await this.advance();
     } catch (error) {
@@ -216,13 +285,18 @@ Page({
       this.setData({ text: "" });
     });
   },
-  async answerQuestion(e?: UIEvent) {
-    const text = (e && data(e, "option")) || this.data.answer.trim();
+  chooseOption(e: UIEvent) {
+    if (!this.data.busy) this.setData({ selectedOption: data(e, "option") });
+  },
+  async answerQuestion() {
+    const choice = this.data.current?.pending?.type === "choice";
+    const text = choice ? this.data.selectedOption : this.data.answer.trim();
+    const supplement = choice ? this.data.answer.trim() : "";
     if (!text) return;
     const sid = this.selected;
     await this.operate(async () => {
-      await learning.continueConversation(sid, text, true);
-      this.setData({ answer: "" });
+      await learning.continueConversation(sid, text, true, supplement);
+      this.setData({ answer: "", selectedOption: "" });
       const s = learning.session(sid);
       if (this.alive && !closed(s)) {
         this.refresh();

@@ -165,6 +165,7 @@
           <view
             aria-role="button"
             class="chip {{tab === 'grammar' ? 'active' : ''}}"
+            wx:if="{{!selectedIsWord}}"
             data-tab="grammar"
             bindtap="tab"
           >
@@ -231,8 +232,8 @@
             <button class="small" bindtap="addVocab" disabled="{{!definition}}">
               加入生词本
             </button>
-            <button class="small" bindtap="retry" disabled="{{busy}}">
-              AI 精解 / 重试
+            <button wx:if="{{panelError}}" class="small" bindtap="retryTranslation" disabled="{{busy}}">
+              重试
             </button>
           </view>
         </block>
@@ -331,7 +332,7 @@
               {{item}}
             </button>
           </view>
-          <textarea
+          <textarea show-confirm-bar="{{false}}"
             class="field textarea"
             value="{{question}}"
             data-key="question"
@@ -352,7 +353,7 @@
         </block>
         <block wx:elif="{{tab === 'note'}}">
           <view class="spacer"></view>
-          <textarea
+          <textarea show-confirm-bar="{{false}}"
             class="field textarea"
             value="{{note}}"
             data-key="note"

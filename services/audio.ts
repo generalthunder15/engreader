@@ -1,4 +1,4 @@
-import { hash } from "../core/models";
+import { hash, record } from "../core/models";
 import { settings } from "./storage";
 import { request, networkError } from "./network";
 import { audioUrl, isWord } from "./dictionary";
@@ -52,8 +52,8 @@ export function cachePath(
   return (
     wx.env.USER_DATA_PATH +
     "/tts_" +
-    hash(JSON.stringify([text, speed, premium])) +
-    ".mp3"
+    hash(JSON.stringify(["bailian-qwen3-tts-flash-cherry", text, speed, premium])) +
+    (premium ? ".wav" : ".mp3")
   );
 }
 async function synthesize(text: string): Promise<string> {
@@ -68,29 +68,39 @@ async function synthesize(text: string): Promise<string> {
   }
   if (s.ttsApiKey) {
     try {
-      const buffer = await request<ArrayBuffer>(
-        "https://api.siliconflow.cn/v1/audio/speech",
+      const result = await request<unknown>(
+        "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
         {
           method: "POST",
           key: s.ttsApiKey,
-          responseType: "arraybuffer",
+          timeout: 120000,
           data: {
-            model: "FunAudioLLM/CosyVoice2-0.5B",
-            input: text,
-            voice: "FunAudioLLM/CosyVoice2-0.5B:claire",
-            response_format: "mp3",
-            speed: s.ttsSpeed,
+            model: "qwen3-tts-flash",
+            input: { text, voice: "Cherry", language_type: "English" },
           },
         },
       );
-      if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 100)
-        throw new Error("无有效音频");
-      fs.writeFileSync(path, buffer, "binary");
+      const audio = record(record(result).output).audio;
+      const url = record(audio).url;
+      if (typeof url !== "string" || !/^https?:\/\/dashscope-result-bj\.oss-cn-beijing\.aliyuncs\.com\//.test(url))
+        throw new Error("朗读服务未返回有效音频地址");
+      const tempPath = await new Promise<string>((resolve, reject) => {
+        wx.downloadFile({
+          url: url.replace(/^http:/, "https:"),
+          timeout: 30000,
+          success: (response) => response.statusCode === 200
+            ? resolve(response.tempFilePath)
+            : reject(new Error("音频下载失败")),
+          fail: (error) => reject(networkError(error)),
+        });
+      });
+      fs.copyFileSync(tempPath, path);
       return path;
     } catch {
       /* 合成不可用时尝试免费音源 */
     }
   }
+  const fallbackPath = cachePath(text, s.ttsSpeed, false);
   return new Promise((resolve, reject) =>
     wx.downloadFile({
       url:
@@ -105,8 +115,8 @@ async function synthesize(text: string): Promise<string> {
           return;
         }
         try {
-          fs.copyFileSync(response.tempFilePath, path);
-          resolve(path);
+          fs.copyFileSync(response.tempFilePath, fallbackPath);
+          resolve(fallbackPath);
         } catch {
           resolve(response.tempFilePath);
         }
@@ -134,7 +144,7 @@ export async function speak(text: string): Promise<void> {
     if (ticket !== generation) return;
     const path = await synthesize(part);
     try {
-      await playSource(path, ticket);
+      await playSource(path, ticket, path.endsWith(".wav") ? settings().ttsSpeed : 1);
     } catch (error) {
       try {
         wx.getFileSystemManager().unlinkSync(path);

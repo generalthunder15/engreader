@@ -102,7 +102,8 @@ export const domainList = (): string =>
     ...new Set([
       ...endpoints().map((d) => d.url.match(/^https?:\/\/([^/]+)/)?.[1] || ""),
       "fanyi.baidu.com",
-      "api.siliconflow.cn",
+      "dashscope.aliyuncs.com",
+      "dashscope-result-bj.oss-cn-beijing.aliyuncs.com",
     ]),
   ]
     .filter(Boolean)

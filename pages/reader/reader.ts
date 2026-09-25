@@ -33,6 +33,7 @@ Page({
     controls: false,
     toc: false,
     selectedText: "",
+    selectedIsWord: false,
     toolbar: false,
     toolbarReady: false,
     toolbarStyle: "",
@@ -392,6 +393,7 @@ Page({
     this.selectedCid = tokens[0]?.cid || this.data.chapterId;
     this.setData({
       selectedText: joinTokens(tokens),
+      selectedIsWord: dictionary.isWord(joinTokens(tokens)),
       toolbar: !!tokens.length,
       toolbarReady: false,
       controls: false,
@@ -582,6 +584,9 @@ Page({
   },
   retry() {
     void this.explain(true);
+  },
+  retryTranslation() {
+    void this.explain();
   },
   async tab(e: UIEvent) {
     const tab = data(e, "tab");

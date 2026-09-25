@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { installStorage } from "./helpers";
 import * as storage from "../services/storage";
 import { networkError, diagnose, endpoint } from "../services/network";
-import { explain, translate, fillMeanings, parseJSON } from "../services/ai";
+import { explain, translate, fillMeanings, parseJSON, chat } from "../services/ai";
 import { cachePath, speak, stop } from "../services/audio";
 let mock: ReturnType<typeof installStorage>;
 beforeEach(() => {
@@ -107,4 +107,46 @@ test("stopping speech settles previous playback and destroys audio listeners", a
   stop();
   await second;
   assert.equal(destroyed, 2);
+});
+
+test("Bailian chat uses built-in model IDs and current draft key", async () => {
+  storage.saveSettings({ apiKey: "saved-key" });
+  const calls: Record<string, unknown>[] = [];
+  respond("OK", (options) => calls.push(options));
+  await chat([{ role: "user", content: "Reply OK" }], false, false, "draft-key");
+  assert.equal(calls[0].url, "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
+  assert.equal((calls[0].header as Record<string, string>).Authorization, "Bearer draft-key");
+  assert.equal((calls[0].data as Record<string, unknown>).model, "deepseek-v4-flash");
+  assert.equal((calls[0].data as Record<string, unknown>).enable_thinking, false);
+  await chat([{ role: "user", content: "Return JSON" }], true);
+  assert.equal((calls[1].data as Record<string, unknown>).model, "qwen-flash");
+  assert.equal(storage.settings().apiKey, "saved-key");
+});
+test("Bailian speech downloads WAV without forwarding API key and applies playback speed", async () => {
+  storage.saveSettings({ apiKey: "bailian-key", ttsSpeed: 1.5 });
+  let ended = () => {};
+  let copied = "";
+  const player = { playbackRate: 1, src: "", obeyMuteSwitch: false,
+    onEnded(callback: () => void) { ended = callback; }, onError() {},
+    play() { ended(); }, stop() {}, destroy() {} };
+  Object.assign(mock.wx, {
+    getFileSystemManager: () => ({ accessSync() { throw new Error("missing"); },
+      copyFileSync(_source: string, destination: string) { copied = destination; } }),
+    createInnerAudioContext: () => player,
+    request(options: any) {
+      assert.match(options.url, /dashscope\.aliyuncs\.com/);
+      assert.equal(options.data.model, "qwen3-tts-flash");
+      options.success({ statusCode: 200, data: { output: { audio: {
+        url: "http://dashscope-result-bj.oss-cn-beijing.aliyuncs.com/test.wav?Signature=example"
+      } } } });
+    },
+    downloadFile(options: any) {
+      assert.match(options.url, /^https:\/\/dashscope-result-bj/);
+      assert.equal(options.header, undefined);
+      options.success({ statusCode: 200, tempFilePath: "/tmp/audio.wav" });
+    },
+  });
+  await speak("This is a full sentence.");
+  assert.match(copied, /\.wav$/);
+  assert.equal(player.playbackRate, 1.5);
 });

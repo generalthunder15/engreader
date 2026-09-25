@@ -1,3 +1,4 @@
 {
-  "navigationBarTitleText": "学习教练"
+  "navigationBarTitleText": "学习教练",
+  "usingComponents": { "word-text": "/components/word-text/index" }
 }

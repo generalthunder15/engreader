@@ -78,11 +78,11 @@ export function transaction(
   }
 }
 export const defaults: Settings = {
-  baseUrl: "https://api.siliconflow.cn/v1",
-  model: "deepseek-ai/DeepSeek-V4-Flash",
+  baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  model: "deepseek-v4-flash",
   apiKey: "",
-  sfBaseUrl: "https://api.siliconflow.cn/v1",
-  sfModel: "Qwen/Qwen2.5-7B-Instruct",
+  sfBaseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  sfModel: "qwen-flash",
   sfApiKey: "",
   ttsApiKey: "",
   ttsSpeed: 1,
@@ -125,14 +125,13 @@ export function settings(): Settings {
     const n = Number(value[key]);
     value[key] = Number.isFinite(n) && n >= min && n <= max ? n : fallback;
   }
-  const siliconKey = /^https:\/\/api\.siliconflow\.cn(?:\/|$)/i.test(value.baseUrl)
-    ? value.apiKey.trim()
-    : (/^https:\/\/api\.siliconflow\.cn(?:\/|$)/i.test(value.sfBaseUrl)
-        ? value.sfApiKey.trim() : "") || value.ttsApiKey.trim();
+  // Never send a credential from the retired provider to Bailian.
+  const bailianKey = value.baseUrl.replace(/\/+$/, "") === defaults.baseUrl
+    ? value.apiKey.trim() : "";
   Object.assign(value, {
     baseUrl: defaults.baseUrl, model: defaults.model,
     sfBaseUrl: defaults.sfBaseUrl, sfModel: defaults.sfModel,
-    apiKey: siliconKey, sfApiKey: siliconKey, ttsApiKey: siliconKey,
+    apiKey: bailianKey, sfApiKey: bailianKey, ttsApiKey: bailianKey,
   });
   value.quizCount = Math.round(value.quizCount);
   return value;

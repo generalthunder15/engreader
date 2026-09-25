@@ -6,7 +6,7 @@
   </view>
   <view class="section-title">你的情况与目标</view>
   <view class="card">
-    <textarea
+    <textarea show-confirm-bar="{{false}}"
       class="field textarea"
       value="{{profile}}"
       bindinput="input"

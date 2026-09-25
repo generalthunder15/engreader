@@ -253,11 +253,11 @@ test("clearing data retains built-in books and optionally keeps settings", () =>
   assert.equal(storage.settings().apiKey, "");
 });
 
- test("SiliconFlow key migration and settings save keep all services unified", () => {
+ test("Bailian rejects old provider keys and keeps all services unified", () => {
   storage.write("settings", { baseUrl: "https://api.deepseek.com", apiKey: "old-key",
     sfBaseUrl: "https://api.siliconflow.cn/v1", sfApiKey: "silicon-key", ttsApiKey: "other-key" });
-  assert.equal(storage.settings().apiKey, "silicon-key");
-  assert.equal(storage.settings().ttsApiKey, "silicon-key");
+  assert.equal(storage.settings().apiKey, "");
+  assert.equal(storage.settings().ttsApiKey, "");
   storage.saveSettings({ apiKey: "new-key", baseUrl: "https://other.example", model: "other", sfModel: "other" });
   const s = storage.settings();
   assert.equal(s.baseUrl, storage.defaults.baseUrl);

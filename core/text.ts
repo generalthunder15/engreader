@@ -1,4 +1,9 @@
 import { Paragraph, Token, Tokens } from "./models";
+export function optionLabel(text: string, index: number): string {
+  const label = String.fromCharCode(65 + index);
+  const hasLabel = new RegExp(`^\\s*(?:${label}[.．、:：)）]|[（(]${label}[)）])`, "i");
+  return hasLabel.test(text) ? text : `${label}. ${text}`;
+}
 const abbreviations = new Set(
   "mr mrs ms dr prof st jr sr vs etc eg ie no fig inc ltd co corp gen col capt sgt rev hon approx dept vol pp al cf ed eds gov sen rep univ bros est".split(
     " ",

@@ -76,17 +76,16 @@
       class="bubble {{item.role === 'user' ? 'mine' : ''}}"
     >
       <view class="caption">{{item.role === 'user' ? '我' : '学习教练'}}</view>
-      <text class="body-text" user-select>{{item.content}}</text>
+      <view class="body-text"><word-text text="{{item.content}}" selected="{{selectedWord}}" bind:word="selectWord" /></view>
       <view wx:if="{{item.question}}" class="question">
-        <text class="body-text">{{item.question.title}}</text>
+        <view class="body-text"><word-text text="{{item.question.title}}" selected="{{selectedWord}}" bind:word="selectWord" /></view>
         <view
           wx:for="{{item.question.options}}"
           wx:key="index"
           wx:for-item="option"
           class="sub"
         >
-          {{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}.
-          {{option}}
+          <word-text text="{{option}}" selected="{{selectedWord}}" bind:word="selectWord" />
         </view>
       </view>
     </view>
@@ -96,20 +95,20 @@
         <button
           wx:for="{{current.pending.options}}"
           wx:key="index"
-          class="question-option"
+          class="question-option {{selectedOption === (index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D') ? 'chosen' : ''}}"
           data-option="{{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}"
-          bindtap="answerQuestion"
+          bindtap="chooseOption"
           disabled="{{busy}}"
         >
           {{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}
         </button>
       </view>
-      <block wx:else>
+      <block>
         <textarea
           class="field textarea"
           value="{{answer}}"
           bindinput="answer"
-          placeholder="在这里填写答案…"
+          placeholder="{{current.pending.type === 'choice' ? '补充你的思路或疑问（选填）…' : '在这里填写答案…'}}"
           maxlength="5000"
           show-confirm-bar="{{false}}"
           disabled="{{busy}}"
@@ -117,9 +116,9 @@
         <button
           class="primary full"
           bindtap="answerQuestion"
-          disabled="{{busy || !answer}}"
+          disabled="{{busy || (current.pending.type === 'choice' ? !selectedOption : !answer)}}"
         >
-          提交这道题
+          确认发送
         </button>
       </block>
     </view>
@@ -154,6 +153,39 @@
     </view>
     <view wx:if="{{readonly}}" class="sub">
       这段对话已归档，可以随时回来查看。
+    </view>
+  </block>
+  <view wx:if="{{selectedWord && !wordPanel}}" class="selection-bar {{wordMenuSide}}" style="{{wordMenuStyle}}">
+    <view class="selection-arrow" style="left:{{wordArrow}}px"></view>
+    <view class="selection-actions">
+      <view class="selection-action" aria-role="button" hover-class="selection-action-hover" bindtap="translateWord"><app-icon name="translate" size="34" /><text>翻译</text></view>
+      <view class="selection-action" aria-role="button" hover-class="selection-action-hover" bindtap="closeWord"><app-icon name="close" size="34" /><text>取消</text></view>
+    </view>
+  </view>
+  <block wx:if="{{wordPanel}}">
+    <view class="mask" bindtap="closeWord"></view>
+    <view class="sheet analysis-sheet">
+      <view class="sheet-head">
+        <view class="chips panel-tabs"><view class="chip active">释义</view></view>
+        <button class="icon-button" bindtap="closeWord" aria-label="关闭翻译面板"><app-icon name="close" size="32" /></button>
+      </view>
+      <scroll-view scroll-y class="sheet-scroll">
+        <view class="quote">{{selectedWord}}</view>
+        <view wx:if="{{wordBusy}}" class="loading">正在分析，请稍候…</view>
+        <view wx:if="{{wordError}}" class="error">{{wordError}}</view>
+        <view wx:if="{{wordDefinition}}">
+          <view class="definition">{{wordDefinition.translation}}</view>
+          <view class="caption">{{wordDefinition.phonetic}} {{wordDefinition.pos}}</view>
+          <view class="badge" wx:if="{{wordDefinition.source === 'offline'}}">内置离线释义</view>
+          <view class="sub" wx:for="{{wordDefinition.senses}}" wx:key="index">{{item}}</view>
+          <view wx:if="{{wordDefinition.example}}" class="card"><text class="body-text">{{wordDefinition.example}}</text><view class="caption">{{wordDefinition.exampleTranslation}}</view></view>
+        </view>
+        <view class="row wrap panel-actions">
+          <button class="small" bindtap="playWord">{{wordPlaying ? '停止朗读' : '朗读'}}</button>
+          <button wx:if="{{wordDefinition}}" class="small" disabled>已加入生词本</button>
+          <button wx:if="{{wordError}}" class="small" bindtap="translateWord" disabled="{{wordBusy}}">重试</button>
+        </view>
+      </scroll-view>
     </view>
   </block>
 </view>

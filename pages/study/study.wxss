@@ -1,3 +1,4 @@
+@import "../../components/word-text/selection.wxss";
 .task {
   padding: 24rpx 0;
   border-top: 1rpx solid var(--line);
@@ -76,3 +77,6 @@
 .chat-compose button {
   margin-top: 14rpx;
 }
+
+.question-option.chosen { background: var(--primary); color: var(--on-primary); }
+.answer-options { margin-bottom: 20rpx; }

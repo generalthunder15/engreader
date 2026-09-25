@@ -112,7 +112,7 @@
   </view>
   <view class="section-title">AI 模型</view>
   <view class="card">
-    <view class="caption">统一使用硅基流动，精读、学习教练和朗读共用一个 API Key。模型由系统维护，随版本更新。</view>
+    <view class="caption">统一使用阿里云百炼（北京地域），精读、学习教练和朗读共用一个 API Key。模型由系统维护，随版本更新。</view>
     <view class="label">API Key</view>
     <input
       class="field"
@@ -121,7 +121,7 @@
       data-key="apiKey"
       disabled="{{testing}}"
       bindinput="field"
-      placeholder="填写硅基流动 API Key"
+      placeholder="填写阿里云百炼（北京地域） API Key"
     />
     <view class="stack api-test">
     <view class="settings-actions">

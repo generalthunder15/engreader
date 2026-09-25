@@ -430,6 +430,7 @@ export async function continueConversation(
   sid: string,
   input = "",
   answer = false,
+  supplement = "",
 ): Promise<void> {
   return exclusive(sid, async () => {
     const s = session(sid);
@@ -445,17 +446,18 @@ export async function continueConversation(
     if (answer && q) {
       if (q.type === "choice" && !["A", "B", "C", "D"].includes(input))
         throw new Error("请选择一个有效选项");
+      const response = input + (supplement.trim() ? "\n补充说明：" + supplement.trim() : "");
       const raw = await askJSON(
         '批改这一道题，允许合理的翻译变体，按语义和关键语法判定。返回 {"grades":[{"id":"题目ID","correct":true,"feedback":"中文反馈，说明理由"}]}。',
-        { question: q, answer: input, context: context(s) },
+        { question: q, answer: input, supplement: supplement.trim(), context: context(s) },
       );
       const grade = parseGrades(raw, [q])[0];
-      add(s, "user", input);
+      add(s, "user", response);
       add(s, "assistant", grade.feedback);
       const rows: Evidence[] = q.points.map((point) => ({
         point,
         question: q,
-        answer: input,
+        answer: response,
         correct: grade.correct,
         feedback: grade.feedback,
         at: Date.now(),
