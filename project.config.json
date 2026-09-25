@@ -43,10 +43,6 @@
       {
         "value": "fonts",
         "type": "folder"
-      },
-      {
-        "value": "themes",
-        "type": "folder"
       }
     ]
   },

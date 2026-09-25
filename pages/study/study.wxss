@@ -50,25 +50,11 @@
 .composer input {
   min-width: 0;
 }
-.session-list {
-  white-space: nowrap;
-  width: 100%;
-  margin: 28rpx 0;
-}
-.session-chip {
-  display: inline-block;
-  vertical-align: top;
-  max-width: 360rpx;
-  padding: 22rpx;
-  margin-right: 12rpx;
-  background: var(--card);
-  border: 1rpx solid var(--line);
-  border-radius: 20rpx;
-  white-space: normal;
-}
-.session-chip.active {
-  border-color: var(--primary);
-  background: var(--soft);
+.session-switch {
+  padding: 20rpx 0;
+  text-align: right;
+  color: var(--primary);
+  font-size: 25rpx;
 }
 .lesson-actions {
   margin: 24rpx 0;

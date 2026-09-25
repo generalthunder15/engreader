@@ -28,6 +28,7 @@ Page({
   data: {
     themeStyle: "",
     sessions: [] as { id: string; title: string; label: string }[],
+    sessionIndex: 0,
     current: null as SessionView | null,
     label: "",
     canNew: false,
@@ -98,6 +99,7 @@ Page({
     this.setData({
       current,
       hasOlder: end > 20,
+      sessionIndex: Math.max(0, state.sessions.length - 1 - state.sessions.findIndex((s) => s.id === this.selected)),
       sessions: [...state.sessions]
         .reverse()
         .map((s) => ({ id: s.id, title: s.title, label: phaseLabel[s.phase] })),
@@ -110,7 +112,9 @@ Page({
   },
   select(e: UIEvent) {
     if (this.data.busy) return;
-    this.selected = data(e, "id");
+    const selected = this.data.sessions[Number(input(e))];
+    if (!selected) return;
+    this.selected = selected.id;
     this.setData({ text: "", answer: "", error: "", historyPage: 0 });
     this.refresh();
   },

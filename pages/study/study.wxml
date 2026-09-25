@@ -18,23 +18,16 @@
   <view wx:if="{{hasAssessment && !canNew}}" class="caption">
     完成测评或当前课程的全部错题复测后，才能开启下一课。
   </view>
-  <scroll-view
-    wx:if="{{sessions.length}}"
-    scroll-x
-    class="session-list"
-    show-scrollbar="{{false}}"
+  <picker
+    wx:if="{{sessions.length > 1}}"
+    range="{{sessions}}"
+    range-key="title"
+    value="{{sessionIndex}}"
+    bindchange="select"
+    disabled="{{busy}}"
   >
-    <view
-      wx:for="{{sessions}}"
-      wx:key="id"
-      class="session-chip {{current.id === item.id ? 'active' : ''}}"
-      data-id="{{item.id}}"
-      bindtap="select"
-    >
-      <view>{{item.title}}</view>
-      <view class="caption">{{item.label}}</view>
-    </view>
-  </scroll-view>
+    <view class="session-switch">切换对话 / 查看历史记录 ›</view>
+  </picker>
   <block wx:if="{{current}}">
     <view class="card">
       <view class="menu-title">{{current.title}}</view>
@@ -120,6 +113,7 @@
           bindinput="answer"
           placeholder="在这里填写答案…"
           maxlength="5000"
+          show-confirm-bar="{{false}}"
           disabled="{{busy}}"
         />
         <button
@@ -153,6 +147,7 @@
         bindinput="text"
         placeholder="{{current.phase === 'intro' ? '我的英语基础和目标是…' : '可以聊聊文章，或提出你的疑问…'}}"
         maxlength="5000"
+        show-confirm-bar="{{false}}"
         disabled="{{busy}}"
       />
       <button class="primary full" bindtap="send" disabled="{{busy || !text}}">

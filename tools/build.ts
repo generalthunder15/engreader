@@ -36,6 +36,11 @@ function copyAsset(source: string) {
 function copyAssets(dir: string) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (dir === "fonts" && ["garamond", "inter"].includes(entry.name)) continue;
+    if (
+      dir.startsWith("fonts") &&
+      ["manifest.json", "OFL.txt"].includes(entry.name)
+    )
+      continue;
     const path = join(dir, entry.name);
     if (entry.isDirectory()) copyAssets(path);
     else if (/\.(wxml|wxss|json|svg|png|ttf|txt)$/.test(entry.name)) {

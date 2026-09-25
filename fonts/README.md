@@ -13,11 +13,15 @@
 
 ```
 fonts/literata/
-├── manifest.json        字体包描述（下面的字段表）
 ├── literata.ttf         常规字重（必须）
-├── literata-bold.ttf    粗体字重（可选，缺省时粗体会由系统合成）
-└── OFL.txt              字体许可（OFL 等开源许可要求随包分发时保留）
+└── literata-bold.ttf    粗体字重（可选，缺省时粗体会由系统合成）
 ```
+
+> 运行时清单内联在 `services/fonts.ts`（避免运行时读包内 JSON 的兼容问题），
+> 包内不放 manifest.json / OFL.txt——它们会触发代码依赖分析的「无依赖文件」告警。
+> Literata 采用 SIL Open Font License 1.1
+> （https://fonts.google.com/specimen/Literata），许可文本保留在 git 历史与官方页面，
+> 公开分发时需随包附带 OFL.txt。
 
 ## manifest.json 字段
 

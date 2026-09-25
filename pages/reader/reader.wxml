@@ -27,21 +27,14 @@
       </view>
       <view wx:else class="paragraph">
         <!-- prettier-ignore -->
-        <view class="english"><block wx:for="{{block.tokens}}" wx:key="globalId" wx:for-item="token"><text id="tok-{{token.globalId}}" class="token {{token.marked ? 'marked' : ''}} {{token.selected ? 'selected' : ''}}" data-token="{{token.globalId}}" catchtap="noop" bindtouchstart="touchStart" bindtouchmove="touchMove" bindtouchend="touchEnd" bindlongpress="hold">{{token.w}}</text><text>{{token.sp ? ' ' : ''}}</text></block></view>
+        <view class="english"><block wx:for="{{block.tokens}}" wx:key="globalId" wx:for-item="token"><text id="tok-{{token.globalId}}" class="token {{token.marked ? 'marked' : ''}} {{token.selected ? 'selected' : ''}}" data-token="{{token.globalId}}" catchtap="noop" bindtouchstart="touchStart" bindtouchmove="touchMove" bindtouchend="touchEnd" bindlongpress="hold">{{token.w}}</text><text>{{token.sp ? ' ' : ''}}</text></block><view wx:if="{{block.notes.length}}" class="note-bubble" catchtap="openNotes" data-uid="{{block.uid}}" aria-role="button" aria-label="查看 {{block.notes.length}} 条笔记"><text class="note-count">{{block.notes.length}}</text><view class="note-pencil"></view></view></view>
         <view
           wx:if="{{showTrans && block.translation}}"
           class="sentence-translation"
         >
           {{block.translation}}
         </view>
-        <button
-          wx:if="{{block.notes.length}}"
-          class="note-badge"
-          catchtap="openNotes"
-          data-uid="{{block.uid}}"
-        >
-          笔记 {{block.notes.length}}
-        </button>
+
       </view>
     </block>
   </view>
