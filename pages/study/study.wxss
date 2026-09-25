@@ -26,17 +26,20 @@
 .question {
   margin-top: 24rpx;
 }
-.question-title {
-  line-height: 1.8;
-  font-size: 29rpx;
+.answer-options {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 16rpx;
+  margin-top: 18rpx;
 }
-.question-option {
-  display: block;
-  width: 100%;
-  margin-top: 14rpx;
-  text-align: left;
-  font-weight: 400;
-  padding: 20rpx;
+.answer-options .question-option {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 20rpx 0;
+  text-align: center;
+  font-weight: 600;
 }
 .composer {
   display: flex;

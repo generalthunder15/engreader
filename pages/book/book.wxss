@@ -17,12 +17,14 @@
 .chapter:last-child {
   border-bottom: 0;
 }
+.chapter .menu-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .chapter-number {
+  flex-shrink: 0;
   font-size: 30rpx;
   color: var(--muted);
   width: 44rpx;
-}
-.chapter-actions {
-  justify-content: flex-end;
-  margin-top: 10rpx;
 }

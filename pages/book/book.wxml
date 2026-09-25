@@ -20,8 +20,8 @@
       </button>
     </view>
     <view class="card" wx:if="{{book.chapters.length}}">
-      <view class="chapter" wx:for="{{book.chapters}}" wx:key="id">
-        <view class="row" data-id="{{item.id}}" bindtap="open">
+      <view class="chapter" wx:for="{{book.chapters}}" wx:key="id" data-id="{{item.id}}" bindtap="open" bindlongpress="chapterMenu">
+        <view class="row">
           <text class="chapter-number">{{index + 1}}</text>
           <view class="grow">
             <view class="menu-title">{{item.title}}</view>
@@ -33,18 +33,6 @@
             </view>
           </view>
           <app-icon name="arrow" size="30" />
-        </view>
-        <view wx:if="{{book.id !== 'ai_learning'}}" class="row chapter-actions">
-          <button class="small ghost" data-id="{{item.id}}" bindtap="edit">
-            编辑
-          </button>
-          <button
-            class="small ghost danger"
-            data-id="{{item.id}}"
-            bindtap="remove"
-          >
-            删除
-          </button>
         </view>
       </view>
     </view>

@@ -92,8 +92,7 @@
     </view>
     <view wx:if="{{current.pending && !readonly}}" class="card">
       <view class="caption">回答当前题目</view>
-      <view class="question-title">{{current.pending.title}}</view>
-      <view wx:if="{{current.pending.type === 'choice'}}">
+      <view wx:if="{{current.pending.type === 'choice'}}" class="answer-options">
         <button
           wx:for="{{current.pending.options}}"
           wx:key="index"
@@ -102,8 +101,7 @@
           bindtap="answerQuestion"
           disabled="{{busy}}"
         >
-          {{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}.
-          {{item}}
+          {{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}
         </button>
       </view>
       <block wx:else>

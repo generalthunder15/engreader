@@ -32,6 +32,16 @@ Page({
   open(e: UIEvent) {
     navigate("reader", { bookId: this.bookId, chapterId: data(e, "id") });
   },
+  chapterMenu(e: UIEvent) {
+    if (this.bookId === AI_BOOK) return;
+    wx.showActionSheet({
+      itemList: ["编辑", "删除"],
+      success: ({ tapIndex }) => {
+        if (tapIndex === 0) this.edit(e);
+        else if (tapIndex === 1) void this.remove(e);
+      },
+    });
+  },
   edit(e: UIEvent) {
     if (this.bookId === AI_BOOK) return toast("AI 课程章节由学习流程管理");
     navigate("chapter-edit", { bookId: this.bookId, chapterId: data(e, "id") });
