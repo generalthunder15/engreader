@@ -138,6 +138,10 @@ export interface Definition {
   source?: string;
 }
 export interface Detail {
+  kind: "word" | "sentence";
+  roots: string;
+  memory: string;
+  confusions: { word: string; difference: string; example: string }[];
   translation: string;
   structure: string;
   words: { word: string; meaning: string; note: string }[];

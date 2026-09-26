@@ -200,3 +200,7 @@
 .analysis-sheet .quote {
   font-size: 29rpx;
 }
+
+.notes-sheet .sheet-head .icon-button { flex: 0 0 64rpx; width: 64rpx; height: 64rpx; margin: 0 0 0 auto; padding: 0; }
+.note-source { font-size: 25rpx; color: var(--muted); line-height: 1.65; padding: 18rpx; background: var(--soft); border-radius: 12rpx; margin-bottom: 20rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.note-content { font-size: 30rpx; color: var(--text); line-height: 1.8; white-space: pre-wrap; }

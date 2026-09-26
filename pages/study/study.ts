@@ -4,7 +4,7 @@ import * as store from "../../services/storage";
 import { placeSelectionMenu } from "../../core/selection-menu";
 import * as audio from "../../services/audio";
 import { lookup } from "../../services/dictionary";
-import { explain } from "../../services/ai";
+import { explain, detail, ask } from "../../services/ai";
 import {
   AI_BOOK,
   Session,
@@ -13,7 +13,7 @@ import {
   phaseLabel,
   unresolved,
 } from "../../core/learning";
-import { Definition, UIEvent } from "../../core/models";
+import { Definition, Detail, UIEvent } from "../../core/models";
 import { bind } from "../../services/theme";
 import { data, input, navigate, fail } from "../../services/ui";
 type SessionView = Pick<
@@ -34,6 +34,7 @@ Page({
     themeStyle: "",
     sessions: [] as { id: string; title: string; label: string }[],
     sessionIndex: 0,
+    sidebarOpen: false,
     current: null as SessionView | null,
     label: "",
     canNew: false,
@@ -51,6 +52,10 @@ Page({
     selectedWord: "",
     wordDefinition: null as Definition | null,
     wordPanel: false,
+    wordTab: "translation",
+    wordDetail: null as Detail | null,
+    wordQuestion: "",
+    wordAnswer: "",
     wordMenuStyle: "",
     wordMenuSide: "below",
     wordArrow: 18,
@@ -70,11 +75,11 @@ Page({
   selectWord(e: WechatMiniprogram.CustomEvent<{ word: string; y: number; x: number }>) {
     this.closeWord();
     const window = wx.getWindowInfo();
-    const width = Math.min(144, window.windowWidth - 24);
+    const width = Math.min(264, window.windowWidth - 24);
     const position = placeSelectionMenu([{ left: e.detail.x, right: e.detail.x, top: e.detail.y - 12, bottom: e.detail.y + 12 }],
       { width, height: 66 }, { width: window.windowWidth, top: 12, bottom: window.windowHeight - 90 });
     if (!position) return;
-    this.setData({ selectedWord: e.detail.word, wordDefinition: null, wordError: "",
+    this.setData({ selectedWord: e.detail.word, wordDefinition: null, wordDetail: null, wordQuestion: "", wordAnswer: "", wordError: "",
       wordMenuStyle: `left:${position.left}px;top:${position.top}px;width:${width}px;`,
       wordMenuSide: position.side, wordArrow: position.arrow });
   },
@@ -89,7 +94,7 @@ Page({
     if (this.data.wordBusy || !this.data.selectedWord) return;
     const word = this.data.selectedWord;
     const ticket = ++this.wordRequest;
-    this.setData({ wordPanel: true, wordBusy: true, wordError: "" });
+    this.setData({ wordPanel: true, wordTab: "translation", wordBusy: true, wordError: "" });
     try {
       const definition = force === true ? await explain(word, true) : await lookup(word).catch(() => explain(word, true));
       if (!this.alive || ticket !== this.wordRequest) return;
@@ -101,6 +106,37 @@ Page({
     } catch (error) {
       if (this.alive && ticket === this.wordRequest)
         this.setData({ wordError: error instanceof Error ? error.message : "翻译失败，请点击重试" });
+    } finally {
+      if (this.alive && ticket === this.wordRequest) this.setData({ wordBusy: false });
+    }
+  },
+  async wordTab(e: UIEvent) {
+    if (this.data.wordBusy) return;
+    const tab = data(e, "tab");
+    if (tab === "translation") { await this.translateWord(); return; }
+    this.setData({ wordPanel: true, wordTab: tab, wordError: "" });
+    if (tab !== "detail" || this.data.wordDetail) return;
+    const ticket = ++this.wordRequest;
+    this.setData({ wordBusy: true });
+    try {
+      const result = await detail(this.data.selectedWord);
+      if (this.alive && ticket === this.wordRequest) this.setData({ wordDetail: result });
+    } catch (error) {
+      if (this.alive && ticket === this.wordRequest) this.setData({ wordError: error instanceof Error ? error.message : "拆解失败，请重试" });
+    } finally {
+      if (this.alive && ticket === this.wordRequest) this.setData({ wordBusy: false });
+    }
+  },
+  wordQuestionInput(e: UIEvent) { this.setData({ wordQuestion: input(e) }); },
+  async askWord() {
+    if (this.data.wordBusy || !this.data.wordQuestion.trim()) return;
+    const ticket = ++this.wordRequest;
+    this.setData({ wordBusy: true, wordError: "", wordAnswer: "" });
+    try {
+      const answer = await ask(this.data.selectedWord, this.data.wordQuestion.trim());
+      if (this.alive && ticket === this.wordRequest) this.setData({ wordAnswer: answer });
+    } catch (error) {
+      if (this.alive && ticket === this.wordRequest) this.setData({ wordError: error instanceof Error ? error.message : "提问失败，请重试" });
     } finally {
       if (this.alive && ticket === this.wordRequest) this.setData({ wordBusy: false });
     }
@@ -129,6 +165,7 @@ Page({
     }
   },
   onHide() {
+    this.closeSidebar();
     this.closeWord();
     this.alive = false;
   },
@@ -184,11 +221,15 @@ Page({
       }
     });
   },
+  openSidebar() { this.closeWord(); this.setData({ sidebarOpen: true }); },
+  closeSidebar() { this.setData({ sidebarOpen: false }); },
+  stopSidebarTouch() {},
   select(e: UIEvent) {
     if (this.data.busy) return;
-    const selected = this.data.sessions[Number(input(e))];
+    const selected = this.data.sessions[Number(data(e, "index"))];
     if (!selected) return;
     this.selected = selected.id;
+    this.closeSidebar();
     this.setData({ text: "", answer: "", selectedOption: "", error: "", historyPage: 0 });
     this.refresh(true);
   },
@@ -203,6 +244,7 @@ Page({
   start() {
     try {
       this.selected = learning.createAssessment();
+      this.closeSidebar();
       this.refresh();
     } catch (error) {
       fail(error);
@@ -212,6 +254,7 @@ Page({
     if (this.data.busy) return;
     try {
       this.selected = learning.createLesson();
+      this.closeSidebar();
       this.setData({ text: "", answer: "", selectedOption: "", error: "", historyPage: 0 });
       this.refresh();
       await this.advance();

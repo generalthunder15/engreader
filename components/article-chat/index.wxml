@@ -1,0 +1,16 @@
+<view wx:if="{{!open}}" class="article-fab" style="left:{{x}}px;top:{{y}}px" bindtouchstart="touchStart" catchtouchmove="touchMove" bindtouchend="touchEnd" bindtouchcancel="touchEnd" catchtap="openChat" aria-role="button" aria-label="向 AI 询问当前章节"><app-icon name="chat" size="40" /><text>问文章</text></view>
+<block wx:if="{{open}}">
+  <view class="mask" catchtap="close" catchtouchmove="noop"></view>
+  <view class="sheet article-chat">
+    <view class="sheet-head"><text>文章答疑</text><button class="icon-button" bindtap="close" aria-label="关闭文章答疑"><app-icon name="close" /></button></view>
+    <view class="chapter-name">{{title}}</view>
+    <scroll-view scroll-y class="article-messages" scroll-top="{{scrollTop}}">
+      <view wx:if="{{!messages.length}}" class="sub">可以问本章的词句含义、语法或文章思路。</view>
+      <view wx:for="{{messages}}" wx:key="index" class="article-message {{item.role === 'user' ? 'user-message' : ''}}"><view class="caption">{{item.role === 'user' ? '我' : '阅读助手'}}</view><text>{{item.content}}</text></view>
+      <view wx:if="{{busy}}" class="loading">正在思考…</view>
+    </scroll-view>
+    <view wx:if="{{error}}" class="error">{{error}}</view>
+    <textarea class="field article-question" value="{{text}}" bindinput="input" maxlength="2000" show-confirm-bar="{{false}}" disabled="{{busy}}" placeholder="针对本章写下你的问题…" />
+    <button class="primary full" bindtap="send" disabled="{{busy || !text}}">{{error ? '重试发送' : '发送'}}</button>
+  </view>
+</block>

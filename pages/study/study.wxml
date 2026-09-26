@@ -1,33 +1,25 @@
 <view class="page tab-page" style="{{themeStyle}}">
+  <view class="study-menu-button" aria-role="button" aria-label="打开历史对话" bindtap="openSidebar"><view></view><view></view><view></view></view>
+  <block wx:if="{{sidebarOpen}}">
+    <view class="sidebar-mask" bindtap="closeSidebar" catchtouchmove="stopSidebarTouch"></view>
+    <view class="study-sidebar" catchtouchmove="stopSidebarTouch">
+      <view class="sidebar-header"><text>学习对话</text><button class="icon-button" bindtap="closeSidebar" aria-label="关闭历史对话"><app-icon name="close" size="34" /></button></view>
+      <button wx:if="{{!hasAssessment}}" class="primary sidebar-new" bindtap="start">先认识一下你</button>
+      <button wx:else class="primary sidebar-new" bindtap="newLesson" disabled="{{!canNew || busy}}">＋ 开启新一课</button>
+      <view wx:if="{{hasAssessment && !canNew}}" class="caption sidebar-hint">完成测评或当前课程的全部错题复测后，才能开启下一课。</view>
+      <view class="sidebar-label">历史对话</view>
+      <scroll-view scroll-y class="sidebar-history">
+        <view wx:for="{{sessions}}" wx:key="id" class="sidebar-session {{current.id === item.id ? 'current-session' : ''}}" data-index="{{index}}" bindtap="select" aria-role="button">
+          <view class="sidebar-title">{{item.title}}</view><view class="caption">{{item.label}}</view>
+        </view>
+        <view wx:if="{{!sessions.length}}" class="sub">还没有学习记录</view>
+      </scroll-view>
+      <view wx:if="{{busy}}" class="caption">教练正在处理，完成后可切换对话。</view>
+    </view>
+  </block>
   <view class="eyebrow">ONE LESSON AT A TIME</view>
   <view class="heading">与你一起，循序渐进</view>
   <view class="sub">一篇文章，一次深入学习。每三课，温习一次。</view>
-  <view class="row lesson-actions">
-    <button wx:if="{{!hasAssessment}}" class="primary" bindtap="start">
-      先认识一下你
-    </button>
-    <button
-      wx:else
-      class="primary"
-      bindtap="newLesson"
-      disabled="{{!canNew || busy}}"
-    >
-      开启新一课
-    </button>
-  </view>
-  <view wx:if="{{hasAssessment && !canNew}}" class="caption">
-    完成测评或当前课程的全部错题复测后，才能开启下一课。
-  </view>
-  <picker
-    wx:if="{{sessions.length > 1}}"
-    range="{{sessions}}"
-    range-key="title"
-    value="{{sessionIndex}}"
-    bindchange="select"
-    disabled="{{busy}}"
-  >
-    <view class="session-switch">切换对话 / 查看历史记录 ›</view>
-  </picker>
   <block wx:if="{{current}}">
     <view class="card">
       <view class="menu-title">{{current.title}}</view>
@@ -135,7 +127,7 @@
       {{current.phase === 'generating' || current.phase === 'exam-generating' ? '继续生成 / 重试' : current.phase === 'grading' ? '批改试卷 / 重试' : current.phase === 'reading' ? '已完成闯关，继续学习' : '继续学习 / 重试'}}
     </button>
     <view
-      wx:if="{{current.phase === 'intro' || current.phase === 'teaching' || current.phase === 'remediation'}}"
+      wx:if="{{current.phase === 'intro'}}"
       class="chat-compose"
     >
       <textarea
@@ -159,6 +151,8 @@
     <view class="selection-arrow" style="left:{{wordArrow}}px"></view>
     <view class="selection-actions">
       <view class="selection-action" aria-role="button" hover-class="selection-action-hover" bindtap="translateWord"><app-icon name="translate" size="34" /><text>翻译</text></view>
+      <view class="selection-action" aria-role="button" hover-class="selection-action-hover" data-tab="detail" bindtap="wordTab"><app-icon name="book" size="34" /><text>拆解</text></view>
+      <view class="selection-action" aria-role="button" hover-class="selection-action-hover" data-tab="ask" bindtap="wordTab"><app-icon name="chat" size="34" /><text>提问</text></view>
       <view class="selection-action" aria-role="button" hover-class="selection-action-hover" bindtap="closeWord"><app-icon name="close" size="34" /><text>取消</text></view>
     </view>
   </view>
@@ -166,13 +160,18 @@
     <view class="mask" bindtap="closeWord"></view>
     <view class="sheet analysis-sheet">
       <view class="sheet-head">
-        <view class="chips panel-tabs"><view class="chip active">释义</view></view>
+        <view class="chips panel-tabs">
+          <view class="chip {{wordTab === 'translation' ? 'active' : ''}}" data-tab="translation" bindtap="wordTab">释义</view>
+          <view class="chip {{wordTab === 'detail' ? 'active' : ''}}" data-tab="detail" bindtap="wordTab">拆解</view>
+          <view class="chip {{wordTab === 'ask' ? 'active' : ''}}" data-tab="ask" bindtap="wordTab">提问</view>
+        </view>
         <button class="icon-button" bindtap="closeWord" aria-label="关闭翻译面板"><app-icon name="close" size="32" /></button>
       </view>
       <scroll-view scroll-y class="sheet-scroll">
         <view class="quote">{{selectedWord}}</view>
         <view wx:if="{{wordBusy}}" class="loading">正在分析，请稍候…</view>
         <view wx:if="{{wordError}}" class="error">{{wordError}}</view>
+        <block wx:if="{{wordTab === 'translation'}}">
         <view wx:if="{{wordDefinition}}">
           <view class="definition">{{wordDefinition.translation}}</view>
           <view class="caption">{{wordDefinition.phonetic}} {{wordDefinition.pos}}</view>
@@ -185,6 +184,27 @@
           <button wx:if="{{wordDefinition}}" class="small" disabled>已加入生词本</button>
           <button wx:if="{{wordError}}" class="small" bindtap="translateWord" disabled="{{wordBusy}}">重试</button>
         </view>
+        </block>
+        <block wx:elif="{{wordTab === 'detail'}}">
+          <block wx:if="{{wordDetail}}">
+            <view class="definition">{{wordDetail.translation}}</view>
+            <view class="sub">{{wordDetail.structure}}</view>
+            <view class="section-title">词根与词缀</view><view class="body-text">{{wordDetail.roots}}</view>
+            <view class="section-title">词形变化</view>
+            <view wx:for="{{wordDetail.words}}" wx:key="index" class="card"><view>{{item.word}} · {{item.meaning}}</view><view class="sub">{{item.note}}</view></view>
+            <view class="section-title">短语与搭配</view>
+            <view wx:for="{{wordDetail.phrases}}" wx:key="index" class="card"><view>{{item.text}}</view><view class="sub">{{item.meaning}}</view><view class="caption">{{item.usage}}</view></view>
+            <view wx:if="{{wordDetail.confusions.length}}" class="section-title">易混词辨析</view>
+            <view wx:for="{{wordDetail.confusions}}" wx:key="index" class="card"><view>{{item.word}}</view><view class="sub">{{item.difference}}</view><view class="quote" wx:if="{{item.example}}">{{item.example}}</view></view>
+            <view class="section-title">记忆方法</view><view class="body-text">{{wordDetail.memory}}</view><view class="sub">{{wordDetail.summary}}</view>
+          </block>
+          <button wx:if="{{wordError}}" data-tab="detail" bindtap="wordTab" disabled="{{wordBusy}}">重试</button>
+        </block>
+        <block wx:elif="{{wordTab === 'ask'}}">
+          <textarea class="field textarea" value="{{wordQuestion}}" bindinput="wordQuestionInput" placeholder="针对这个单词写下你的问题…" maxlength="1000" show-confirm-bar="{{false}}" />
+          <button class="primary full" bindtap="askWord" disabled="{{wordBusy || !wordQuestion}}">向 AI 提问</button>
+          <view wx:if="{{wordAnswer}}" class="body-text sub"><text>{{wordAnswer}}</text></view>
+        </block>
       </scroll-view>
     </view>
   </block>

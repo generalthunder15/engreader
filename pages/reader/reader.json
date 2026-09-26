@@ -2,5 +2,5 @@
   "navigationBarTitleText": "阅读",
   "navigationStyle": "custom",
   "onReachBottomDistance": 250,
-  "usingComponents": { "app-exam": "/components/exam/index" }
+  "usingComponents": { "article-chat": "/components/article-chat/index", "app-exam": "/components/exam/index" }
 }

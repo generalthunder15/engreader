@@ -7,6 +7,7 @@ import {
   record,
   strings,
 } from "../core/models";
+import { isWord } from "./dictionary";
 import { chunks } from "../core/text";
 import * as storage from "./storage";
 import { endpoint, request } from "./network";
@@ -69,8 +70,10 @@ const prompts = {
   word: '你是英语词典。返回 JSON：{"translation":"中文常用释义","phonetic":"音标","pos":"词性","senses":["其他义项"],"example":"英文例句","exampleTranslation":"中文例句"}。',
   sentence:
     '你是英语精读老师。返回 JSON：{"translation":"中文翻译","grammar":{"structure":"主干结构","clauses":[{"text":"原文","type":"从句类型","explain":"解释"}],"phrases":[{"text":"搭配","explain":"解释"}],"difficultPoints":"难点"}}。',
-  detail:
-    '你是英语精读老师。按单词、短语、语法逐层拆解，返回 JSON：{"translation":"中文翻译","structure":"结构总览","words":[{"word":"单词","meaning":"中文含义","note":"成分或词形"}],"phrases":[{"text":"短语","meaning":"含义","usage":"用法"}],"grammar":[{"point":"语法点","explain":"解释","example":"英文例句"}],"summary":"学习要点"}。',
+  wordDetail:
+    '你是英语词汇老师，只拆解用户给出的单词，不做句子主干或从句分析。解释当前词形和原形、可靠的词根词缀、常见搭配、易混词和记忆方法。不能可靠拆分时明确说明，不编造词源；区分记忆联想与真实词源。返回 JSON：{"translation":"中文释义","structure":"当前词形、原形和词性说明","roots":"词根词缀分析或不可拆分说明","forms":[{"word":"词形","meaning":"中文含义","note":"变化规则及用法"}],"phrases":[{"text":"常见搭配","meaning":"含义","usage":"用法"}],"confusions":[{"word":"易混词","difference":"区别","example":"对比例句"}],"memory":"记忆方法","summary":"学习要点"}。',
+  sentenceDetail:
+    '你是英语句子精读老师。针对句子或短语，分析主干、句子成分、从句关系和语法难点，再解释重点词汇与搭配。不要套用词根词缀拆词流程。按单词、短语、语法逐层拆解，返回 JSON：{"translation":"中文翻译","structure":"结构总览","words":[{"word":"单词","meaning":"中文含义","note":"成分或词形"}],"phrases":[{"text":"短语","meaning":"含义","usage":"用法"}],"grammar":[{"point":"语法点","explain":"解释","example":"英文例句"}],"summary":"学习要点"}。',
   suggestions:
     '针对原文最值得学习的语法、词义生成三个简短的中文问题，返回 JSON：{"questions":["问题1","问题2","问题3"]}。',
   ask: "你是耐心的英语老师，用简洁中文直接回答关于原文的问题。引用原文解释，不输出 JSON。",
@@ -166,7 +169,7 @@ export async function explain(
   };
 }
 export async function detail(text: string): Promise<Detail> {
-  const r = record(await cached("detail", text));
+  const r = record(await cached(isWord(text) ? "wordDetail" : "sentenceDetail", text));
   if (typeof r.translation !== "string") throw new Error("详细解析格式不完整");
   const rows = (v: unknown): Record<string, unknown>[] =>
     Array.isArray(v) ? v.map(record) : [];
@@ -174,7 +177,11 @@ export async function detail(text: string): Promise<Detail> {
     translation: r.translation,
     structure: String(r.structure || ""),
     summary: String(r.summary || ""),
-    words: rows(r.words).map((w) => ({
+    kind: isWord(text) ? "word" : "sentence",
+    roots: String(r.roots || ""),
+    memory: String(r.memory || ""),
+    confusions: rows(r.confusions).map(w => ({ word: String(w.word || ""), difference: String(w.difference || ""), example: String(w.example || "") })),
+    words: rows(isWord(text) ? r.forms : r.words).map((w) => ({
       word: String(w.word || ""),
       meaning: String(w.meaning || ""),
       note: String(w.note || ""),

@@ -57,13 +57,15 @@ Page({
     noteList: [] as Note[],
     noteChapter: "",
     notesOpen: false,
+    editingNote: 0,
+    noteDraft: "",
     actions: [
+      { id: "speak", icon: "volume", text: "朗读" },
       { id: "translate", icon: "translate", text: "翻译" },
       { id: "ask", icon: "chat", text: "提问" },
       { id: "mark", icon: "pen", text: "划线" },
       { id: "note", icon: "note", text: "笔记" },
       { id: "favorite", icon: "bookmark", text: "收藏" },
-      { id: "speak", icon: "volume", text: "朗读" },
       { id: "copy", icon: "copy", text: "复制" },
     ],
   },
@@ -710,7 +712,33 @@ Page({
       });
   },
   closeNotes() {
-    this.setData({ notesOpen: false });
+    this.setData({ notesOpen: false, editingNote: 0, noteDraft: "" });
+  },
+  noteMenu(e: UIEvent) {
+    if (this.data.editingNote) return;
+    const timestamp = Number(data(e, "time"));
+    wx.showActionSheet({
+      itemList: ["编辑", "删除"],
+      success: result => {
+        if (result.tapIndex === 1) { void this.deleteNote(e); return; }
+        const note = this.data.noteList.find(n => n.createdAt === timestamp);
+        if (note) this.setData({ editingNote: timestamp, noteDraft: note.note });
+      },
+    });
+  },
+  noteDraftInput(e: UIEvent) { this.setData({ noteDraft: input(e) }); },
+  cancelNoteEdit() { this.setData({ editingNote: 0, noteDraft: "" }); },
+  saveNoteEdit() {
+    const text = this.data.noteDraft.trim();
+    if (!text) return toast("请写下笔记");
+    const update = (note: Note) => note.createdAt === this.data.editingNote ? { ...note, note: text } : note;
+    try {
+      store.write("notes_" + this.data.noteChapter, store.notes(this.data.noteChapter).map(update));
+      this.setData({ noteList: this.data.noteList.map(update) });
+      this.cancelNoteEdit();
+      this.refreshDecorations();
+      toast("笔记已保存");
+    } catch (error) { fail(error); }
   },
   async deleteNote(e: UIEvent) {
     if (!(await confirm("删除笔记", "确定删除这条笔记？"))) return;

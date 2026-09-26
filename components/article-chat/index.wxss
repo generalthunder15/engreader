@@ -1,0 +1,7 @@
+.article-fab { position: fixed; z-index: 60; width: 52px; height: 52px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--card); color: var(--primary); box-shadow: 0 4rpx 24rpx rgba(0,0,0,.18); font-size: 18rpx; }
+.article-chat .sheet-head .icon-button { margin: 0 0 0 auto; width: 64rpx; height: 64rpx; }
+.chapter-name { color: var(--muted); font-size: 24rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 20rpx; }
+.article-messages { height: 36vh; }
+.article-message { background: var(--bg); border-radius: 16rpx; padding: 20rpx; margin: 14rpx 0; white-space: pre-wrap; line-height: 1.7; font-size: 28rpx; }
+.user-message { background: var(--soft); }
+.article-question { height: 120rpx; min-height: 120rpx; margin: 18rpx 0; }

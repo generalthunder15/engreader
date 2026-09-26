@@ -19,7 +19,8 @@
   flex-direction: column;
   gap: 6rpx;
   line-height: 1.4;
-  padding: 0 22rpx;
+  position: relative;
+  padding: 0 22rpx 10rpx;
   margin: 0;
   border-radius: 0;
 }
@@ -34,6 +35,17 @@
   color: var(--primary, #416c64);
   font-weight: 600;
 }
-.selected .tab-icon {
-  background: var(--soft, #e9f1ed);
+.selected::after {
+  content: "";
+  position: absolute;
+  top: auto;
+  bottom: 0;
+  left: 30%;
+  right: 30%;
+  width: auto;
+  height: 4rpx;
+  border: 0;
+  border-radius: 4rpx;
+  transform: none;
+  background: var(--primary, #416c64);
 }

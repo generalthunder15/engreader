@@ -314,3 +314,43 @@ button.danger,
 .spacer {
   height: 24rpx;
 }
+
+/* Shared underline tabs; ordinary action chips retain their button appearance. */
+.panel-tabs .chip,
+.appearance-options .chip,
+.editor-types button {
+  position: relative;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--muted);
+  box-shadow: none;
+}
+.panel-tabs .chip.active,
+.appearance-options .chip.active,
+.editor-types button.primary {
+  background: transparent;
+  color: var(--primary);
+  font-weight: 600;
+}
+.panel-tabs .chip::after,
+.appearance-options .chip::after,
+.editor-types button::after {
+  content: "";
+  position: absolute;
+  top: auto;
+  bottom: 0;
+  left: 20%;
+  right: 20%;
+  width: auto;
+  height: 4rpx;
+  border: 0;
+  border-radius: 4rpx;
+  transform: none;
+  background: transparent;
+}
+.panel-tabs .chip.active::after,
+.appearance-options .chip.active::after,
+.editor-types button.primary::after {
+  background: var(--primary);
+}

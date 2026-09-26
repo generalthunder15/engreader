@@ -80,3 +80,18 @@
 
 .question-option.chosen { background: var(--primary); color: var(--on-primary); }
 .answer-options { margin-bottom: 20rpx; }
+
+.study-menu-button { position: fixed; top: 12rpx; left: 24rpx; z-index: 55; width: 72rpx; height: 72rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; background: var(--card); border-radius: 50%; box-shadow: 0 2rpx 12rpx rgba(0,0,0,.06); }
+.study-menu-button view { width: 30rpx; height: 3rpx; border-radius: 3rpx; background: var(--text); }
+.page.tab-page { padding-top: 100rpx; }
+.sidebar-mask { position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,.3); }
+.study-sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 84vw; max-width: 620rpx; z-index: 121; background: var(--card); padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); display: flex; flex-direction: column; box-sizing: border-box; box-shadow: 8rpx 0 36rpx rgba(0,0,0,.1); }
+.sidebar-header { display: flex; align-items: center; justify-content: space-between; font-size: 34rpx; font-weight: 600; margin-bottom: 28rpx; }
+.sidebar-header .icon-button { width: 60rpx; height: 60rpx; margin: 0; padding: 0; flex: 0 0 60rpx; }
+.sidebar-new { width: 100%; margin: 0; }
+.sidebar-hint { margin-top: 18rpx; line-height: 1.65; }
+.sidebar-label { color: var(--muted); font-size: 25rpx; margin: 34rpx 0 16rpx; }
+.sidebar-history { flex: 1; height: 0; min-height: 0; }
+.sidebar-session { padding: 22rpx 18rpx; margin-bottom: 10rpx; border-radius: 16rpx; }
+.current-session { background: var(--soft); color: var(--primary); }
+.sidebar-title { font-size: 28rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 8rpx; }

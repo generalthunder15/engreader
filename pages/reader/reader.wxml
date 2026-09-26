@@ -1,4 +1,5 @@
 <view class="reader" style="{{themeStyle}}">
+  <article-chat hidden="{{!chapterId || panel || notesOpen || toc}}" book-id="{{readerBookId}}" chapter-id="{{chapterId}}" />
   <view class="reader-head" style="padding-top:{{statusHeight + 14}}px">
     <view class="eyebrow">{{book.title}}</view>
     <view class="caption">双击选词 · 长按选句 · 横向拖选 · 轻点显示菜单</view>
@@ -108,6 +109,7 @@
         hover-class="selection-action-hover"
         wx:for="{{actions}}"
         wx:key="id"
+        wx:if="{{!selectedIsWord || item.id !== 'favorite'}}"
         data-action="{{item.id}}"
         bindtap="action"
       >
@@ -269,7 +271,8 @@
           <block wx:if="{{detail}}">
             <view class="definition">{{detail.translation}}</view>
             <view class="sub">{{detail.structure}}</view>
-            <view class="section-title">词汇</view>
+            <block wx:if="{{detail.kind === 'word' && detail.roots}}"><view class="section-title">词根与词缀</view><view class="body-text">{{detail.roots}}</view></block>
+            <view class="section-title">{{detail.kind === 'word' ? '词形变化' : '重点词汇'}}</view>
             <view wx:for="{{detail.words}}" wx:key="index" class="list-row">
               <view class="grow">
                 <view>{{item.word}} · {{item.meaning}}</view>
@@ -300,8 +303,8 @@
               <view class="sub">{{item.meaning}}</view>
               <view class="caption">{{item.usage}}</view>
             </view>
-            <view class="section-title">语法要点</view>
-            <view wx:for="{{detail.grammar}}" wx:key="index" class="card">
+            <view wx:if="{{detail.kind !== 'word'}}" class="section-title">语法要点</view>
+            <view wx:for="{{detail.kind === 'word' ? [] : detail.grammar}}" wx:key="index" class="card">
               <view>{{item.point}}</view>
               <view class="sub">{{item.explain}}</view>
               <view
@@ -313,6 +316,11 @@
                 {{item.example}}
               </view>
             </view>
+            <block wx:if="{{detail.kind === 'word'}}">
+              <view wx:if="{{detail.confusions.length}}" class="section-title">易混词辨析</view>
+              <view wx:for="{{detail.confusions}}" wx:key="index" class="card"><view>{{item.word}}</view><view class="sub">{{item.difference}}</view><view class="quote" wx:if="{{item.example}}">{{item.example}}</view></view>
+              <view wx:if="{{detail.memory}}" class="section-title">记忆方法</view><view class="body-text">{{detail.memory}}</view>
+            </block>
             <view class="sub">{{detail.summary}}</view>
           </block>
           <button wx:if="{{!detail && !busy}}" data-tab="detail" bindtap="tab">
@@ -370,7 +378,7 @@
   </block>
   <block wx:if="{{notesOpen}}">
     <view class="mask" bindtap="closeNotes"></view>
-    <view class="sheet">
+    <view class="sheet notes-sheet">
       <view class="sheet-head">
         <text>阅读笔记</text>
         <button class="icon-button" bindtap="closeNotes" aria-label="关闭笔记">
@@ -378,16 +386,13 @@
         </button>
       </view>
       <scroll-view scroll-y class="sheet-scroll">
-        <view class="card" wx:for="{{noteList}}" wx:key="createdAt">
-          <view class="quote">{{item.sel}}</view>
-          <view class="body-text sub">{{item.note}}</view>
-          <button
-            class="small ghost danger"
-            bindtap="deleteNote"
-            data-time="{{item.createdAt}}"
-          >
-            删除笔记
-          </button>
+        <view class="card note-card" wx:for="{{noteList}}" wx:key="createdAt" data-time="{{item.createdAt}}" bindlongpress="noteMenu">
+          <view class="note-source">{{item.sel}}</view>
+          <block wx:if="{{editingNote === item.createdAt}}">
+            <textarea class="field textarea" value="{{noteDraft}}" bindinput="noteDraftInput" maxlength="2000" show-confirm-bar="{{false}}" />
+            <view class="row"><button class="small" bindtap="cancelNoteEdit">取消</button><button class="small primary" bindtap="saveNoteEdit">保存</button></view>
+          </block>
+          <view wx:else class="note-content">{{item.note}}</view>
         </view>
         <view wx:if="{{!noteList.length}}" class="empty">笔记已删除</view>
       </scroll-view>
