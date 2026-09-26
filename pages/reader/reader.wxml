@@ -1,4 +1,5 @@
 <view class="reader" style="{{themeStyle}}">
+  <view class="reader-status-cover" style="height:{{statusHeight}}px" aria-hidden="true"></view>
   <article-chat hidden="{{!chapterId || panel || notesOpen || toc}}" book-id="{{readerBookId}}" chapter-id="{{chapterId}}" />
   <view class="reader-head" style="padding-top:{{statusHeight + 14}}px">
     <view class="eyebrow">{{book.title}}</view>
@@ -399,3 +400,5 @@
     </view>
   </block>
 </view>
+
+<app-dialog id="app-dialog" style="{{themeStyle}}" />

@@ -47,3 +47,5 @@
     </view>
   </view>
 </view>
+
+<app-dialog id="app-dialog" style="{{themeStyle}}" />

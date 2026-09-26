@@ -1,0 +1,10 @@
+<view wx:if="{{visible}}" class="dialog-layer" catchtouchmove="noop">
+  <view class="dialog-mask" bindtap="cancel"></view>
+  <view class="dialog-card {{items.length ? 'dialog-menu' : ''}}">
+    <view class="sheet-head"><text class="grow">{{title}}</text><button class="icon-button" aria-label="关闭" bindtap="cancel"><app-icon name="close" size="32" /></button></view>
+    <scroll-view wx:if="{{content}}" scroll-y class="dialog-content">{{content}}</scroll-view>
+    <input wx:if="{{editable}}" class="field" value="{{value}}" placeholder="{{placeholder}}" maxlength="80" bindinput="change" bindconfirm="accept" />
+    <view wx:if="{{items.length}}" class="dialog-options"><button wx:for="{{items}}" wx:key="index" class="{{item === '删除' ? 'danger' : ''}}" data-index="{{index}}" bindtap="choose">{{item}}</button><button class="ghost" bindtap="cancel">取消</button></view>
+    <view wx:else class="dialog-actions"><button wx:if="{{showCancel}}" class="ghost" bindtap="cancel">取消</button><button class="primary" bindtap="accept">{{confirmText}}</button></view>
+  </view>
+</view>

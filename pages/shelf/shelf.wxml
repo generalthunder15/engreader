@@ -50,3 +50,5 @@
     ＋ 创建新书
   </button>
 </view>
+
+<app-dialog id="app-dialog" style="{{themeStyle}}" />

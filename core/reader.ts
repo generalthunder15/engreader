@@ -18,6 +18,14 @@ export interface Block {
 export class ReaderFlow {
   blocks: Block[] = [];
   private counter = 0;
+  prepend(chapter: Chapter, marks: Mark[], notes: Note[]): void {
+    if (this.blocks.some(b => b.cid === chapter.id)) return;
+    const previous = new ReaderFlow();
+    previous.append(chapter, marks, notes);
+    this.blocks.unshift(...previous.blocks);
+    this.counter = 0;
+    this.tokens.forEach(token => { token.globalId = this.counter++; token.selected = false; });
+  }
   append(chapter: Chapter, marks: Mark[], notes: Note[]): void {
     if (this.blocks.some((b) => b.cid === chapter.id)) return;
     this.blocks.push({

@@ -269,3 +269,17 @@ test("clearing data retains built-in books and optionally keeps settings", () =>
   assert.equal(storage.settings().sfApiKey, "");
   assert.equal(storage.settings().ttsApiKey, "");
 });
+
+test("prepending chapters keeps token IDs ordered and chapter ranges correct", () => {
+  const flow = new ReaderFlow();
+  flow.append(chapter("book", "middle"), [], []);
+  flow.prepend(chapter("book", "previous"), [], []);
+  flow.prepend(chapter("book", "previous"), [], []);
+  flow.append(chapter("book", "next"), [], []);
+  assert.deepEqual(flow.blocks.filter(b => b.type === "title").map(b => b.cid), ["previous", "middle", "next"]);
+  assert.deepEqual(flow.tokens.map(t => t.globalId), flow.tokens.map((_, i) => i));
+  const token = flow.tokens.find(t => t.cid === "middle")!;
+  flow.select(token.globalId, token.globalId);
+  assert.equal(flow.ranges()[0].cid, "middle");
+  assert.equal(flow.ranges()[0].start, token.id);
+});

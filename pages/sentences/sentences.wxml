@@ -29,3 +29,5 @@
     <view class="sub">阅读时长按句子，点击收藏。</view>
   </view>
 </view>
+
+<app-dialog id="app-dialog" style="{{themeStyle}}" />

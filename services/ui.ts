@@ -1,9 +1,10 @@
+import { showModal } from "./dialog";
 import { message, UIEvent } from "../core/models";
 export const toast = (title: string): void => {
   wx.showToast({ title, icon: "none" });
 };
 export const fail = (error: unknown): void => {
-  wx.showModal({
+  showModal({
     title: "操作未完成",
     content: message(error),
     showCancel: false,
@@ -14,7 +15,7 @@ export const confirm = async (
   content: string,
 ): Promise<boolean> =>
   new Promise((resolve) =>
-    wx.showModal({
+    showModal({
       title,
       content,
       confirmText: "确认",

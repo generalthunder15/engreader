@@ -1,3 +1,4 @@
+import { showModal } from "../../services/dialog";
 import * as store from "../../services/storage";
 import { bind } from "../../services/theme";
 import { cover, data, navigate, confirm, fail } from "../../services/ui";
@@ -35,7 +36,7 @@ Page({
     });
   },
   create() {
-    wx.showModal({
+    showModal({
       title: "创建一本新书",
       editable: true,
       placeholderText: "输入书名",

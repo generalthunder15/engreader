@@ -26,3 +26,5 @@
     <view class="sub">在阅读器中点亮书签，把好文章留住。</view>
   </view>
 </view>
+
+<app-dialog id="app-dialog" style="{{themeStyle}}" />

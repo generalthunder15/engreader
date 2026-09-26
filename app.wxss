@@ -24,7 +24,7 @@ button {
   font-size: 27rpx;
   line-height: 1.45;
   margin: 0;
-  border-radius: 20rpx;
+  border-radius: 24rpx;
   padding: 23rpx 28rpx;
   background: var(--soft);
   color: var(--primary);
@@ -49,7 +49,7 @@ button.ghost {
 button.small {
   padding: 15rpx 22rpx;
   font-size: 24rpx;
-  border-radius: 14rpx;
+  border-radius: 20rpx;
 }
 button.danger,
 .danger {
@@ -164,7 +164,7 @@ button.danger,
   width: 100%;
   background: var(--bg);
   border: 1rpx solid var(--line);
-  border-radius: 16rpx;
+  border-radius: 22rpx;
   padding: 22rpx;
   color: var(--text);
   font-size: 27rpx;
@@ -187,7 +187,7 @@ button.danger,
   padding: 14rpx 22rpx;
   background: var(--bg);
   border: 1rpx solid var(--line);
-  border-radius: 16rpx;
+  border-radius: 22rpx;
   font-size: 24rpx;
 }
 .chip.active {
@@ -208,13 +208,13 @@ button.danger,
 .progress {
   height: 8rpx;
   background: var(--line);
-  border-radius: 20rpx;
+  border-radius: 24rpx;
   overflow: hidden;
 }
 .progress-fill {
   height: 100%;
   background: var(--primary);
-  border-radius: 20rpx;
+  border-radius: 24rpx;
   transition: width 0.2s;
 }
 .error {
@@ -354,3 +354,14 @@ button.danger,
 .editor-types button.primary::after {
   background: var(--primary);
 }
+
+/* Shared panel geometry: explicit margins override native button centering. */
+.sheet { left: 16rpx; right: 16rpx; bottom: 12rpx; border-radius: 36rpx; padding: 28rpx 28rpx calc(24rpx + env(safe-area-inset-bottom)); overflow: hidden; }
+.sheet-head { width: 100%; gap: 20rpx; min-height: 72rpx; margin-bottom: 24rpx; }
+.sheet-head .icon-button { flex: 0 0 64rpx; width: 64rpx; height: 64rpx; margin: 0 0 0 auto; padding: 0; border-radius: 50%; background: var(--soft); }
+.icon-button { margin: 0; border-radius: 50%; }
+.sheet .field + button, .card .field + button { margin-top: 20rpx; }
+.sheet .quote + .field, .sheet .body-text + .field { margin-top: 24rpx; }
+.sheet-scroll .card:first-child { margin-top: 0; }
+.sheet-scroll .card:last-child { margin-bottom: 12rpx; }
+.list-row .grow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

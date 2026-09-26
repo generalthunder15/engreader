@@ -49,3 +49,5 @@
   </block>
   <view class="empty" wx:else>这本书已不存在</view>
 </view>
+
+<app-dialog id="app-dialog" style="{{themeStyle}}" />

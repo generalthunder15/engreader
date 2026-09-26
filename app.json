@@ -48,6 +48,7 @@
   "lazyCodeLoading": "requiredComponents",
   "sitemapLocation": "sitemap.json",
   "usingComponents": {
-    "app-icon": "/components/icon/index"
+    "app-icon": "/components/icon/index",
+    "app-dialog": "/components/app-dialog/index"
   }
 }

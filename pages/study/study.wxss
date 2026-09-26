@@ -95,3 +95,7 @@
 .sidebar-session { padding: 22rpx 18rpx; margin-bottom: 10rpx; border-radius: 16rpx; }
 .current-session { background: var(--soft); color: var(--primary); }
 .sidebar-title { font-size: 28rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 8rpx; }
+
+.study-sidebar { top: 16rpx; bottom: 16rpx; left: 16rpx; border-radius: 36rpx; overflow: hidden; }
+.sidebar-header .icon-button { margin-left: auto; background: var(--soft); border-radius: 50%; }
+.sidebar-session { border-radius: 24rpx; margin-bottom: 16rpx; padding: 24rpx 20rpx; }

@@ -1,3 +1,4 @@
+import { showActionSheet } from "../../services/dialog";
 import { Block, ReaderFlow } from "../../core/reader";
 import { Book, Definition, Detail, Note, UIEvent } from "../../core/models";
 import { joinTokens } from "../../core/text";
@@ -89,6 +90,41 @@ Page({
   rects: [] as Rect[],
   toolbarMeasure: 0,
   dayTheme: "default",
+  loadingPrevious: false,
+  onPullDownRefresh() { this.loadPrevious(); },
+  loadPrevious() {
+    if (this.loadingPrevious || this.data.examChapter) { wx.stopPullDownRefresh(); return; }
+    const chapters = this.data.book?.chapters || [];
+    const index = chapters.findIndex(c => c.id === this.loaded[0]);
+    const previous = index > 0 ? store.chapter(this.bookId, chapters[index - 1].id) : null;
+    if (!previous || previous.kind === "exam") { wx.stopPullDownRefresh(); return; }
+    this.loadingPrevious = true;
+    this.cancelTap();
+    this.clearSelection();
+    const firstId = this.loaded[0];
+    const query = wx.createSelectorQuery().in(this);
+    query.selectAll(".chapter-anchor").boundingClientRect();
+    query.exec((before: Rect[][]) => {
+      if (!this.alive || this.loaded[0] !== firstId) { this.loadingPrevious = false; wx.stopPullDownRefresh(); return; }
+      const top = before[0]?.[0]?.top ?? 0;
+      this.flow.prepend(previous, store.marks(previous.id), store.notes(previous.id));
+      this.loaded.unshift(previous.id);
+      this.publishBlocks(() => {
+        const after = wx.createSelectorQuery().in(this);
+        after.selectAll(".chapter-anchor").boundingClientRect();
+        after.exec((result: Rect[][]) => {
+          if (!this.alive) return;
+          const target = Math.max(0, this.scrollTop + (result[0]?.[1]?.top ?? top) - top);
+          wx.stopPullDownRefresh();
+          wx.pageScrollTo({ scrollTop: target, duration: 0, complete: () => {
+            this.scrollTop = target;
+            this.measure();
+            this.loadingPrevious = false;
+          } });
+        });
+      });
+    });
+  },
   onLoad(query: Record<string, string>) {
     this.bookId = query.bookId || "";
     this.setData({ readerBookId: this.bookId });
@@ -193,7 +229,9 @@ Page({
     }
   },
   onPageScroll(event: { scrollTop: number }) {
+    const movingUp = event.scrollTop < this.scrollTop;
     this.scrollTop = event.scrollTop;
+    if (this.loadingPrevious) return;
     if (this.data.toolbar) this.positionToolbar();
     if (this.data.controls) this.setData({ controls: false });
     let current = this.anchors[0];
@@ -201,6 +239,7 @@ Page({
       if (anchor.top <= event.scrollTop + 100) current = anchor;
     if (current && current.cid !== this.data.chapterId)
       this.setCurrent(current.cid);
+    if (movingUp && event.scrollTop < 80) this.loadPrevious();
   },
   refreshDecorations() {
     for (const block of this.flow.blocks) {
@@ -221,7 +260,7 @@ Page({
     });
     this.publishBlocks();
   },
-  publishBlocks() {
+  publishBlocks(done?: () => void) {
     let patch: Record<string, Block> = {};
     let size = 0;
     this.flow.blocks.forEach((block, index) => {
@@ -237,7 +276,8 @@ Page({
       size += serialized.length * 3;
       this.published[index] = serialized;
     });
-    if (size) this.setData(patch);
+    if (size) this.setData(patch, done);
+    else done?.();
   },
   back() {
     wx.navigateBack({
@@ -717,7 +757,7 @@ Page({
   noteMenu(e: UIEvent) {
     if (this.data.editingNote) return;
     const timestamp = Number(data(e, "time"));
-    wx.showActionSheet({
+    showActionSheet({
       itemList: ["编辑", "删除"],
       success: result => {
         if (result.tapIndex === 1) { void this.deleteNote(e); return; }

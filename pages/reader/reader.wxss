@@ -10,6 +10,14 @@
 .reader-head {
   padding: 40rpx 42rpx 0;
 }
+.reader-status-cover {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  background: var(--bg);
+}
 .reader-head .eyebrow {
   letter-spacing: 2rpx;
   margin-right: 160rpx;
@@ -204,3 +212,9 @@
 .notes-sheet .sheet-head .icon-button { flex: 0 0 64rpx; width: 64rpx; height: 64rpx; margin: 0 0 0 auto; padding: 0; }
 .note-source { font-size: 25rpx; color: var(--muted); line-height: 1.65; padding: 18rpx; background: var(--soft); border-radius: 12rpx; margin-bottom: 20rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .note-content { font-size: 30rpx; color: var(--text); line-height: 1.8; white-space: pre-wrap; }
+
+.reader-top { padding-left: 16rpx; border-radius: 0 0 28rpx 28rpx; }
+.reader-top .icon-button { margin: 0 14rpx 0 0; flex: 0 0 76rpx; }
+.reader-controls { left: 16rpx; right: 16rpx; bottom: 12rpx; border-radius: 32rpx; }
+.toc-current { border-radius: 22rpx; }
+.notes-sheet .note-source { border-radius: 20rpx; }

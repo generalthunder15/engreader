@@ -1,3 +1,4 @@
+import { showActionSheet } from "../../services/dialog";
 import * as store from "../../services/storage";
 import { bind } from "../../services/theme";
 import { cover, data, navigate, confirm, fail, toast } from "../../services/ui";
@@ -34,7 +35,7 @@ Page({
   },
   chapterMenu(e: UIEvent) {
     if (this.bookId === AI_BOOK) return;
-    wx.showActionSheet({
+    showActionSheet({
       itemList: ["编辑", "删除"],
       success: ({ tapIndex }) => {
         if (tapIndex === 0) this.edit(e);

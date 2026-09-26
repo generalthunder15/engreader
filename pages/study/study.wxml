@@ -209,3 +209,5 @@
     </view>
   </block>
 </view>
+
+<app-dialog id="app-dialog" style="{{themeStyle}}" />

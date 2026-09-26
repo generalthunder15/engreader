@@ -86,3 +86,5 @@
     返回生词本闯关
   </button>
 </view>
+
+<app-dialog id="app-dialog" style="{{themeStyle}}" />

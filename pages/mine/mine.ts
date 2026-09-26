@@ -1,3 +1,4 @@
+import { showActionSheet } from "../../services/dialog";
 import * as store from "../../services/storage";
 import { clearUserData } from "../../services/library";
 import { gc } from "../../services/fonts";
@@ -19,13 +20,13 @@ Page({
     navigate(data(e, "page"));
   },
   clear() {
-    wx.showActionSheet({
+    showActionSheet({
       itemList: ["清除学习数据，保留设置", "清除学习数据和全部设置"],
       success: async (r) => {
         if (
           !(await confirm(
             "确认清除",
-            "自建书、收藏、笔记、学习记录和导入字体将被清除，内置读物保留。建议先到设置中导出备份。",
+            "自建书、收藏、笔记、学习记录和导入字体将被清除，内置读物保留。此操作不可恢复。",
           ))
         )
           return;

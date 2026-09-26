@@ -2,5 +2,6 @@
   "navigationBarTitleText": "阅读",
   "navigationStyle": "custom",
   "onReachBottomDistance": 250,
+  "enablePullDownRefresh": true,
   "usingComponents": { "article-chat": "/components/article-chat/index", "app-exam": "/components/exam/index" }
 }

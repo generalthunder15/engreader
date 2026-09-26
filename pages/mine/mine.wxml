@@ -75,3 +75,5 @@
   </view>
   <view class="about">英语精读 · 为每一次认真阅读</view>
 </view>
+
+<app-dialog id="app-dialog" style="{{themeStyle}}" />
