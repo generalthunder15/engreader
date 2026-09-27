@@ -178,7 +178,7 @@ async function exclusive<T>(sid: string, work: () => Promise<T>): Promise<T> {
   }
 }
 const questionSchema =
-  '{"type":"choice|fill|translation","title":"题干","options":["四个选项，选择题必填"],"answer":"选择题用A/B/C/D；其他题为参考答案","explanation":"解析","points":["具体知识点"],"direction":"翻译题用en-zh或zh-en"}';
+  '{"type":"choice|fill|translation","title":"完整题干，包含所有判断条件","material":"需要阅读的材料，没有则空字符串","options":["四个选项，选择题必填"],"answer":"选择题用A/B/C/D；其他题为参考答案","explanation":"解析","points":["具体知识点"],"direction":"翻译题用en-zh或zh-en"}';
 async function askJSON(
   prompt: string,
   context: unknown,
@@ -417,7 +417,7 @@ async function nextQuestion(
   extra: unknown = {},
 ): Promise<Exercise> {
   const r = await askJSON(
-    prompt + "\n只生成一道题，直接返回：" + questionSchema,
+    prompt + "\n题目必须独立可答：所有判断条件都要写在 title，阅读材料写在 material，不能依赖用户未见的历史、文章或解析。四选一必须只有一个正确答案；出题前逐项自检。只问语法正确时，其余三项必须确有语法错误，不能仅改变时间、饮品等内容充当错误选项。不要把必要信息放在输出结构之外。只生成一道题，直接返回：" + questionSchema,
     { context: context(s), extra },
   );
   return parseExercise(r, id());
@@ -473,12 +473,19 @@ export async function continueConversation(
         throw new Error("请选择一个有效选项");
       const response = input + (supplement.trim() ? "\n补充说明：" + supplement.trim() : "");
       const raw = await askJSON(
-        '批改这一道题，允许合理的翻译变体，按语义和关键语法判定。返回 {"grades":[{"id":"题目ID","correct":true,"feedback":"中文反馈，说明理由"}]}。',
-        { question: q, answer: input, supplement: supplement.trim(), context: context(s) },
+        '批改用户实际看到的这一道题。question 是完整可见题面；reference 仅供核对，可能有错，绝不能作为隐藏条件；历史只用于学习进度，不能补充题面缺失的要求。先检查题目是否缺条件或有多个正确选项：仅问语法正确时，不能因为时间、地点、饮品与参考答案不同而判错。发现多解或缺材料，返回 validQuestion=false，说明题目问题，不责怪用户。题目有效时以 answer 字段为用户最终选项；supplement 是思路或疑问，不是改选，不得因为合理质疑否定所选答案。反馈必须与 correct 一致。翻译接受合理变体。返回 {"validQuestion":true,"grades":[{"id":"题目ID","correct":true,"feedback":"中文反馈，说明可见题面的依据；无效题说明为什么无法唯一作答"}]}。',
+        { question: { id: q.id, type: q.type, title: q.title, material: q.material || "", options: q.options },
+          reference: { answer: q.answer, explanation: q.explanation }, answer: input, supplement: supplement.trim(), context: context(s) },
       );
       const grade = parseGrades(raw, [q])[0];
       add(s, "user", response);
       add(s, "assistant", grade.feedback);
+      if (raw.validQuestion === false) {
+        s.pending = null;
+        add(s, "assistant", "这道题条件不足或存在多解，已作废，不计入测评或复测成绩。接下来换一道完整的新题。", undefined, true);
+        commit(s);
+        return;
+      }
       const rows: Evidence[] = q.points.map((point) => ({
         point,
         question: q,

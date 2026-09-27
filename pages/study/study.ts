@@ -56,6 +56,8 @@ Page({
     hasOlder: false,
     historyPage: 0,
     selectedWord: "",
+    wordSource: "",
+    wordIndex: -1,
     wordDefinition: null as Definition | null,
     wordPanel: false,
     wordTab: "translation",
@@ -75,17 +77,17 @@ Page({
   closeWord() {
     this.wordRequest++;
     audio.stop();
-    this.setData({ selectedWord: "", wordBusy: false, wordPanel: false, wordPlaying: false });
+    this.setData({ selectedWord: "", wordSource: "", wordIndex: -1, wordBusy: false, wordPanel: false, wordPlaying: false });
   },
   onPageScroll() { if (!this.data.wordPanel) this.closeWord(); },
-  selectWord(e: WechatMiniprogram.CustomEvent<{ word: string; y: number; x: number }>) {
+  selectWord(e: WechatMiniprogram.CustomEvent<{ word: string; index: number; y: number; x: number }>) {
     this.closeWord();
     const window = wx.getWindowInfo();
     const width = Math.min(264, window.windowWidth - 24);
     const position = placeSelectionMenu([{ left: e.detail.x, right: e.detail.x, top: e.detail.y - 12, bottom: e.detail.y + 12 }],
       { width, height: 66 }, { width: window.windowWidth, top: 12, bottom: window.windowHeight - 90 });
     if (!position) return;
-    this.setData({ selectedWord: e.detail.word, wordDefinition: null, wordDetail: null, wordQuestion: "", wordAnswer: "", wordError: "",
+    this.setData({ selectedWord: e.detail.word, wordSource: String(e.currentTarget.dataset.source), wordIndex: e.detail.index, wordDefinition: null, wordDetail: null, wordQuestion: "", wordAnswer: "", wordError: "",
       wordMenuStyle: `left:${position.left}px;top:${position.top}px;width:${width}px;`,
       wordMenuSide: position.side, wordArrow: position.arrow });
   },

@@ -17,6 +17,7 @@ export interface Exercise {
   id: string;
   type: "choice" | "fill" | "translation";
   title: string;
+  material?: string;
   options: string[];
   answer: string;
   explanation: string;
@@ -216,6 +217,8 @@ export function parseExercise(raw: unknown, id: string): Exercise {
     id,
     type: q.type as Exercise["type"],
     title: required(q.title, "题干"),
+    ...([q.material, q.passage, q.context].some(v => typeof v === "string" && v.trim())
+      ? { material: String([q.material, q.passage, q.context].find(v => typeof v === "string" && v.trim())).trim() } : {}),
     options: q.type === "choice" ? options : [],
     answer,
     explanation: required(q.explanation, "解析"),

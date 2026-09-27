@@ -22,8 +22,19 @@ test("chat words preserve mixed text and only translate a double tap on the same
   tap(3);
   assert.equal(events.length, 0);
   tap(3);
-  assert.deepEqual(events, [{ name: "word", detail: { word: "re-read", y: 180, x: 100 } }]);
+  assert.deepEqual(events, [{ name: "word", detail: { word: "re-read", index: 3, y: 180, x: 100 } }]);
   instance.data.lastTap = Date.now() - 1000;
   tap(3);
   assert.equal(events.length, 1);
+});
+
+// Identical spellings must be distinguished by their token positions.
+test("repeated chat words emit their own positions and highlight by index", async () => {
+  const { readFileSync } = await import("node:fs");
+  const template = readFileSync("components/word-text/index.wxml", "utf8");
+  assert.match(template, /index === selectedIndex/);
+  assert.doesNotMatch(template, /item\.text === selected/);
+  const page = readFileSync("pages/study/study.wxml", "utf8");
+  assert.equal((page.match(/data-source=/g) || []).length, 4);
+  assert.equal((page.match(/selected-index=/g) || []).length, 4);
 });

@@ -1,2 +1,2 @@
 <!-- prettier-ignore -->
-<text class="content"><text wx:for="{{tokens}}" wx:key="index" class="{{item.word && item.text === selected ? 'selected' : ''}}" data-index="{{index}}" bindtap="tap">{{item.text}}</text></text>
+<text class="content"><text wx:for="{{tokens}}" wx:key="index" class="{{item.word && index === selectedIndex ? 'selected' : ''}}" data-index="{{index}}" bindtap="tap">{{item.text}}</text></text>

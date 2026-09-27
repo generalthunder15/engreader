@@ -114,3 +114,5 @@
 .progress-node.current { color: var(--primary); font-weight: 600; }
 .progress-node.current .step-dot { border: 2rpx solid var(--primary); background: var(--soft); }
 .step-link { color: var(--line); font-size: 22rpx; }
+
+.question-material { margin-bottom: 22rpx; padding: 20rpx; border-radius: 20rpx; background: var(--soft); }

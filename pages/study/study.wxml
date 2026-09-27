@@ -84,16 +84,17 @@
       class="bubble {{item.role === 'user' ? 'mine' : ''}}"
     >
       <view class="caption">{{item.role === 'user' ? '我' : '学习教练'}}</view>
-      <view wx:if="{{item.content}}" class="{{item.notice ? 'caption' : 'body-text'}}"><word-text text="{{item.content}}" selected="{{selectedWord}}" bind:word="selectWord" /></view>
+      <view wx:if="{{item.content}}" class="{{item.notice ? 'caption' : 'body-text'}}"><word-text text="{{item.content}}" data-source="{{item.id + '-' + 'body'}}" selected-index="{{wordSource === (item.id + '-' + 'body') ? wordIndex : -1}}" bind:word="selectWord" /></view>
       <view wx:if="{{item.question}}" class="question">
-        <view class="body-text"><word-text text="{{item.question.title}}" selected="{{selectedWord}}" bind:word="selectWord" /></view>
+        <view wx:if="{{item.question.material}}" class="body-text question-material"><word-text text="{{item.question.material}}" data-source="{{item.id + '-' + 'material'}}" selected-index="{{wordSource === (item.id + '-' + 'material') ? wordIndex : -1}}" bind:word="selectWord" /></view>
+        <view class="body-text"><word-text text="{{item.question.title}}" data-source="{{item.id + '-' + 'title'}}" selected-index="{{wordSource === (item.id + '-' + 'title') ? wordIndex : -1}}" bind:word="selectWord" /></view>
         <view
           wx:for="{{item.question.options}}"
           wx:key="index"
           wx:for-item="option"
           class="sub"
         >
-          <word-text text="{{option}}" selected="{{selectedWord}}" bind:word="selectWord" />
+          <word-text text="{{option}}" data-source="{{item.id + '-' + 'option-' + index}}" selected-index="{{wordSource === (item.id + '-' + 'option-' + index) ? wordIndex : -1}}" bind:word="selectWord" />
         </view>
       </view>
     </view>

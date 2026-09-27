@@ -15,6 +15,7 @@
       wx:for-item="q"
       class="question"
     >
+      <view wx:if="{{q.material}}" class="material"><reading-text text="{{q.material}}" indented="{{true}}" selection-key="{{q.id + '-material'}}" active-key="{{selectionKey}}" bind:readtap="readTap" bind:selection="selectText" /></view>
       <view class="question-title"><reading-text text="{{index + 1 + '. ' + q.title}}" selection-key="{{q.id}}" active-key="{{selectionKey}}" bind:readtap="readTap" bind:selection="selectText" /></view>
       <view wx:if="{{q.type === 'choice'}}" class="option-grid" data-id="{{q.id}}" style="grid-template-columns:repeat({{columns[q.id] || 1}}, minmax(0, 1fr))">
         <view

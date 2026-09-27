@@ -574,3 +574,28 @@ test("partial lesson submission locks all answers including blanks and requires 
   assert.equal(learning.session(sid).phase, "remediation");
   assert.equal(canStart(learning.load()), false);
 });
+
+test("assessment retains supporting material and discards ambiguous questions without penalizing the learner", async () => {
+  const sid = learning.createAssessment();
+  responder = () => ({ ...question(), material: "He drinks water every morning." });
+  await learning.beginAssessment(sid, "想学习语法");
+  assert.equal(learning.session(sid).pending?.material, "He drinks water every morning.");
+  assert.equal(learning.session(sid).messages.at(-1)?.question?.material, "He drinks water every morning.");
+  responder = (prompt, c) => {
+    assert.equal(c.question.material, "He drinks water every morning.");
+    assert.equal(c.question.answer, undefined);
+    assert.equal(c.reference.answer, "A");
+    assert.equal(c.answer, "B");
+    assert.equal(c.supplement, "B C D 语法都正确");
+    assert.match(prompt, /不能补充题面缺失/);
+    return { validQuestion: false, grades: [{ id: c.question.id, correct: false, feedback: "题目有多个语法正确的选项，无法唯一作答。" }] };
+  };
+  await learning.continueConversation(sid, "B", true, "B C D 语法都正确");
+  assert.equal(learning.session(sid).assessed, 0);
+  assert.equal(learning.session(sid).assessmentEvidence.length, 0);
+  assert.equal(learning.session(sid).pending, null);
+  assert.equal(learning.load().memory.weak.length, 0);
+  responder = () => question("A replacement question");
+  await learning.continueConversation(sid);
+  assert.equal(learning.session(sid).pending?.title, "A replacement question");
+});
