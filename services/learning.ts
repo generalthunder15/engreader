@@ -26,7 +26,16 @@ const busy = new Set<string>();
 export function load(): Learning {
   const saved = store.read<Learning | null>(KEY, null);
   const state = saved ? discardLegacySessions(saved) : emptyLearning();
-  if (!saved || state !== saved || store.read("study_state", null) !== null)
+  let migrated = false;
+  for (const s of state.sessions) {
+    if (s.kind === "lesson" && (s.phase === "teaching" || (s.phase === "reading" && s.generationStep < 21))) {
+      s.phase = s.generationStep === 21 ? "reading" : "exam-generating";
+      s.pending = null;
+      s.revision++;
+      migrated = true;
+    }
+  }
+  if (!saved || migrated || state !== saved || store.read("study_state", null) !== null)
     store.transaction({ [KEY]: state }, ["study_state"]);
   return state;
 }
@@ -114,7 +123,7 @@ function commit(
   if (
     s.kind === "lesson" &&
     [
-      "teaching",
+      "reading",
       "exam-generating",
       "exam",
       "grading",
@@ -173,6 +182,7 @@ const questionSchema =
 async function askJSON(
   prompt: string,
   context: unknown,
+  history: Session["messages"] = [],
 ): Promise<Record<string, unknown>> {
   return record(
     parseJSON(
@@ -184,6 +194,8 @@ async function askJSON(
             prompt,
         },
         { role: "user", content: JSON.stringify(context) },
+        ...history.slice(-24).map(m => ({ role: m.role, content: m.content + (m.question ? "\n当前练习：" + JSON.stringify(m.question) : "") })),
+        ...(history.length ? [{ role: "user" as const, content: "请承接以上同一课的对话与批改记录，执行本轮任务，勿重新开场或重复已答题目。按要求返回 JSON。" }] : []),
       ]),
     ),
   );
@@ -191,6 +203,7 @@ async function askJSON(
 function context(s: Session): unknown {
   return {
     profile: load().memory,
+    phase: s.phase,
     review: s.review,
     targets: s.targets,
     article: store.chapter(AI_BOOK, s.articleId)?.rawText,
@@ -207,12 +220,14 @@ function add(
   role: "user" | "assistant",
   content: string,
   question?: Exercise,
+  notice = false,
 ): void {
   s.messages.push({
     id: id(),
     role,
     content,
     ts: Date.now(),
+    ...(notice ? { notice: true } : {}),
     ...(question ? { question } : {}),
   });
 }
@@ -265,7 +280,7 @@ export function generationLabel(s: Session): string {
   if (s.phase === "generating") return "生成文章与本课词表";
   const n = s.generationStep;
   return n === 0
-    ? "生成阅读材料"
+    ? "准备本课阅读材料"
     : n <= 5
       ? `生成阅读题 ${n}/5`
       : n === 6
@@ -299,33 +314,42 @@ export async function generateStep(sid: string): Promise<void> {
       s.targets = strings(r.targets);
       if (!s.targets.length) throw new Error("缺少学习目标，请重试");
       s.title = `第 ${s.number} 课${s.review ? " · 复习" : ""} · ${title}`;
-      s.phase = "reading";
+      s.phase = "exam-generating";
+      s.sections = [{ id: "reading", title, material: text, questions: [] }];
+      s.generationStep = 1;
       add(
         s,
         "assistant",
-        "文章已准备好。先阅读文章并完成本章单词闯关，再回来一起讨论。",
+        "文章已生成，可以前往阅读。正在分步准备配套题目，完成单词闯关后解锁。",
       );
+      s.messages[s.messages.length - 1].articleId = s.articleId;
       publishChapter(s, { ...chapter(s, "article", s.title, text), words });
       return;
     }
     if (s.phase !== "exam-generating") throw new Error("当前阶段不能生成试卷");
     const n = s.generationStep;
-    if (n === 0 || n === 6) {
-      const cloze = n === 6;
+    if (n === 0) {
+      const article = store.chapter(AI_BOOK, s.articleId);
+      if (!article) throw new Error("学习文章不存在");
+      s.sections = [{ id: "reading", title: article.title, material: article.rawText, questions: [] }];
+      s.generationStep = 1;
+      commit(s);
+      return;
+    }
+    if (n === 6) {
       const r = await askJSON(
-        `为本课生成${cloze ? "完型填空材料，正文必须恰好包含 [1] 到 [10] 各一次的十个空位，不附答案" : "一篇新的阅读理解材料，不附题目"}，检查本课知识迁移。JSON：{"title":"标题","material":"英文正文"}`,
+        '为本课生成完型填空材料，正文必须恰好包含 [1] 到 [10] 各一次的十个空位，不附答案，检查本课知识迁移。JSON：{"title":"标题","material":"英文正文"}',
         { context: context(s), existing: s.sections },
       );
       const material = required(r.material, "材料");
       if (
-        cloze &&
         Array.from({ length: 10 }, (_, i) => `[${i + 1}]`).some(
           (token) => material.split(token).length !== 2,
         )
       )
         throw new Error("完型材料空位编号不完整，请重试");
       s.sections.push({
-        id: cloze ? "cloze" : "reading",
+        id: "cloze",
         title: required(r.title, "材料标题"),
         material,
         questions: [],
@@ -361,31 +385,31 @@ export async function generateStep(sid: string): Promise<void> {
     }
     s.generationStep++;
     if (s.generationStep === 21) {
-      s.phase = "exam";
-      add(
-        s,
-        "assistant",
-        "本课试卷已准备好。请独立作答并提交，之后我们一起复盘。",
-      );
-      publishChapter(s, {
-        ...chapter(
-          s,
-          "exam",
-          `第 ${s.number} 课 · 综合试卷`,
-          "阅读理解 · 完型填空 · 英汉互译",
-        ),
-        sections: s.sections,
-      });
+      s.phase = "reading";
+      if (store.chapter(AI_BOOK, s.articleId)?.quizDone) publishExam(s);
+      else {
+        add(s, "assistant", "文章和配套题目已准备好。先阅读并完成单词闯关，之后即可查看题目。", undefined, true);
+        commit(s);
+      }
     } else commit(s);
   });
 }
-export function unlockTeaching(sid: string): void {
+function publishExam(s: Session): void {
+  if (s.generationStep !== 21 || s.sections.flatMap(v => v.questions).length !== 19)
+    throw new Error("配套题目尚未生成完成");
+  if (!store.chapter(AI_BOOK, s.articleId)?.quizDone) throw new Error("请先完成本章单词闯关");
+  s.phase = "exam";
+  s.pending = null;
+  add(s, "assistant", "单词闯关已完成，配套题目已解锁。请前往阅读页作答并提交，之后针对错题补学。", undefined, true);
+  publishChapter(s, {
+    ...chapter(s, "exam", `第 ${s.number} 课 · 配套试卷`, "阅读理解 · 完型填空 · 英汉互译"),
+    sections: s.sections,
+  });
+}
+export function unlockExam(sid: string): void {
   const s = session(sid);
   if (s.phase !== "reading") return;
-  if (!store.chapter(AI_BOOK, s.articleId)?.quizDone)
-    throw new Error("请先完成本章单词闯关");
-  s.phase = "teaching";
-  commit(s);
+  publishExam(s);
 }
 async function nextQuestion(
   s: Session,
@@ -436,10 +460,11 @@ export async function continueConversation(
     const s = session(sid);
     if (
       closed(s) ||
-      !["assessment", "teaching", "remediation"].includes(s.phase)
+      !["assessment", "remediation"].includes(s.phase)
     )
       throw new Error("当前阶段不能继续对话");
     const q = s.pending;
+    if (q && !answer && !input.trim()) return;
     if (answer && (!q || !input.trim())) throw new Error("请先作答");
     if (s.phase === "assessment" && q && !answer)
       throw new Error("请先回答当前测评题");
@@ -525,44 +550,19 @@ export async function continueConversation(
       return;
     }
     const r = await askJSON(
-      '围绕本课文章简洁讲解词汇、语法和内容，回应用户问题。每次最多一道练习，不在正文连续追问多个问题。返回 {"reply":"讲解","question":题目或null,"readyForExam":false,"contextSummary":"本课累计对话摘要，保留学习者疑问、讲解内容和进度"}。题目结构：' +
-        questionSchema +
-        "。已有待答题或当前阶段为 remediation 时 question 必须为 null。只有用户已答对至少两道本课练习、体现本课目标掌握时才建议 readyForExam=true，同时 question 必须为 null。",
-      {
-        context: context(s),
-        phase: s.phase,
-        input: input || "继续讲解；若已掌握则进入试卷，否则出一道练习",
-        pending: q,
-      },
+      '你正在进行试卷错题补学。根据本课历史、错题和用户疑问给出简洁的新解释，不重复开场，不另出试卷或改变阶段。一次只处理一个知识点。返回 {"reply":"讲解","contextSummary":"累计摘要"}。',
+      { context: context(s), input, pending: q, unresolved: unresolved(s) },
+      s.messages,
     );
-    const reply = required(r.reply, "讲解");
-    const next =
-      r.question && !q && s.phase === "teaching"
-        ? parseExercise(r.question, id())
-        : null;
-    if (typeof r.contextSummary === "string" && r.contextSummary.trim())
-      s.contextSummary = r.contextSummary.trim().slice(0, 5000);
+    if (typeof r.contextSummary === "string") s.contextSummary = r.contextSummary.trim().slice(0, 5000);
     if (input.trim()) add(s, "user", input);
-    add(s, "assistant", reply, next || undefined);
-    if (next) s.pending = next;
-    const correctCount = new Set(
-      s.evidence.filter((e) => e.correct).map((e) => e.question.id),
-    ).size;
-    if (
-      s.phase === "teaching" &&
-      r.readyForExam === true &&
-      correctCount >= 2 &&
-      !s.pending
-    ) {
-      s.phase = "exam-generating";
-      add(s, "assistant", "练习已达到本课要求，接下来分步准备综合试卷。");
-    }
+    add(s, "assistant", required(r.reply, "讲解"));
     commit(s);
   });
 }
 export function submitExam(sid: string, answers: Record<string, string>): void {
   const s = session(sid);
-  if (s.phase !== "exam" || s.attempt)
+  if (s.phase !== "exam" || s.attempt || !store.chapter(AI_BOOK, s.articleId)?.quizDone)
     throw new Error("试卷已提交或尚未准备好");
   const questions = s.sections.flatMap((v) => v.questions);
   if (questions.length !== 19 || s.generationStep !== 21)

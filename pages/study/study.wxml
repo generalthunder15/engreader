@@ -46,7 +46,7 @@
           单词闯关
         </button>
         <button
-          wx:if="{{current.generationStep === 21}}"
+          wx:if="{{current.generationStep === 21 && current.phase !== 'reading'}}"
           class="small"
           bindtap="exam"
         >
@@ -68,7 +68,8 @@
       class="bubble {{item.role === 'user' ? 'mine' : ''}}"
     >
       <view class="caption">{{item.role === 'user' ? '我' : '学习教练'}}</view>
-      <view class="body-text"><word-text text="{{item.content}}" selected="{{selectedWord}}" bind:word="selectWord" /></view>
+      <view wx:if="{{item.content}}" class="{{item.notice ? 'caption' : 'body-text'}}"><word-text text="{{item.content}}" selected="{{selectedWord}}" bind:word="selectWord" /></view>
+      <button wx:if="{{item.articleId}}" class="primary message-read" data-chapter="{{item.articleId}}" bindtap="readMessage">去阅读文章</button>
       <view wx:if="{{item.question}}" class="question">
         <view class="body-text"><word-text text="{{item.question.title}}" selected="{{selectedWord}}" bind:word="selectWord" /></view>
         <view
@@ -124,7 +125,7 @@
       bindtap="advance"
       disabled="{{busy}}"
     >
-      {{current.phase === 'generating' || current.phase === 'exam-generating' ? '继续生成 / 重试' : current.phase === 'grading' ? '批改试卷 / 重试' : current.phase === 'reading' ? '已完成闯关，继续学习' : '继续学习 / 重试'}}
+      {{current.phase === 'generating' || current.phase === 'exam-generating' ? '继续生成 / 重试' : current.phase === 'grading' ? '批改试卷 / 重试' : current.phase === 'reading' ? '已完成闯关，解锁题目' : '继续学习 / 重试'}}
     </button>
     <view
       wx:if="{{current.phase === 'intro'}}"

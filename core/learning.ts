@@ -6,7 +6,7 @@ export type Phase =
   | "assessment"
   | "generating"
   | "reading"
-  | "teaching"
+  | "teaching" // Legacy storage only; migrated to exercise preparation on load.
   | "exam-generating"
   | "exam"
   | "grading"
@@ -52,6 +52,8 @@ export interface Turn extends Message {
   id: string;
   question?: Exercise;
   answerTo?: string;
+  notice?: boolean;
+  articleId?: string;
 }
 export interface Session {
   id: string;
@@ -247,8 +249,8 @@ export const phaseLabel: Record<Phase, string> = {
   assessment: "水平测评",
   generating: "生成学习文章",
   reading: "阅读与单词闯关",
-  teaching: "讲解与练习",
-  "exam-generating": "生成试卷",
+  teaching: "准备配套题目",
+  "exam-generating": "准备配套题目",
   exam: "试卷作答",
   grading: "等待批改",
   remediation: "错题补学",

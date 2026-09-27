@@ -99,3 +99,5 @@
 .study-sidebar { top: 16rpx; bottom: 16rpx; left: 16rpx; border-radius: 36rpx; overflow: hidden; }
 .sidebar-header .icon-button { margin-left: auto; background: var(--soft); border-radius: 50%; }
 .sidebar-session { border-radius: 24rpx; margin-bottom: 16rpx; padding: 24rpx 20rpx; }
+
+.message-read { margin-top: 24rpx; width: 100%; }

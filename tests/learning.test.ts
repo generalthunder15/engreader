@@ -15,6 +15,7 @@ import {
   Exercise,
 } from "../core/learning";
 let mock: ReturnType<typeof installStorage>;
+let sentMessages: any[];
 let responder: (prompt: string, context: any) => unknown;
 beforeEach(() => {
   mock = installStorage();
@@ -24,6 +25,7 @@ beforeEach(() => {
   };
   Object.assign(mock.wx, {
     request(o: any) {
+      sentMessages = o.data.messages;
       const result = responder(
         o.data.messages[0].content,
         JSON.parse(o.data.messages[1].content),
@@ -70,47 +72,27 @@ function article() {
     })),
   };
 }
-async function generatedLesson(): Promise<string> {
+function exerciseResponder(_p: string, c: any) {
+  return c.section
+    ? question("Question " + c.section.id + " " + c.section.questions.length,
+        c.section.id === "translation" ? "translation" : "choice",
+        c.section.questions.length < 2 ? "en-zh" : "zh-en")
+    : { title: "Cloze material", material: "A passage " + Array.from({ length: 10 }, (_, i) => `[${i + 1}]`).join(" ") };
+}
+async function preparedLesson(): Promise<string> {
   unlock();
   const sid = learning.createLesson();
   responder = () => article();
   await learning.generateStep(sid);
+  responder = exerciseResponder;
+  for (let n = 1; n < 21; n++) await learning.generateStep(sid);
+  return sid;
+}
+async function generatedLesson(): Promise<string> {
+  const sid = await preparedLesson();
+  assert.equal(learning.session(sid).phase, "reading");
   store.completeChapter(AI_BOOK, learning.session(sid).articleId);
-  learning.unlockTeaching(sid);
-  for (let n = 0; n < 2; n++) {
-    responder = () => ({
-      reply: "让我们练习",
-      question: question("Practice " + n),
-      readyForExam: false,
-      contextSummary: "目前正在练习时态",
-    });
-    await learning.continueConversation(sid);
-    responder = (_p, c) => ({
-      grades: [{ id: c.question.id, correct: true, feedback: "正确" }],
-    });
-    await learning.continueConversation(sid, "A", true);
-  }
-  responder = () => ({
-    reply: "可以开始试卷了",
-    question: null,
-    readyForExam: true,
-  });
-  await learning.continueConversation(sid);
-  assert.equal(learning.session(sid).phase, "exam-generating");
-  responder = (_p, c) =>
-    c.section
-      ? question(
-          "Question " + c.section.id + " " + c.section.questions.length,
-          c.section.id === "translation" ? "translation" : "choice",
-          c.section.questions.length < 2 ? "en-zh" : "zh-en",
-        )
-      : {
-          title: "New material",
-          material:
-            "A passage " +
-            Array.from({ length: 10 }, (_, i) => `[${i + 1}]`).join(" "),
-        };
-  for (let n = 0; n < 21; n++) await learning.generateStep(sid);
+  learning.unlockExam(sid);
   return sid;
 }
 function answers(s: Session) {
@@ -181,7 +163,8 @@ test("article failure retries the same session and does not duplicate chapters o
   assert.equal(learning.session(sid).number, 1);
   await assert.rejects(learning.generateStep(sid));
   assert.equal(store.book(AI_BOOK)?.chapterCount, 1);
-  assert.throws(() => learning.unlockTeaching(sid), /闯关/);
+  assert.equal(learning.session(sid).phase, "exam-generating");
+  await assert.rejects(learning.continueConversation(sid), /不能/);
 });
 
 test("full exam generation, AI grading and targeted remediation enforce the lesson gate", async () => {
@@ -281,14 +264,12 @@ test("a failed exam step preserves previous material and retries only its questi
   const state = learning.load();
   state.sessions.find((v) => v.id === sid)!.phase = "exam-generating";
   store.write(learning.KEY, state);
-  responder = () => ({ title: "Reading", material: "Saved reading passage." });
-  await learning.generateStep(sid);
   responder = () => new Error("timeout");
   await assert.rejects(learning.generateStep(sid));
   assert.equal(learning.session(sid).generationStep, 1);
   assert.equal(
     learning.session(sid).sections[0].material,
-    "Saved reading passage.",
+    article().text,
   );
   responder = () => question();
   await learning.generateStep(sid);
@@ -473,7 +454,7 @@ test("opening a new lesson stops at reading instead of trying to skip its word c
   Object.assign(mock.wx, { pageScrollTo() {} });
   await import("../pages/study/study");
   unlock();
-  responder = () => article();
+  responder = (p, c) => p.includes("全新英文文章") ? article() : exerciseResponder(p, c);
   const page: any = {
     ...definition,
     data: structuredClone(definition.data),
@@ -514,4 +495,59 @@ test("cleanup and backup restore remove migrated legacy conversations but preser
   assert.equal(learning.load().sessions.length, 2);
   assert.equal(learning.session(sid).phase, "generating");
   assert.equal("study_state" in store.exportBackup().data, false);
+});
+
+test("questions are prepared with the article but remain inaccessible until word challenge completion", async () => {
+  const sid = await preparedLesson();
+  let s = learning.session(sid);
+  assert.equal(s.generationStep, 21);
+  assert.deepEqual(s.sections.map(v => v.questions.length), [5, 10, 4]);
+  assert.equal(s.sections[0].material, article().text);
+  assert.equal(s.phase, "reading");
+  assert.equal(s.pending, null);
+  assert.equal(store.book(AI_BOOK)?.chapterCount, 1);
+  assert.equal(store.chapter(AI_BOOK, s.examId), null);
+  assert.throws(() => learning.unlockExam(sid), /闯关/);
+  assert.throws(() => learning.submitExam(sid, answers(s)), /尚未准备/);
+  assert.ok(s.messages.some(m => m.articleId === s.articleId));
+  store.importBackup(store.exportBackup());
+  assert.equal(learning.session(sid).phase, "reading");
+  store.completeChapter(AI_BOOK, s.articleId);
+  learning.unlockExam(sid);
+  s = learning.session(sid);
+  assert.equal(s.phase, "exam");
+  assert.equal(store.book(AI_BOOK)?.chapterCount, 2);
+  assert.equal(store.chapter(AI_BOOK, s.examId)?.sections?.length, 3);
+  learning.unlockExam(sid);
+  assert.equal(store.book(AI_BOOK)?.chapterCount, 2);
+  await assert.rejects(learning.continueConversation(sid), /不能/);
+});
+test("finishing word challenge while generation is in progress unlocks the paper only when complete", async () => {
+  unlock();
+  const sid = learning.createLesson();
+  responder = () => article();
+  await learning.generateStep(sid);
+  store.completeChapter(AI_BOOK, learning.session(sid).articleId);
+  learning.unlockExam(sid);
+  assert.equal(learning.session(sid).phase, "exam-generating");
+  assert.equal(store.chapter(AI_BOOK, learning.session(sid).examId), null);
+  responder = exerciseResponder;
+  for (let n = 1; n < 21; n++) await learning.generateStep(sid);
+  assert.equal(learning.session(sid).phase, "exam");
+  assert.equal(store.book(AI_BOOK)?.chapterCount, 2);
+});
+test("legacy teaching sessions skip conversation practice and retain history and generated material", async () => {
+  const sid = await preparedLesson();
+  const state = learning.load();
+  const s = state.sessions.find(s => s.id === sid)!;
+  s.phase = "teaching";
+  s.pending = parseExercise(question(), "retired-question");
+  const messages = structuredClone(s.messages);
+  store.write(learning.KEY, state);
+  const migrated = learning.session(sid);
+  assert.equal(migrated.phase, "reading");
+  assert.equal(migrated.pending, null);
+  assert.deepEqual(migrated.messages, messages);
+  assert.deepEqual(migrated.sections, s.sections);
+  await assert.rejects(learning.continueConversation(sid), /不能/);
 });

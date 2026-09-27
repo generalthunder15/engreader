@@ -1,3 +1,4 @@
+import { unlockExam } from "../../services/learning";
 import * as store from "../../services/storage";
 import * as audio from "../../services/audio";
 import { fillMeanings } from "../../services/ai";
@@ -119,6 +120,8 @@ Page({
     if (!current && this.target.chapterId && this.data.skipped === 0) {
       try {
         store.completeChapter(this.target.bookId, this.target.chapterId);
+        const chapter = store.chapter(this.target.bookId, this.target.chapterId);
+        if (chapter?.sessionId) unlockExam(chapter.sessionId);
       } catch (error) {
         fail(error);
       }

@@ -157,9 +157,10 @@ Page({
         this.data.current?.phase === "reading" &&
         store.chapter(AI_BOOK, this.data.current.articleId)?.quizDone
       ) {
-        learning.unlockTeaching(this.data.current.id);
+        learning.unlockExam(this.data.current.id);
         this.refresh(true);
       }
+      if (this.data.current?.phase === "exam-generating" && !learning.isBusy(this.selected)) void this.advance();
     } catch (error) {
       fail(error);
     }
@@ -308,10 +309,10 @@ Page({
       if (!this.alive) return;
       if (s.phase === "grading") await learning.gradeExam(sid);
       else if (s.phase === "reading" && initialPhase === "reading")
-        learning.unlockTeaching(sid);
+        learning.unlockExam(sid);
       s = learning.session(sid);
       if (
-        ["assessment", "teaching", "remediation"].includes(s.phase) &&
+        ["assessment", "remediation"].includes(s.phase) &&
         !s.pending
       )
         await learning.continueConversation(sid);
@@ -341,11 +342,14 @@ Page({
       await learning.continueConversation(sid, text, true, supplement);
       this.setData({ answer: "", selectedOption: "" });
       const s = learning.session(sid);
-      if (this.alive && !closed(s)) {
+      if (this.alive && ["assessment", "remediation"].includes(s.phase) && !s.pending) {
         this.refresh();
         await learning.continueConversation(sid);
       }
     });
+  },
+  readMessage(e: UIEvent) {
+    navigate("reader", { bookId: AI_BOOK, chapterId: data(e, "chapter") });
   },
   read() {
     const s = this.data.current;
