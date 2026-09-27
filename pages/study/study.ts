@@ -32,6 +32,7 @@ type SessionView = Pick<
 > & { submitted: boolean };
 Page({
   data: {
+    memoryPending: false, memoryError: "",
     themeStyle: "",
     headerTitle: "学习",
     navTop: 24,
@@ -54,7 +55,8 @@ Page({
     readonly: false,
     remaining: 0,
     hasOlder: false,
-    historyPage: 0,
+    historyCount: 20,
+    loadingHistory: false,
     selectedWord: "",
     wordSource: "",
     wordIndex: -1,
@@ -79,7 +81,14 @@ Page({
     audio.stop();
     this.setData({ selectedWord: "", wordSource: "", wordIndex: -1, wordBusy: false, wordPanel: false, wordPlaying: false });
   },
-  onPageScroll() { if (!this.data.wordPanel) this.closeWord(); },
+  pageScrollTop: 0,
+  historyTicket: 0,
+  onPageScroll(e: { scrollTop: number }) {
+    const movingUp = e.scrollTop < this.pageScrollTop;
+    this.pageScrollTop = e.scrollTop;
+    if (!this.data.wordPanel && this.data.selectedWord) this.closeWord();
+    if (movingUp && e.scrollTop < 100) this.older();
+  },
   selectWord(e: WechatMiniprogram.CustomEvent<{ word: string; index: number; y: number; x: number }>) {
     this.closeWord();
     const window = wx.getWindowInfo();
@@ -159,6 +168,8 @@ Page({
       navRight: capsule.left > 0 ? info.windowWidth - capsule.left + 12 : 110 });
   },
   onShow() {
+    this.historyTicket++;
+    this.setData({ loadingHistory: false });
     this.alive = true;
     bind(this, 2);
     try {
@@ -168,7 +179,7 @@ Page({
         this.selected = requested;
         wx.removeStorageSync("open_learning_session");
       }
-      this.setData({ historyPage: 0 });
+      this.setData({ historyCount: 20 });
       this.refresh(true);
       if (
         this.data.current?.phase === "reading" &&
@@ -183,22 +194,24 @@ Page({
     }
   },
   onHide() {
+    this.historyTicket++;
     this.closeSidebar();
     this.closeWord();
     this.alive = false;
   },
   onUnload() {
+    this.historyTicket++;
     this.wordRequest++;
     this.alive = false;
   },
-  refresh(scrollToBottom = false) {
+  refresh(scrollToBottom = false, rendered?: () => void) {
     this.closeWord();
     const state = learning.load();
     if (!state.sessions.some((s) => s.id === this.selected))
       this.selected = state.sessions[state.sessions.length - 1]?.id || "";
     const selected = state.sessions.find((s) => s.id === this.selected) || null;
     const messages = selected?.messages.filter(m => !m.notice && !m.articleId) || [];
-    const end = Math.max(0, messages.length - this.data.historyPage * 20);
+    const start = Math.max(0, messages.length - this.data.historyCount);
     const current: SessionView | null = selected
       ? {
           id: selected.id,
@@ -210,7 +223,7 @@ Page({
           generationStep: selected.generationStep,
           assessed: selected.assessed,
           pending: selected.pending,
-          messages: messages.slice(Math.max(0, end - 20), end).map(message => ({
+          messages: messages.slice(start).map(message => ({
             ...message,
             question: message.question ? {
               ...message.question,
@@ -224,7 +237,7 @@ Page({
       current,
       headerTitle: selected ? selected.kind === "assessment" ? "水平测评" : `第 ${selected.number} 课` : "学习",
       steps: sessionSteps(selected),
-      hasOlder: end > 20,
+      hasOlder: start > 0,
       sessionIndex: Math.max(0, state.sessions.length - 1 - state.sessions.findIndex((s) => s.id === this.selected)),
       sessions: [...state.sessions]
         .reverse()
@@ -233,8 +246,11 @@ Page({
       hasAssessment: state.sessions.some((s) => s.kind === "assessment"),
       label: current ? phaseLabel[current.phase] : "",
       readonly: !!selected && closed(selected),
+      memoryPending: !!selected && closed(selected) && !state.memory.archivedSessions.includes(selected.id),
+      memoryError: selected?.memoryError || "",
       remaining: selected ? unresolved(selected).length : 0,
     }, () => {
+      rendered?.();
       if (scrollToBottom && this.alive) {
         wx.pageScrollTo({ scrollTop: 10000000, duration: 0 });
       }
@@ -249,16 +265,44 @@ Page({
     if (!selected) return;
     this.selected = selected.id;
     this.closeSidebar();
-    this.setData({ text: "", answer: "", selectedOption: "", error: "", historyPage: 0 });
+    this.setData({ text: "", answer: "", selectedOption: "", error: "", historyCount: 20 });
     this.refresh(true);
   },
   older() {
-    this.setData({ historyPage: this.data.historyPage + 1 });
-    this.refresh();
-  },
-  latest() {
-    this.setData({ historyPage: 0 });
-    this.refresh(true);
+    if (!this.alive || !this.data.hasOlder || this.data.loadingHistory ||
+        this.data.sidebarOpen || this.data.wordPanel) return;
+    const sid = this.selected;
+    const ticket = ++this.historyTicket;
+    const count = this.data.historyCount;
+    const anchorId = this.data.current?.messages[0]?.id;
+    this.setData({ loadingHistory: true });
+    const query = this.createSelectorQuery();
+    query.select(".bubble").boundingClientRect();
+    query.exec((rects) => {
+      const before = rects[0] as { top: number } | null;
+      if (!before || !this.alive || sid !== this.selected || ticket !== this.historyTicket) {
+        this.setData({ loadingHistory: false });
+        return;
+      }
+      const scrollTop = this.pageScrollTop;
+      this.setData({ historyCount: count + 20 });
+      this.refresh(false, () => {
+        this.createSelectorQuery().selectAll(".bubble").boundingClientRect().exec((rows) => {
+          if (!this.alive || sid !== this.selected || ticket !== this.historyTicket) {
+            this.setData({ loadingHistory: false });
+            return;
+          }
+          const bubbles = rows[0] as { top: number }[];
+          const added = this.data.current?.messages.findIndex(message => message.id === anchorId) ?? -1;
+          const anchor = bubbles?.[added];
+          if (!anchor) { this.setData({ loadingHistory: false }); return; }
+          const target = Math.max(0, scrollTop + anchor.top - before.top);
+          this.pageScrollTop = target;
+          wx.pageScrollTo({ scrollTop: target, duration: 0,
+            complete: () => this.setData({ loadingHistory: false }) });
+        });
+      });
+    });
   },
   start() {
     try {
@@ -269,12 +313,16 @@ Page({
       fail(error);
     }
   },
+  async retryMemory() {
+    const sid = this.selected;
+    await this.operate(() => learning.archiveMemory(sid));
+  },
   async newLesson() {
     if (this.data.busy) return;
     try {
       this.selected = learning.createLesson();
       this.closeSidebar();
-      this.setData({ text: "", answer: "", selectedOption: "", error: "", historyPage: 0 });
+      this.setData({ text: "", answer: "", selectedOption: "", error: "", historyCount: 20 });
       this.refresh();
       await this.advance();
     } catch (error) {
@@ -302,7 +350,6 @@ Page({
     } finally {
       this.setData({ busy: false });
       if (this.alive) {
-        this.setData({ historyPage: 0 });
         this.refresh();
         if (success) wx.pageScrollTo({ scrollTop: 10000000, duration: 200 });
         if (success && this.data.current?.phase === "exam-generating")

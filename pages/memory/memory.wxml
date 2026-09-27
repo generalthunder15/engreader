@@ -1,43 +1,45 @@
 <view class="page" style="{{themeStyle}}">
-  <view class="eyebrow">YOUR LEARNING MEMORY</view>
-  <view class="heading">每一课，都有积累</view>
+  <view class="heading">MEMORY.md</view>
   <view class="sub">
-    所有学习对话共享这份记忆，每个对话保留自己的聊天。数据保存在本机，可通过设置导出备份。
+    所有课程共享的用户记忆。对话结束归档后更新，记录你的情况、偏好和学习经历。保存在本机，你可以直接阅读或纠正这份
+    Markdown 文档。
   </view>
-  <view class="section-title">你的情况与目标</view>
-  <view class="card">
-    <textarea show-confirm-bar="{{false}}"
-      class="field textarea"
-      value="{{profile}}"
-      bindinput="input"
-      maxlength="5000"
-      placeholder="补充或纠正你的基础、目标和学习偏好…"
-    />
-    <button class="primary full" bindtap="save">保存个人情况</button>
+  <view class="caption memory-time">{{updated}}</view>
+  <view wx:for="{{pending}}" wx:key="id" class="card">
+    <view>{{item.title}}</view>
+    <view class="sub">{{item.error}}</view>
+    <button
+      class="small"
+      bindtap="retry"
+      data-id="{{item.id}}"
+      disabled="{{busy}}"
+    >
+      {{busy ? '正在总结…' : '更新归档记忆'}}
+    </button>
   </view>
-  <view class="section-title">已掌握 · {{memory.mastered.length}}</view>
-  <view class="card">
-    <view wx:for="{{memory.mastered}}" wx:key="point" class="list-row">
-      ✓ {{item.point}}
-    </view>
-    <view wx:if="{{!memory.mastered.length}}" class="sub">
-      完成练习后，有答题证据的知识点会记录在这里。
-    </view>
+  <view wx:if="{{!editing}}" class="card memory-document">
+    <text class="markdown" user-select="{{true}}">
+      {{markdown || '归档一次测评或课程后，这里会显示你的记忆文档。'}}
+    </text>
   </view>
-  <view class="section-title">待巩固 · {{memory.weak.length}}</view>
-  <view class="card">
-    <view wx:for="{{memory.weak}}" wx:key="*this" class="list-row">
-      {{item}}
-    </view>
-    <view wx:if="{{!memory.weak.length}}" class="sub">
-      目前没有待巩固记录。
-    </view>
-  </view>
-  <view class="section-title">学过的文章 · {{memory.articles.length}}</view>
-  <view wx:for="{{memory.articles}}" wx:key="sessionId" class="card">
-    <view class="menu-title">{{item.title}}</view>
-    <view class="sub">{{item.summary}}</view>
+  <textarea
+    wx:else
+    class="field memory-editor"
+    value="{{draft}}"
+    bindinput="input"
+    maxlength="16000"
+    show-confirm-bar="{{false}}"
+    auto-height
+    placeholder="# 用户记忆"
+  />
+  <view class="memory-actions">
+    <button wx:if="{{!editing}}" bindtap="edit" disabled="{{busy}}">
+      编辑文档
+    </button>
+    <block wx:else>
+      <button bindtap="cancel">取消</button>
+      <button class="primary" bindtap="save">保存文档</button>
+    </block>
   </view>
 </view>
-
 <app-dialog id="app-dialog" style="{{themeStyle}}" />

@@ -1,3 +1,5 @@
+import { migrateMemory } from "./learning-memory";
+import type { LearningRound } from "./learning-memory";
 import { Message, record, strings } from "./models";
 
 export const AI_BOOK = "ai_learning";
@@ -77,18 +79,17 @@ export interface Session {
   attempt: Attempt | null;
   evidence: Evidence[];
   assessmentEvidence: Evidence[];
-  contextSummary?: string;
+  introduction?: string;
+  rounds?: LearningRound[];
+  requests?: string[];
+  archiveSummary?: string;
+  memoryError?: string;
 }
 export interface Memory {
-  profile: string;
-  mastered: {
-    point: string;
-    sessionId: string;
-    evidenceId: string;
-    at: number;
-  }[];
-  weak: string[];
-  articles: { sessionId: string; title: string; summary: string }[];
+  markdown: string;
+  revision: number;
+  updatedAt: number;
+  archivedSessions: string[];
 }
 export interface Learning {
   version: 1;
@@ -98,7 +99,7 @@ export interface Learning {
 export const emptyLearning = (): Learning => ({
   version: 1,
   sessions: [],
-  memory: { profile: "", mastered: [], weak: [], articles: [] },
+  memory: { markdown: "", revision: 0, updatedAt: 0, archivedSessions: [] },
 });
 export const closed = (s: Session): boolean =>
   s.phase === "complete" || s.phase === "archived";
@@ -148,6 +149,9 @@ export function canStart(state: Learning): boolean {
     state.sessions.some(
       (s) => s.kind === "assessment" && s.phase === "archived",
     ) &&
+    state.sessions
+      .filter(closed)
+      .every((s) => state.memory.archivedSessions.includes(s.id)) &&
     state.sessions.every(
       (s) => s.kind !== "lesson" || (s.phase === "complete" && complete(s)),
     )
@@ -217,8 +221,17 @@ export function parseExercise(raw: unknown, id: string): Exercise {
     id,
     type: q.type as Exercise["type"],
     title: required(q.title, "题干"),
-    ...([q.material, q.passage, q.context].some(v => typeof v === "string" && v.trim())
-      ? { material: String([q.material, q.passage, q.context].find(v => typeof v === "string" && v.trim())).trim() } : {}),
+    ...([q.material, q.passage, q.context].some(
+      (v) => typeof v === "string" && v.trim(),
+    )
+      ? {
+          material: String(
+            [q.material, q.passage, q.context].find(
+              (v) => typeof v === "string" && v.trim(),
+            ),
+          ).trim(),
+        }
+      : {}),
     options: q.type === "choice" ? options : [],
     answer,
     explanation: required(q.explanation, "解析"),
@@ -247,15 +260,38 @@ export function parseGrades(raw: unknown, questions: Exercise[]): Grade[] {
     };
   });
 }
-export function sessionSteps(s: Session | null): { label: string; status: "done" | "current" | "pending" }[] {
+export function sessionSteps(
+  s: Session | null,
+): { label: string; status: "done" | "current" | "pending" }[] {
   if (!s) return [];
   const assessment = s.kind === "assessment";
-  const labels = assessment ? ["介绍", "测评", "报告"] : ["生成", "阅读·闯关", "答卷", "批改", "复测", "完成"];
+  const labels = assessment
+    ? ["介绍", "测评", "报告"]
+    : ["生成", "阅读·闯关", "答卷", "批改", "复测", "完成"];
   const index = assessment
-    ? (s.phase === "intro" ? 0 : s.phase === "assessment" ? 1 : 2)
-    : ({ generating: 0, "exam-generating": 0, reading: 1, teaching: 0, exam: 2, grading: 3, remediation: 4, complete: 5 } as Partial<Record<Phase, number>>)[s.phase] ?? 0;
+    ? s.phase === "intro"
+      ? 0
+      : s.phase === "assessment"
+        ? 1
+        : 2
+    : ((
+        {
+          generating: 0,
+          "exam-generating": 0,
+          reading: 1,
+          teaching: 0,
+          exam: 2,
+          grading: 3,
+          remediation: 4,
+          complete: 5,
+        } as Partial<Record<Phase, number>>
+      )[s.phase] ?? 0);
   const finished = s.phase === "complete" || s.phase === "archived";
-  return labels.map((label, i) => ({ label, status: finished || i < index ? "done" : i === index ? "current" : "pending" }));
+  return labels.map((label, i) => ({
+    label,
+    status:
+      finished || i < index ? "done" : i === index ? "current" : "pending",
+  }));
 }
 
 export const phaseLabel: Record<Phase, string> = {
@@ -277,36 +313,16 @@ export function validateLearningBackup(
   raw: unknown,
   data: Record<string, unknown>,
 ): void {
-  const state = record(raw),
-    memory = record(state.memory);
-  if (
-    state.version !== 1 ||
-    !Array.isArray(state.sessions) ||
-    typeof memory.profile !== "string" ||
-    !Array.isArray(memory.mastered) ||
-    !Array.isArray(memory.weak) ||
-    !Array.isArray(memory.articles)
-  )
+  const state = record(raw);
+  if (state.version !== 1 || !Array.isArray(state.sessions))
     throw new Error("学习备份结构不完整");
+  const memory = migrateMemory(state.memory, state.sessions as Session[]);
   if (
-    memory.weak.some((v) => typeof v !== "string") ||
-    memory.mastered.some((v) => {
-      const r = record(v);
-      return (
-        typeof r.point !== "string" ||
-        typeof r.sessionId !== "string" ||
-        typeof r.evidenceId !== "string" ||
-        typeof r.at !== "number"
-      );
-    }) ||
-    memory.articles.some((v) => {
-      const r = record(v);
-      return (
-        typeof r.sessionId !== "string" ||
-        typeof r.summary !== "string" ||
-        typeof r.title !== "string"
-      );
-    })
+    typeof memory.markdown !== "string" ||
+    !Number.isFinite(memory.revision) ||
+    !Number.isFinite(memory.updatedAt) ||
+    !Array.isArray(memory.archivedSessions) ||
+    memory.archivedSessions.some((id) => typeof id !== "string")
   )
     throw new Error("长期记忆格式不正确");
   const ids = new Set<string>();
@@ -380,8 +396,7 @@ export function validateLearningBackup(
         !s.attempt.submittedAt ||
         !Array.isArray(s.attempt.grades) ||
         questions.some(
-          (q) =>
-            typeof record(s.attempt!.answers)[q.id] !== "string",
+          (q) => typeof record(s.attempt!.answers)[q.id] !== "string",
         )
       )
         throw new Error("答卷不完整");
@@ -433,16 +448,6 @@ export function discardLegacySessions(state: Learning): Learning {
   return {
     ...state,
     sessions,
-    memory: sessions.length
-      ? {
-          ...state.memory,
-          mastered: state.memory.mastered.filter(
-            (v) => !retired.has(v.sessionId),
-          ),
-          articles: state.memory.articles.filter(
-            (v) => !retired.has(v.sessionId),
-          ),
-        }
-      : emptyLearning().memory,
+    memory: sessions.length ? state.memory : emptyLearning().memory,
   };
 }

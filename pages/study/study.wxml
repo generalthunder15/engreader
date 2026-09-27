@@ -70,13 +70,8 @@
         </button>
       </view>
     </view>
-    <view class="row lesson-actions">
-      <button wx:if="{{hasOlder}}" class="small ghost" bindtap="older">
-        查看更早记录
-      </button>
-      <button wx:if="{{historyPage}}" class="small ghost" bindtap="latest">
-        回到最新记录
-      </button>
+    <view wx:if="{{current.messages.length}}" class="history-status">
+      {{loadingHistory ? '正在加载…' : hasOlder ? '下拉查看更早的对话' : '已显示全部对话'}}
     </view>
     <view
       wx:for="{{current.messages}}"
@@ -117,7 +112,7 @@
           class="field textarea"
           value="{{answer}}"
           bindinput="answer"
-          placeholder="{{current.pending.type === 'choice' ? '补充你的思路或疑问（选填）…' : '在这里填写答案…'}}"
+          placeholder="{{current.pending.type === 'choice' ? '补充思路、疑问或后续出题要求（选填）…' : '在这里填写答案…'}}"
           maxlength="5000"
           show-confirm-bar="{{false}}"
           disabled="{{busy}}"
@@ -160,6 +155,7 @@
         {{current.phase === 'intro' ? '介绍好了，开始测评' : '发送'}}
       </button>
     </view>
+    <view wx:if="{{memoryPending}}" class="card"><view class="sub">{{memoryError || '对话已结束，等待更新归档记忆。'}}</view><button bindtap="retryMemory" disabled="{{busy}}">更新归档记忆 / 重试</button></view>
     <view wx:if="{{readonly}}" class="sub">
       这段对话已归档，可以随时回来查看。
     </view>

@@ -1,3 +1,4 @@
+import { shortMemory, archiveInput } from "../core/learning-memory";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { installStorage } from "./helpers";
@@ -16,24 +17,41 @@ import {
 } from "../core/learning";
 let mock: ReturnType<typeof installStorage>;
 let sentMessages: any[];
+let memoryResponder: (prompt: string, context: any) => unknown;
+let classifier: (text: string) => unknown;
 let responder: (prompt: string, context: any) => unknown;
 beforeEach(() => {
   mock = installStorage();
   store.saveSettings({ apiKey: "test-key" });
+  memoryResponder = () =>
+    "# 用户记忆\n\n## 学习经历\n完成本次学习，偏好清晰解释。";
+  classifier = (text) => ({ question: text, request: "" });
   responder = () => {
     throw new Error("unexpected request");
   };
   Object.assign(mock.wx, {
     request(o: any) {
       sentMessages = o.data.messages;
-      const result = responder(
-        o.data.messages[0].content,
-        JSON.parse(o.data.messages[1].content),
-      );
+      const prompt = o.data.messages[0].content,
+        context = JSON.parse(o.data.messages[1].content);
+      const result = !o.data.response_format
+        ? memoryResponder(prompt, context)
+        : prompt.startsWith("你只分类")
+          ? classifier(context.supplement)
+          : responder(prompt, context);
       if (result instanceof Error) return o.fail({ errMsg: "timeout" });
       o.success({
         statusCode: 200,
-        data: { choices: [{ message: { content: JSON.stringify(result) } }] },
+        data: {
+          choices: [
+            {
+              message: {
+                content:
+                  typeof result === "string" ? result : JSON.stringify(result),
+              },
+            },
+          ],
+        },
       });
     },
   });
@@ -58,6 +76,7 @@ function unlock() {
   s.phase = "archived";
   s.assessed = 24;
   state.sessions.push(s);
+  state.memory.archivedSessions.push(s.id);
   store.write(learning.KEY, state);
 }
 function article() {
@@ -74,10 +93,17 @@ function article() {
 }
 function exerciseResponder(_p: string, c: any) {
   return c.section
-    ? question("Question " + c.section.id + " " + c.section.questions.length,
+    ? question(
+        "Question " + c.section.id + " " + c.section.questions.length,
         c.section.id === "translation" ? "translation" : "choice",
-        c.section.questions.length < 2 ? "en-zh" : "zh-en")
-    : { title: "Cloze material", material: "A passage " + Array.from({ length: 10 }, (_, i) => `[${i + 1}]`).join(" ") };
+        c.section.questions.length < 2 ? "en-zh" : "zh-en",
+      )
+    : {
+        title: "Cloze material",
+        material:
+          "A passage " +
+          Array.from({ length: 10 }, (_, i) => `[${i + 1}]`).join(" "),
+      };
 }
 async function preparedLesson(): Promise<string> {
   unlock();
@@ -113,7 +139,7 @@ test("AI book starts empty and retired study data is discarded idempotently", ()
   assert.equal(store.book(AI_BOOK)?.chapterCount, 0);
   assert.equal(store.books().length, 1);
   assert.equal(learning.load().sessions.length, 0);
-  assert.equal(learning.load().memory.profile, "");
+  assert.equal(learning.load().memory.markdown, "");
   assert.equal(store.read("study_state", null), null);
   assert.equal(canStart(learning.load()), false);
 });
@@ -123,7 +149,8 @@ test("introduction precedes 24 questions, answers persist before the next reques
   responder = () => question();
   await learning.beginAssessment(sid, "准备考研，语法薄弱");
   assert.equal(learning.session(sid).assessed, 0);
-  assert.equal(learning.load().memory.profile, "准备考研，语法薄弱");
+  assert.equal(learning.load().memory.markdown, "");
+  assert.equal(learning.session(sid).introduction, "准备考研，语法薄弱");
   for (let n = 0; n < 24; n++) {
     responder = (_p, c) => ({
       grades: [
@@ -213,14 +240,14 @@ test("full exam generation, AI grading and targeted remediation enforce the less
   await learning.continueConversation(sid, "A", true);
   assert.equal(learning.session(sid).phase, "complete");
   assert.equal(canStart(learning.load()), true);
-  assert.equal(learning.load().memory.articles.length, 1);
-  assert.ok(learning.load().memory.mastered.some((v) => v.point === "时态"));
+  assert.ok(learning.load().memory.archivedSessions.includes(sid));
+  assert.match(learning.load().memory.markdown, /用户记忆/);
   const backup = store.exportBackup();
   store.importBackup(backup);
   const next = learning.createLesson();
   assert.equal(learning.session(next).number, 2);
   assert.equal(learning.session(next).messages.length, 0);
-  assert.equal(learning.load().memory.articles.length, 1);
+  assert.ok(learning.load().memory.archivedSessions.includes(sid));
 });
 
 test("all-correct exam completes immediately; missing or duplicate grades never pass", async () => {
@@ -238,7 +265,7 @@ test("all-correct exam completes immediately; missing or duplicate grades never 
   });
   await learning.gradeExam(sid);
   assert.equal(learning.session(sid).phase, "complete");
-  assert.ok(learning.load().memory.mastered.length > 0);
+  assert.match(learning.load().memory.markdown, /用户记忆/);
   const qs = s.sections.flatMap((v) => v.questions);
   assert.throws(
     () =>
@@ -267,10 +294,7 @@ test("a failed exam step preserves previous material and retries only its questi
   responder = () => new Error("timeout");
   await assert.rejects(learning.generateStep(sid));
   assert.equal(learning.session(sid).generationStep, 1);
-  assert.equal(
-    learning.session(sid).sections[0].material,
-    article().text,
-  );
+  assert.equal(learning.session(sid).sections[0].material, article().text);
   responder = () => question();
   await learning.generateStep(sid);
   assert.equal(learning.session(sid).generationStep, 2);
@@ -307,7 +331,7 @@ test("third and sixth lessons are review lessons and old backups cannot leave un
     data: { book_index: [], study_state: { profile: "restored" } },
   });
   assert.equal(learning.load().sessions.length, 0);
-  assert.equal(learning.load().memory.profile, "");
+  assert.equal(learning.load().memory.markdown, "");
   assert.equal(store.read("study_state", null), null);
 });
 
@@ -380,7 +404,11 @@ test("reader exam component restores drafts, freezes submitted answers and persi
       id: "section",
       title: "Reading and translation",
       material: "A short passage.",
-      questions: [q1, q2, parseExercise(question("Fill a blank", "fill"), "blank")],
+      questions: [
+        q1,
+        q2,
+        parseExercise(question("Fill a blank", "fill"), "blank"),
+      ],
     },
   ];
   store.saveChapter({
@@ -427,10 +455,16 @@ test("reader exam component restores drafts, freezes submitted answers and persi
   assert.equal(reopened.data.graded, false);
   reopened.pick({ currentTarget: { dataset: { id: "choice", value: "A" } } });
   assert.equal(reopened.data.answers.choice, "B");
-  reopened.fill({ currentTarget: { dataset: { id: "blank" } }, detail: { value: "late answer" } });
+  reopened.fill({
+    currentTarget: { dataset: { id: "blank" } },
+    detail: { value: "late answer" },
+  });
   assert.equal(reopened.data.answers.blank, "");
   const locked = mount();
-  locked.fill({ currentTarget: { dataset: { id: "blank" } }, detail: { value: "late again" } });
+  locked.fill({
+    currentTarget: { dataset: { id: "blank" } },
+    detail: { value: "late again" },
+  });
   assert.equal(locked.data.answers.blank, "");
   responder = (_p, c) => ({
     grades: c.sections
@@ -460,7 +494,8 @@ test("opening a new lesson stops at reading instead of trying to skip its word c
   Object.assign(mock.wx, { pageScrollTo() {} });
   await import("../pages/study/study");
   unlock();
-  responder = (p, c) => p.includes("全新英文文章") ? article() : exerciseResponder(p, c);
+  responder = (p, c) =>
+    p.includes("生成本课英文文章") ? article() : exerciseResponder(p, c);
   const page: any = {
     ...definition,
     data: structuredClone(definition.data),
@@ -481,7 +516,7 @@ test("cleanup and backup restore remove migrated legacy conversations but preser
   unlock();
   const sid = learning.createLesson();
   const state = learning.load();
-  state.memory.profile = "Current learning goal";
+  state.memory.markdown = "Current learning goal";
   state.sessions.push({
     ...newSession("legacy_study", "assessment"),
     kind: "legacy",
@@ -492,7 +527,7 @@ test("cleanup and backup restore remove migrated legacy conversations but preser
   learning.initialize();
   assert.equal(learning.session(sid).phase, "generating");
   assert.equal(learning.load().sessions.length, 2);
-  assert.equal(learning.load().memory.profile, "Current learning goal");
+  assert.equal(learning.load().memory.markdown, "Current learning goal");
   assert.equal(store.read("study_state", null), null);
   const backup = store.exportBackup();
   backup.data[learning.KEY] = state;
@@ -507,7 +542,10 @@ test("questions are prepared with the article but remain inaccessible until word
   const sid = await preparedLesson();
   let s = learning.session(sid);
   assert.equal(s.generationStep, 21);
-  assert.deepEqual(s.sections.map(v => v.questions.length), [5, 10, 4]);
+  assert.deepEqual(
+    s.sections.map((v) => v.questions.length),
+    [5, 10, 4],
+  );
   assert.equal(s.sections[0].material, article().text);
   assert.equal(s.phase, "reading");
   assert.equal(s.pending, null);
@@ -515,7 +553,7 @@ test("questions are prepared with the article but remain inaccessible until word
   assert.equal(store.chapter(AI_BOOK, s.examId), null);
   assert.throws(() => learning.unlockExam(sid), /闯关/);
   assert.throws(() => learning.submitExam(sid, answers(s)), /尚未准备/);
-  assert.ok(s.messages.some(m => m.articleId === s.articleId));
+  assert.ok(s.messages.some((m) => m.articleId === s.articleId));
   store.importBackup(store.exportBackup());
   assert.equal(learning.session(sid).phase, "reading");
   store.completeChapter(AI_BOOK, s.articleId);
@@ -545,7 +583,7 @@ test("finishing word challenge while generation is in progress unlocks the paper
 test("legacy teaching sessions skip conversation practice and retain history and generated material", async () => {
   const sid = await preparedLesson();
   const state = learning.load();
-  const s = state.sessions.find(s => s.id === sid)!;
+  const s = state.sessions.find((s) => s.id === sid)!;
   s.phase = "teaching";
   s.pending = parseExercise(question(), "retired-question");
   const messages = structuredClone(s.messages);
@@ -565,37 +603,304 @@ test("partial lesson submission locks all answers including blanks and requires 
   learning.submitExam(sid, { [qid]: "A" });
   const submitted = learning.session(sid);
   assert.equal(Object.keys(submitted.attempt!.answers).length, 19);
-  assert.equal(Object.values(submitted.attempt!.answers).filter(v => v === "").length, 18);
+  assert.equal(
+    Object.values(submitted.attempt!.answers).filter((v) => v === "").length,
+    18,
+  );
   assert.throws(() => learning.submitExam(sid, answers(s)), /已提交/);
   store.importBackup(store.exportBackup());
-  responder = (_p, c) => ({ grades: c.sections.flatMap((s: any) => s.questions).map((q: Exercise) => ({ id: q.id, correct: true, feedback: "反馈" })) });
+  responder = (_p, c) => ({
+    grades: c.sections
+      .flatMap((s: any) => s.questions)
+      .map((q: Exercise) => ({ id: q.id, correct: true, feedback: "反馈" })),
+  });
   await learning.gradeExam(sid);
-  assert.equal(learning.session(sid).attempt!.grades.filter(g => !g.correct).length, 18);
+  assert.equal(
+    learning.session(sid).attempt!.grades.filter((g) => !g.correct).length,
+    18,
+  );
   assert.equal(learning.session(sid).phase, "remediation");
   assert.equal(canStart(learning.load()), false);
 });
 
 test("assessment retains supporting material and discards ambiguous questions without penalizing the learner", async () => {
   const sid = learning.createAssessment();
-  responder = () => ({ ...question(), material: "He drinks water every morning." });
+  responder = () => ({
+    ...question(),
+    material: "He drinks water every morning.",
+  });
   await learning.beginAssessment(sid, "想学习语法");
-  assert.equal(learning.session(sid).pending?.material, "He drinks water every morning.");
-  assert.equal(learning.session(sid).messages.at(-1)?.question?.material, "He drinks water every morning.");
+  assert.equal(
+    learning.session(sid).pending?.material,
+    "He drinks water every morning.",
+  );
+  assert.equal(
+    learning.session(sid).messages.at(-1)?.question?.material,
+    "He drinks water every morning.",
+  );
   responder = (prompt, c) => {
     assert.equal(c.question.material, "He drinks water every morning.");
     assert.equal(c.question.answer, undefined);
     assert.equal(c.reference.answer, "A");
     assert.equal(c.answer, "B");
-    assert.equal(c.supplement, "B C D 语法都正确");
-    assert.match(prompt, /不能补充题面缺失/);
-    return { validQuestion: false, grades: [{ id: c.question.id, correct: false, feedback: "题目有多个语法正确的选项，无法唯一作答。" }] };
+    assert.equal(c.supplement.question, "B C D 语法都正确");
+    assert.match(prompt, /不可充当隐藏条件/);
+    return {
+      validQuestion: false,
+      grades: [
+        {
+          id: c.question.id,
+          correct: false,
+          feedback: "题目有多个语法正确的选项，无法唯一作答。",
+        },
+      ],
+    };
   };
   await learning.continueConversation(sid, "B", true, "B C D 语法都正确");
   assert.equal(learning.session(sid).assessed, 0);
   assert.equal(learning.session(sid).assessmentEvidence.length, 0);
   assert.equal(learning.session(sid).pending, null);
-  assert.equal(learning.load().memory.weak.length, 0);
+  assert.equal(learning.load().memory.markdown, "");
   responder = () => question("A replacement question");
   await learning.continueConversation(sid);
   assert.equal(learning.session(sid).pending?.title, "A replacement question");
+});
+
+test("supplements can contain both a question and a future request; explanations and noise never enter short memory", async () => {
+  const sid = learning.createAssessment();
+  responder = () => question("He ____ to school.");
+  await learning.beginAssessment(sid, "基础薄弱，每天20分钟");
+  const before = structuredClone(learning.load().memory);
+  classifier = () => ({
+    question: "为什么不能选B",
+    request: "后面的题简单一点，重点考过去时",
+  });
+  responder = (_p, c) => {
+    assert.equal(c.supplement.request, "后面的题简单一点，重点考过去时");
+    assert.equal(c.supplement.question, "为什么不能选B");
+    assert.equal(c.reference.explanation, undefined);
+    return {
+      grades: [
+        { id: c.question.id, correct: false, feedback: "ONLY_UI_EXPLANATION" },
+      ],
+    };
+  };
+  await learning.continueConversation(
+    sid,
+    "B",
+    true,
+    "为什么不能选B？后面的题简单一点，重点考过去时。NOISE",
+  );
+  assert.deepEqual(learning.load().memory, before);
+  responder = (_p, c) => {
+    const serialized = JSON.stringify(c);
+    assert.doesNotMatch(serialized, /ONLY_UI_EXPLANATION|NOISE|解释这个知识点/);
+    assert.deepEqual(c.context.shortTerm.requirements, [
+      "后面的题简单一点，重点考过去时",
+    ]);
+    assert.equal(c.context.shortTerm.rounds[0].answer, "B");
+    return question("A past tense exercise");
+  };
+  await learning.continueConversation(sid);
+  assert.equal(learning.session(sid).pending!.title, "A past tense exercise");
+  classifier = () => ({ question: "", request: "" });
+  responder = (_p, c) => ({
+    grades: [{ id: c.question.id, correct: true, feedback: "解析" }],
+  });
+  await learning.continueConversation(sid, "A", true, "UNRELATED_WEATHER");
+  const memory = shortMemory(learning.session(sid));
+  assert.doesNotMatch(
+    JSON.stringify(memory),
+    /UNRELATED_WEATHER|ONLY_UI_EXPLANATION/,
+  );
+  assert.ok(
+    learning
+      .session(sid)
+      .messages.some((m) => m.content.includes("UNRELATED_WEATHER")),
+    "history remains available to the user",
+  );
+  assert.doesNotMatch(
+    JSON.stringify(archiveInput(learning.session(sid))),
+    /UNRELATED_WEATHER|ONLY_UI_EXPLANATION/,
+  );
+});
+
+test("classification failure preserves pending answer for retry without changing memory or progress", async () => {
+  const sid = learning.createAssessment();
+  responder = () => question();
+  await learning.beginAssessment(sid, "初学者");
+  const before = learning.session(sid);
+  classifier = () => ({ wrong: "schema" });
+  await assert.rejects(
+    learning.continueConversation(sid, "B", true, "简单点"),
+    /分类失败/,
+  );
+  assert.deepEqual(learning.session(sid), before);
+  assert.equal(learning.load().memory.markdown, "");
+});
+
+test("archive failure leaves completion durable, retry merges once, and archived memory reaches the next lesson", async () => {
+  const sid = await generatedLesson();
+  learning.submitExam(sid, answers(learning.session(sid)));
+  responder = (_p, c) => ({
+    grades: c.sections
+      .flatMap((v: any) => v.questions)
+      .map((q: Exercise) => ({ id: q.id, correct: true, feedback: "正确" })),
+  });
+  let calls = 0;
+  memoryResponder = (_p, c) => {
+    calls++;
+    return c.previousMarkdown !== undefined
+      ? new Error("timeout")
+      : "# 本次经历\n用户偏好慢节奏。";
+  };
+  await learning.gradeExam(sid);
+  assert.equal(learning.session(sid).phase, "complete");
+  assert.ok(learning.session(sid).memoryError);
+  assert.equal(learning.load().memory.markdown, "");
+  assert.equal(canStart(learning.load()), false);
+  assert.equal(calls, 2);
+  memoryResponder = (_p, c) => {
+    calls++;
+    assert.match(c.archivedConversation, /慢节奏/);
+    return "# 用户记忆\n偏好慢节奏。";
+  };
+  await learning.archiveMemory(sid);
+  await learning.archiveMemory(sid);
+  assert.equal(
+    calls,
+    3,
+    "retry reuses the durable archive summary; success is idempotent",
+  );
+  assert.equal(canStart(learning.load()), true);
+  assert.equal(learning.session(sid).memoryError, "");
+  const next = learning.createLesson();
+  responder = (_p, c) => {
+    assert.match(c.memoryMarkdown, /慢节奏/);
+    assert.equal(c.shortTerm.rounds.length, 0);
+    return article();
+  };
+  await learning.generateStep(next);
+});
+
+test("in-flight archive cannot overwrite a manual memory edit", async () => {
+  unlock();
+  const state = learning.load();
+  state.memory.archivedSessions = [];
+  state.sessions[0].archiveSummary = "# 本次经历\n测评结束";
+  store.write(learning.KEY, state);
+  memoryResponder = () => {
+    learning.updateMemory("# 用户亲自更正\n每天只有10分钟");
+    return "# 过期结果\n每天一小时";
+  };
+  await assert.rejects(learning.archiveMemory("assessment"), /已变更/);
+  assert.match(learning.load().memory.markdown, /10分钟/);
+  assert.equal(learning.load().memory.archivedSessions.length, 0);
+});
+
+test("old memory migrates once without treating active lessons as archived experiences", () => {
+  const assessed = newSession("old-assessment", "assessment");
+  assessed.phase = "archived";
+  assessed.assessed = 24;
+  const active = newSession("old-lesson", "lesson", 1);
+  active.summary = "ACTIVE_ARTICLE";
+  store.write(learning.KEY, {
+    version: 1,
+    sessions: [assessed, active],
+    memory: {
+      profile: "用户自述，每天20分钟",
+      mastered: [
+        {
+          point: "MASTERY_CLAIM",
+          sessionId: active.id,
+          evidenceId: "q",
+          at: 1,
+        },
+      ],
+      weak: [],
+      articles: [
+        { sessionId: active.id, title: "正在学", summary: "ACTIVE_ARTICLE" },
+      ],
+    },
+  });
+  const migrated = learning.load();
+  assert.match(migrated.memory.markdown, /每天20分钟/);
+  assert.doesNotMatch(migrated.memory.markdown, /MASTERY_CLAIM|ACTIVE_ARTICLE/);
+  assert.deepEqual(migrated.memory.archivedSessions, [assessed.id]);
+  assert.deepEqual(learning.load(), migrated);
+});
+
+test("short-memory window preserves old requirements without leaking another session or answer explanations", () => {
+  const s = newSession("bounded", "assessment");
+  s.introduction = "基础薄弱";
+  s.rounds = Array.from({ length: 30 }, (_, i) => ({
+    question: {
+      id: String(i),
+      type: "choice" as const,
+      title: "Question " + i + " long title",
+      options: ["a", "b", "c", "d"],
+    },
+    answer: "A",
+    correct: true,
+    supplement: { question: "", request: i === 0 ? "下一阶段考过去时" : "" },
+  }));
+  const context = shortMemory(s, 500);
+  assert.ok(context.rounds.length < 30);
+  assert.equal(context.rounds.length + context.earlierQuestions.length, 30);
+  assert.deepEqual(context.requirements, ["下一阶段考过去时"]);
+  const other = shortMemory(newSession("other", "lesson", 2));
+  assert.equal(other.rounds.length, 0);
+  assert.equal(other.requirements.length, 0);
+});
+
+test("invalid questions without a grade array are discarded, not stuck in a grading retry", async () => {
+  const sid = learning.createAssessment();
+  responder = () => question();
+  await learning.beginAssessment(sid, "基础薄弱");
+  responder = () => ({ validQuestion: false, grades: [] });
+  await learning.continueConversation(sid, "A", true);
+  assert.equal(learning.session(sid).pending, null);
+  assert.equal(learning.session(sid).assessed, 0);
+  assert.equal(learning.session(sid).rounds![0].correct, null);
+});
+
+test("invalid rounds keep chronological requests and the latest repeated preference wins", () => {
+  const s = newSession("ordered", "assessment");
+  const qa = parseExercise(question("Invalid"), "first");
+  const qb = parseExercise(question("Valid"), "second");
+  s.assessmentEvidence = [
+    {
+      point: "时态",
+      question: qb,
+      answer: "A",
+      correct: true,
+      feedback: "EXPLANATION",
+      at: 1,
+    },
+  ];
+  s.rounds = [qa, qb, { ...qa, id: "third" }].map((q, i) => ({
+    question: { id: q.id, type: q.type, title: q.title, options: q.options },
+    answer: "A",
+    correct: i === 0 ? null : true,
+    supplement: { question: "", request: i === 1 ? "难一些" : "简单些" },
+  }));
+  const memory = shortMemory(s);
+  assert.deepEqual(
+    memory.rounds.map((r) => r.question.id),
+    ["first", "second", "third"],
+  );
+  assert.deepEqual(memory.requirements, ["难一些", "简单些"]);
+  assert.doesNotMatch(JSON.stringify(memory), /EXPLANATION/);
+});
+
+test("archiving an active session cannot call the model or change shared memory", async () => {
+  const sid = learning.createAssessment();
+  let called = false;
+  memoryResponder = () => {
+    called = true;
+    return "# 不应生成";
+  };
+  await assert.rejects(learning.archiveMemory(sid), /结束归档/);
+  assert.equal(called, false);
+  assert.equal(learning.load().memory.markdown, "");
 });
