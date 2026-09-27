@@ -569,8 +569,7 @@ export function submitExam(sid: string, answers: Record<string, string>): void {
     throw new Error("试卷尚未完整");
   const snapshot: Record<string, string> = {};
   for (const q of questions) {
-    if (!answers[q.id]?.trim()) throw new Error("请完成所有题目再提交");
-    snapshot[q.id] = answers[q.id];
+    snapshot[q.id] = answers[q.id]?.trim() || "";
   }
   s.attempt = { answers: snapshot, submittedAt: Date.now(), grades: [] };
   s.phase = "grading";
@@ -582,13 +581,14 @@ export async function gradeExam(sid: string): Promise<void> {
     if (s.phase !== "grading" || !s.attempt)
       throw new Error("当前没有待批改试卷");
     const r = await askJSON(
-      '批改整份试卷，包括阅读、完型和翻译。翻译依据含义与关键语法评判，允许不同正确表达。必须覆盖每一道题。返回 {"grades":[{"id":"题目ID","correct":true,"feedback":"逐题中文判断依据和正确解法"}]}。',
+      '批改整份试卷，包括阅读、完型和翻译。翻译依据含义与关键语法评判，允许不同正确表达。空答案按未作答判错。必须覆盖每一道题。返回 {"grades":[{"id":"题目ID","correct":true,"feedback":"逐题中文判断依据和正确解法"}]}。',
       { sections: s.sections, answers: s.attempt.answers },
     );
     s.attempt.grades = parseGrades(
       r,
       s.sections.flatMap((v) => v.questions),
     );
+    s.attempt.grades = lockBlankGrades(s.attempt.grades, s.attempt.answers);
     // Only post-exam evidence may discharge exam mistakes.
     s.evidence = [];
     s.phase = complete(s) ? "complete" : "remediation";
@@ -602,19 +602,19 @@ export async function gradeExam(sid: string): Promise<void> {
     commit(s);
   });
 }
+function lockBlankGrades(grades: import("../core/learning").Grade[], answers: Record<string, string>) {
+  return grades.map(g => answers[g.id]?.trim() ? g : { ...g, correct: false, feedback: "未作答。" + g.feedback });
+}
 export async function gradeStandalone(
   sections: import("../core/learning").ExamSection[],
   attempt: Attempt,
 ): Promise<Attempt> {
   const r = await askJSON(
-    '批改试卷，翻译接受合理的同义表达。覆盖每道题，返回 {"grades":[{"id":"题目ID","correct":true,"feedback":"判断依据"}]}',
+    '批改试卷，翻译接受合理的同义表达。空答案按未作答判错。覆盖每道题，返回 {"grades":[{"id":"题目ID","correct":true,"feedback":"判断依据"}]}',
     { sections, answers: attempt.answers },
   );
   return {
     ...attempt,
-    grades: parseGrades(
-      r,
-      sections.flatMap((v) => v.questions),
-    ),
+    grades: lockBlankGrades(parseGrades(r, sections.flatMap(v => v.questions)), attempt.answers),
   };
 }

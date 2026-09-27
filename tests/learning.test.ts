@@ -380,7 +380,7 @@ test("reader exam component restores drafts, freezes submitted answers and persi
       id: "section",
       title: "Reading and translation",
       material: "A short passage.",
-      questions: [q1, q2],
+      questions: [q1, q2, parseExercise(question("Fill a blank", "fill"), "blank")],
     },
   ];
   store.saveChapter({
@@ -427,6 +427,11 @@ test("reader exam component restores drafts, freezes submitted answers and persi
   assert.equal(reopened.data.graded, false);
   reopened.pick({ currentTarget: { dataset: { id: "choice", value: "A" } } });
   assert.equal(reopened.data.answers.choice, "B");
+  reopened.fill({ currentTarget: { dataset: { id: "blank" } }, detail: { value: "late answer" } });
+  assert.equal(reopened.data.answers.blank, "");
+  const locked = mount();
+  locked.fill({ currentTarget: { dataset: { id: "blank" } }, detail: { value: "late again" } });
+  assert.equal(locked.data.answers.blank, "");
   responder = (_p, c) => ({
     grades: c.sections
       .flatMap((s: any) => s.questions)
@@ -441,6 +446,7 @@ test("reader exam component restores drafts, freezes submitted answers and persi
   assert.equal(reopened.data.correct, 2);
   const final = mount();
   assert.equal(final.data.graded, true);
+  assert.equal(final.data.grades.blank.correct, false);
   assert.equal(final.data.grades.translation.feedback, "意思准确，可以接受");
 });
 
@@ -550,4 +556,21 @@ test("legacy teaching sessions skip conversation practice and retain history and
   assert.deepEqual(migrated.messages, messages);
   assert.deepEqual(migrated.sections, s.sections);
   await assert.rejects(learning.continueConversation(sid), /不能/);
+});
+
+test("partial lesson submission locks all answers including blanks and requires remediation for omissions", async () => {
+  const sid = await generatedLesson();
+  const s = learning.session(sid);
+  const qid = s.sections[0].questions[0].id;
+  learning.submitExam(sid, { [qid]: "A" });
+  const submitted = learning.session(sid);
+  assert.equal(Object.keys(submitted.attempt!.answers).length, 19);
+  assert.equal(Object.values(submitted.attempt!.answers).filter(v => v === "").length, 18);
+  assert.throws(() => learning.submitExam(sid, answers(s)), /已提交/);
+  store.importBackup(store.exportBackup());
+  responder = (_p, c) => ({ grades: c.sections.flatMap((s: any) => s.questions).map((q: Exercise) => ({ id: q.id, correct: true, feedback: "反馈" })) });
+  await learning.gradeExam(sid);
+  assert.equal(learning.session(sid).attempt!.grades.filter(g => !g.correct).length, 18);
+  assert.equal(learning.session(sid).phase, "remediation");
+  assert.equal(canStart(learning.load()), false);
 });

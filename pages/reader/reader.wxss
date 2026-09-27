@@ -52,10 +52,10 @@
   font-size: var(--read-size, 36rpx);
   line-height: var(--read-line, 2.1);
   font-family: var(--font-read, Georgia, serif);
-  text-indent: var(--read-indent, 34rpx);
+  text-indent: 2ch;
   word-break: normal;
   overflow-wrap: break-word;
-  white-space: normal;
+  white-space: pre-wrap;
 }
 .token {
   display: inline;
@@ -218,3 +218,5 @@
 .reader-controls { left: 16rpx; right: 16rpx; bottom: 12rpx; border-radius: 32rpx; }
 .toc-current { border-radius: 22rpx; }
 .notes-sheet .note-source { border-radius: 20rpx; }
+
+.toc-exam.small { flex: 0 0 80rpx; width: 80rpx; min-width: 0; max-width: 80rpx; margin: 0; padding: 12rpx 0; }

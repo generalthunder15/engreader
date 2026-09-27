@@ -1,4 +1,4 @@
-<view class="exam">
+<view class="exam" bindtap="readTap">
   <view class="title">{{title}}</view>
   <view class="muted">
     {{submitted ? '答案已提交' : '答案自动保存'}} · {{answered}} / {{total}} 题
@@ -8,44 +8,41 @@
   </view>
   <view wx:for="{{sections}}" wx:key="id" wx:for-item="section" class="section">
     <view class="section-title">{{section.title}}</view>
-    <text wx:if="{{section.material}}" class="material" user-select>
-      {{section.material}}
-    </text>
+    <view wx:if="{{section.material}}" class="material"><reading-text text="{{section.material}}" indented="{{true}}" selection-key="{{section.id}}" active-key="{{selectionKey}}" bind:readtap="readTap" bind:selection="selectText" /></view>
     <view
       wx:for="{{section.questions}}"
       wx:key="id"
       wx:for-item="q"
       class="question"
     >
-      <view class="question-title">{{index + 1}}. {{q.title}}</view>
-      <block wx:if="{{q.type === 'choice'}}">
+      <view class="question-title"><reading-text text="{{index + 1 + '. ' + q.title}}" selection-key="{{q.id}}" active-key="{{selectionKey}}" bind:readtap="readTap" bind:selection="selectText" /></view>
+      <view wx:if="{{q.type === 'choice'}}" class="option-grid" data-id="{{q.id}}" style="grid-template-columns:repeat({{columns[q.id] || 1}}, minmax(0, 1fr))">
         <view
           wx:for="{{q.options}}"
           wx:key="index"
           wx:for-item="option"
           class="option {{answers[q.id] === (index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D') ? 'selected' : ''}}"
           aria-role="button"
-          aria-disabled="{{submitted}}"
+          aria-disabled="{{submitted || busy}}"
           data-id="{{q.id}}"
           data-value="{{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}"
-          bindtap="pick"
+          catchtap="pick"
         >
-          <text class="letter">
-            {{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}
-          </text>
-          <text>{{option}}</text>
+          <reading-text text="{{option}}" data-id="{{q.id}}" data-value="{{index === 0 ? 'A' : index === 1 ? 'B' : index === 2 ? 'C' : 'D'}}" selection-key="{{q.id + '-' + index}}" active-key="{{selectionKey}}" bind:readtap="pick" bind:selection="selectText" />
         </view>
-      </block>
+        <text wx:for="{{q.options}}" wx:key="index" class="option-measure" data-id="{{q.id}}" aria-hidden="true">{{item}}</text>
+      </view>
       <textarea show-confirm-bar="{{false}}"
         wx:else
         class="answer"
         value="{{answers[q.id] || ''}}"
         data-id="{{q.id}}"
         bindinput="fill"
+        catchtap="noop"
         disabled="{{submitted || busy}}"
         maxlength="5000"
         auto-height
-        placeholder="{{q.type === 'translation' ? '在这里写下你的翻译…' : '在这里填写答案…'}}"
+        placeholder="{{submitted ? '未作答' : q.type === 'translation' ? '在这里写下你的翻译…' : '在这里填写答案…'}}"
       />
       <view
         wx:if="{{grades[q.id]}}"
@@ -59,15 +56,12 @@
     </view>
   </view>
   <view wx:if="{{error}}" class="error">{{error}}</view>
-  <button
-    wx:if="{{!graded}}"
-    class="submit"
-    bindtap="submit"
-    disabled="{{busy}}"
-  >
-    {{busy ? '正在逐题批改，请稍候…' : submitted ? '重新批改' : '提交整份试卷'}}
-  </button>
-  <button wx:if="{{sessionId}}" class="return" bindtap="study">
-    返回本课对话{{graded ? '，继续学习' : ''}}
-  </button>
+  <view class="exam-actions">
+    <button class="submit {{submitted ? 'submitted' : ''}}" catchtap="submit" disabled="{{submitted || busy}}">{{submitted ? '已提交' : '提交试卷'}}</button>
+    <button class="return" catchtap="study">返回对话</button>
+  </view>
+  <view wx:if="{{submitted && !graded}}" class="grading-status">
+    <text>{{busy ? '正在批改，请稍候…' : '答卷已锁定，批改尚未完成。'}}</text>
+    <button wx:if="{{!busy}}" class="retry" catchtap="submit">重试批改</button>
+  </view>
 </view>

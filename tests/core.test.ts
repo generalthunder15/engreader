@@ -283,3 +283,26 @@ test("prepending chapters keeps token IDs ordered and chapter ranges correct", (
   assert.equal(flow.ranges()[0].cid, "middle");
   assert.equal(flow.ranges()[0].start, token.id);
 });
+
+test("reader renders source paragraphs without sentence breaks and preserves stored selection IDs", () => {
+  const ch = chapter("b");
+  ch.rawText = "First sentence.  Second sentence!\n\nNext paragraph. Another sentence.";
+  ch.tokens = tokenize(ch.rawText);
+  ch.translations = ["一", "二", "三", "四"];
+  const flow = new ReaderFlow();
+  flow.append(ch, [{ start: 0, end: 0, text: "First", createdAt: 1 }], []);
+  const paragraphs = flow.blocks.filter(b => b.type !== "title");
+  assert.equal(paragraphs.length, 2);
+  assert.equal(paragraphs[0].tokens.map(t => t.w + t.after).join(""), "First sentence.  Second sentence!");
+  assert.equal(paragraphs[0].translation, "一 二");
+  assert.equal(paragraphs[1].translation, "三 四");
+  assert.equal(flow.tokens[0].marked, true);
+  assert.equal(flow.sentence(flow.tokens[0].globalId).map(t => t.w).join(" "), "First sentence .");
+  assert.deepEqual(flow.tokens.map(t => [t.id, t.sid, t.w]), ch.tokens.paragraphs.flatMap(p => p.tokens).map(t => [t.id, t.sid, t.w]));
+  for (const book of seed.books) for (const source of book.chapters) {
+    const fresh = new ReaderFlow();
+    const tokens = tokenize(source.text);
+    fresh.append({ ...ch, rawText: source.text, tokens }, [], []);
+    assert.deepEqual(fresh.tokens.map(t => [t.id, t.sid, t.w]), tokens.paragraphs.flatMap(p => p.tokens).map(t => [t.id, t.sid, t.w]));
+  }
+});

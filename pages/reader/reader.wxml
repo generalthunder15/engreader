@@ -9,10 +9,10 @@
     wx:if="{{examChapter}}"
     book-id="{{readerBookId}}"
     chapter-id="{{examChapter}}"
+    selection-key="{{examSelectionKey}}"
+    bind:readtap="toggleControls"
+    bind:selection="selectExamText"
   />
-  <button wx:if="{{examChapter}}" class="load-more" bindtap="back">
-    返回书籍
-  </button>
   <view
     wx:if="{{!examChapter}}"
     class="reading-content"
@@ -29,7 +29,7 @@
       </view>
       <view wx:else class="paragraph">
         <!-- prettier-ignore -->
-        <view class="english"><block wx:for="{{block.tokens}}" wx:key="globalId" wx:for-item="token"><text id="tok-{{token.globalId}}" class="token {{token.marked ? 'marked' : ''}} {{token.selected ? 'selected' : ''}}" data-token="{{token.globalId}}" catchtap="noop" bindtouchstart="touchStart" bindtouchmove="touchMove" bindtouchend="touchEnd" bindlongpress="hold">{{token.w}}</text><text>{{token.sp ? ' ' : ''}}</text></block><view wx:if="{{block.notes.length}}" class="note-bubble" catchtap="openNotes" data-uid="{{block.uid}}" aria-role="button" aria-label="查看 {{block.notes.length}} 条笔记"><text class="note-count">{{block.notes.length}}</text><view class="note-pencil"></view></view></view>
+        <view class="english"><block wx:for="{{block.tokens}}" wx:key="globalId" wx:for-item="token"><text id="tok-{{token.globalId}}" class="token {{token.marked ? 'marked' : ''}} {{token.selected ? 'selected' : ''}}" data-token="{{token.globalId}}" catchtap="noop" bindtouchstart="touchStart" bindtouchmove="touchMove" bindtouchend="touchEnd" bindlongpress="hold">{{token.w}}</text><text>{{token.after}}</text></block><view wx:if="{{block.notes.length}}" class="note-bubble" catchtap="openNotes" data-uid="{{block.uid}}" aria-role="button" aria-label="查看 {{block.notes.length}} 条笔记"><text class="note-count">{{block.notes.length}}</text><view class="note-pencil"></view></view></view>
         <view
           wx:if="{{showTrans && block.translation}}"
           class="sentence-translation"
@@ -110,7 +110,7 @@
         hover-class="selection-action-hover"
         wx:for="{{actions}}"
         wx:key="id"
-        wx:if="{{!selectedIsWord || item.id !== 'favorite'}}"
+        wx:if="{{(!selectedIsWord || item.id !== 'favorite') && (!examChapter || item.id !== 'mark')}}"
         data-action="{{item.id}}"
         bindtap="action"
       >
@@ -147,6 +147,7 @@
         >
           <text class="caption">{{index + 1}}</text>
           <text class="grow">{{item.title}}</text>
+          <button wx:if="{{item.examId}}" class="small toc-exam" data-id="{{item.examId}}" catchtap="pickChapter">试卷</button>
           <app-icon wx:if="{{chapterId === item.id}}" name="check" size="30" />
         </view>
       </scroll-view>

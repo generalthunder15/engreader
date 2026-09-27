@@ -12,11 +12,14 @@
         </view>
       </view>
     </view>
-    <button class="primary" bindtap="resume">继续阅读</button>
+    <view class="book-actions">
+      <button class="primary" bindtap="resume">继续阅读</button>
+      <button wx:if="{{book.id === 'ai_learning'}}" class="coach-entry" bindtap="add"><app-icon name="chat" size="30" /><text>学习对话</text></button>
+    </view>
     <view class="row between">
       <view class="section-title">章节目录</view>
-      <button class="small ghost" bindtap="add">
-        {{book.id === 'ai_learning' ? '进入 AI 学习' : '＋ 添加章节'}}
+      <button wx:if="{{book.id !== 'ai_learning'}}" class="small ghost" bindtap="add">
+        ＋ 添加章节
       </button>
     </view>
     <view class="card" wx:if="{{book.chapters.length}}">
@@ -32,6 +35,7 @@
               {{item.wordCount}} 个词语 · {{item.quizDone ? '已闯关' : '待学习'}}{{item.translated ? ' · 已句译' : ''}}
             </view>
           </view>
+          <button wx:if="{{item.examId}}" class="chapter-exam" data-id="{{item.examId}}" catchtap="open">试卷</button>
           <app-icon name="arrow" size="30" />
         </view>
       </view>

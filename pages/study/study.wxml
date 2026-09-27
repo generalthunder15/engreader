@@ -1,8 +1,22 @@
 <view class="page tab-page" style="{{themeStyle}}">
-  <view class="study-menu-button" aria-role="button" aria-label="打开历史对话" bindtap="openSidebar"><view></view><view></view><view></view></view>
+  <view class="study-header" style="padding-top:{{navTop}}px">
+    <view class="study-nav" style="height:{{navHeight}}px;padding-right:{{navRight}}px">
+      <view class="study-menu-button" aria-role="button" aria-label="打开历史对话" bindtap="openSidebar"><view></view><view></view><view></view></view>
+      <text class="study-nav-title">{{headerTitle}}</text>
+    </view>
+    <scroll-view wx:if="{{steps.length}}" scroll-x class="study-progress" show-scrollbar="{{false}}">
+      <view class="progress-chain">
+        <block wx:for="{{steps}}" wx:key="label">
+          <view class="progress-node {{item.status}}"><text class="step-dot">{{item.status === 'done' ? '✓' : index + 1}}</text><text>{{item.label}}</text></view>
+          <text wx:if="{{index < steps.length - 1}}" class="step-link {{item.status === 'done' ? 'done' : ''}}">→</text>
+        </block>
+      </view>
+    </scroll-view>
+  </view>
+  <view style="height:calc({{navTop + navHeight}}px + {{steps.length ? 84 : 0}}rpx)"></view>
   <block wx:if="{{sidebarOpen}}">
     <view class="sidebar-mask" bindtap="closeSidebar" catchtouchmove="stopSidebarTouch"></view>
-    <view class="study-sidebar" catchtouchmove="stopSidebarTouch">
+    <view class="study-sidebar" style="top:{{navTop + navHeight}}px" catchtouchmove="stopSidebarTouch">
       <view class="sidebar-header"><text>学习对话</text><button class="icon-button" bindtap="closeSidebar" aria-label="关闭历史对话"><app-icon name="close" size="34" /></button></view>
       <button wx:if="{{!hasAssessment}}" class="primary sidebar-new" bindtap="start">先认识一下你</button>
       <button wx:else class="primary sidebar-new" bindtap="newLesson" disabled="{{!canNew || busy}}">＋ 开启新一课</button>
@@ -17,9 +31,11 @@
       <view wx:if="{{busy}}" class="caption">教练正在处理，完成后可切换对话。</view>
     </view>
   </block>
+  <block wx:if="{{!current}}">
   <view class="eyebrow">ONE LESSON AT A TIME</view>
   <view class="heading">与你一起，循序渐进</view>
   <view class="sub">一篇文章，一次深入学习。每三课，温习一次。</view>
+  </block>
   <block wx:if="{{current}}">
     <view class="card">
       <view class="menu-title">{{current.title}}</view>
@@ -69,7 +85,6 @@
     >
       <view class="caption">{{item.role === 'user' ? '我' : '学习教练'}}</view>
       <view wx:if="{{item.content}}" class="{{item.notice ? 'caption' : 'body-text'}}"><word-text text="{{item.content}}" selected="{{selectedWord}}" bind:word="selectWord" /></view>
-      <button wx:if="{{item.articleId}}" class="primary message-read" data-chapter="{{item.articleId}}" bindtap="readMessage">去阅读文章</button>
       <view wx:if="{{item.question}}" class="question">
         <view class="body-text"><word-text text="{{item.question.title}}" selected="{{selectedWord}}" bind:word="selectWord" /></view>
         <view

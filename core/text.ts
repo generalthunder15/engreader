@@ -79,3 +79,18 @@ export function chunks(text: string, size = 3500): string[] {
   if (pending) result.push(pending);
   return result;
 }
+
+/** Preserve source paragraphs and whitespace without changing stored token/sentence IDs. */
+export function readingParagraphs(content: string, tokens: Token[]) {
+  const normalized = content.replace(/\r\n?/g, "\n").trim();
+  const parts = normalized.split(/\n[ \t]*\n+/).filter(v => v.trim());
+  let cursor = 0;
+  return parts.map((text, pid) => {
+    text = text.trim();
+    const matches = [...text.matchAll(/[A-Za-z]+(?:['’-][A-Za-z]+)*|\d+(?:[.,]\d+)*|[^\sA-Za-z0-9]/g)];
+    return { pid, text, tokens: matches.map((match, i) => {
+      const token = tokens[cursor++];
+      return { ...token, w: match[0], after: text.slice(match.index! + match[0].length, matches[i + 1]?.index ?? text.length) };
+    }) };
+  });
+}

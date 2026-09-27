@@ -1,7 +1,8 @@
 import { Chapter, Mark, Note, Token } from "./models";
-import { joinTokens, spaceBetween } from "./text";
+import { joinTokens, spaceBetween, readingParagraphs } from "./text";
 export interface ReaderToken extends Token {
   globalId: number;
+  after: string;
   cid: string;
   selected: boolean;
   marked: boolean;
@@ -37,15 +38,15 @@ export class ReaderFlow {
       tokens: [],
       notes: [],
     });
-    for (const paragraph of chapter.tokens.paragraphs) {
-      const text = joinTokens(paragraph.tokens);
+    for (const paragraph of readingParagraphs(chapter.rawText, chapter.tokens.paragraphs.flatMap(p => p.tokens))) {
+      const text = paragraph.text;
       this.blocks.push({
         uid: chapter.id + "-" + paragraph.pid,
         cid: chapter.id,
         type: "sentence",
         text,
         translation:
-          chapter.translations[paragraph.tokens[0]?.sid ?? paragraph.pid] || "",
+          [...new Set(paragraph.tokens.map(t => t.sid))].map(sid => chapter.translations[sid] || "").filter(Boolean).join(" "),
         notes: notes.filter(
           (n) =>
             text.toLowerCase().includes(n.sel.toLowerCase()) ||

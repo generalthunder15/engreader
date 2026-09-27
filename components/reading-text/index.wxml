@@ -1,0 +1,2 @@
+<!-- prettier-ignore -->
+<view wx:for="{{paragraphs}}" wx:key="pid" wx:for-item="paragraph" class="reading-paragraph {{indented ? 'indented' : ''}}"><block wx:for="{{paragraph.tokens}}" wx:key="id" wx:for-item="token"><text class="reading-token {{token.id >= start && token.id <= end ? 'chosen' : ''}}" data-id="{{token.id}}" bindtouchstart="begin" bindtouchmove="move" catchtap="tap" bindlongpress="hold">{{token.w}}</text><text>{{token.after}}</text></block></view>

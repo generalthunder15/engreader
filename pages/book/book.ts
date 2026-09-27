@@ -2,10 +2,12 @@ import { showActionSheet } from "../../services/dialog";
 import * as store from "../../services/storage";
 import { bind } from "../../services/theme";
 import { cover, data, navigate, confirm, fail, toast } from "../../services/ui";
-import { Book, UIEvent } from "../../core/models";
+import { OutlineBook } from "../../core/book-outline";
+import { bookView } from "../../services/book-view";
+import { UIEvent } from "../../core/models";
 import { AI_BOOK } from "../../core/learning";
 Page({
-  data: { themeStyle: "", book: null as Book | null, cover: "", finished: 0 },
+  data: { themeStyle: "", book: null as OutlineBook | null, cover: "", finished: 0 },
   bookId: "",
   onLoad(query: Record<string, string>) {
     this.bookId = query.id || "";
@@ -15,7 +17,7 @@ Page({
     this.refresh();
   },
   refresh() {
-    const book = store.book(this.bookId);
+    const book = bookView(this.bookId);
     this.setData({
       book,
       cover: cover(book?.hue ?? 160),

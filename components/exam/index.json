@@ -1,1 +1,1 @@
-{ "component": true }
+{"component": true, "usingComponents": {"reading-text": "/components/reading-text/index"}}

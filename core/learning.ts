@@ -244,6 +244,17 @@ export function parseGrades(raw: unknown, questions: Exercise[]): Grade[] {
     };
   });
 }
+export function sessionSteps(s: Session | null): { label: string; status: "done" | "current" | "pending" }[] {
+  if (!s) return [];
+  const assessment = s.kind === "assessment";
+  const labels = assessment ? ["介绍", "测评", "报告"] : ["生成", "阅读·闯关", "答卷", "批改", "复测", "完成"];
+  const index = assessment
+    ? (s.phase === "intro" ? 0 : s.phase === "assessment" ? 1 : 2)
+    : ({ generating: 0, "exam-generating": 0, reading: 1, teaching: 0, exam: 2, grading: 3, remediation: 4, complete: 5 } as Partial<Record<Phase, number>>)[s.phase] ?? 0;
+  const finished = s.phase === "complete" || s.phase === "archived";
+  return labels.map((label, i) => ({ label, status: finished || i < index ? "done" : i === index ? "current" : "pending" }));
+}
+
 export const phaseLabel: Record<Phase, string> = {
   intro: "先介绍一下自己",
   assessment: "水平测评",
@@ -367,8 +378,7 @@ export function validateLearningBackup(
         !Array.isArray(s.attempt.grades) ||
         questions.some(
           (q) =>
-            typeof record(s.attempt!.answers)[q.id] !== "string" ||
-            !s.attempt!.answers[q.id].trim(),
+            typeof record(s.attempt!.answers)[q.id] !== "string",
         )
       )
         throw new Error("答卷不完整");

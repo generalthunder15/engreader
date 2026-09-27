@@ -1,8 +1,10 @@
+import { bookView } from "../../services/book-view";
+import { OutlineBook } from "../../core/book-outline";
 import { showActionSheet } from "../../services/dialog";
 import { Block, ReaderFlow } from "../../core/reader";
 import { Book, Definition, Detail, Note, UIEvent } from "../../core/models";
 import { joinTokens } from "../../core/text";
-import { placeSelectionMenu } from "../../core/selection-menu";
+import { placeSelectionMenu, SelectionRect } from "../../core/selection-menu";
 import * as store from "../../services/storage";
 import * as ai from "../../services/ai";
 import * as dictionary from "../../services/dictionary";
@@ -21,10 +23,11 @@ Page({
   data: {
     themeStyle: "",
     examChapter: "",
+    examSelectionKey: "",
     readerBookId: "",
     themeId: "default",
     themePrimary: "#416C64",
-    book: null as Book | null,
+    book: null as OutlineBook | null,
     chapterId: "",
     chapterTitle: "",
     blocks: [] as Block[],
@@ -91,6 +94,8 @@ Page({
   toolbarMeasure: 0,
   dayTheme: "default",
   loadingPrevious: false,
+  examRects: [] as SelectionRect[],
+  examSelectionScroll: 0,
   onPullDownRefresh() { this.loadPrevious(); },
   loadPrevious() {
     if (this.loadingPrevious || this.data.examChapter) { wx.stopPullDownRefresh(); return; }
@@ -128,7 +133,7 @@ Page({
   onLoad(query: Record<string, string>) {
     this.bookId = query.bookId || "";
     this.setData({ readerBookId: this.bookId });
-    const book = store.book(this.bookId);
+    const book = bookView(this.bookId);
     this.setData({
       book,
       total: book?.chapters.length || 0,
@@ -145,7 +150,7 @@ Page({
     bind(this);
     const theme = store.settings().theme;
     if (theme !== "night") this.dayTheme = theme;
-    const book = store.book(this.bookId);
+    const book = bookView(this.bookId);
     if (book) {
       this.setData({
         book,
@@ -213,11 +218,11 @@ Page({
   },
   setCurrent(cid: string) {
     const chapters = this.data.book?.chapters || [];
-    const index = chapters.findIndex((c) => c.id === cid);
+    const index = chapters.findIndex((c) => c.id === cid || c.examId === cid);
     if (index < 0) return;
     this.setData({
       chapterId: cid,
-      chapterTitle: chapters[index].title,
+      chapterTitle: store.chapter(this.bookId, cid)?.title || chapters[index].title,
       index,
       percent: Math.round(((index + 1) / chapters.length) * 100),
       favored: store.isFavorite(this.bookId, cid),
@@ -429,6 +434,17 @@ Page({
     this.tapTimer = null;
     this.tap = { id: -1, at: 0 };
   },
+  selectExamText(e: WechatMiniprogram.CustomEvent<{ text: string; rects: SelectionRect[]; key: string }>) {
+    this.cancelTap();
+    this.flow.clear();
+    this.request++;
+    this.selectedCid = this.data.examChapter;
+    this.examRects = e.detail.rects;
+    this.examSelectionScroll = this.scrollTop;
+    this.setData({ examSelectionKey: e.detail.key, selectedText: e.detail.text,
+      selectedIsWord: dictionary.isWord(e.detail.text), toolbar: true, toolbarReady: false, controls: false });
+    this.positionToolbar();
+  },
   select(start: number, end: number) {
     const tokens = this.flow.select(start, end);
     this.request++;
@@ -454,7 +470,8 @@ Page({
       q.exec((result) => {
         if (!this.alive || !this.data.toolbar || ticket !== this.toolbarMeasure)
           return;
-        const rects = result[0] as Rect[];
+        const delta = this.scrollTop - this.examSelectionScroll;
+        const rects = this.data.examChapter ? this.examRects.map(r => ({ ...r, top: r.top - delta, bottom: r.bottom - delta })) : result[0] as Rect[];
         const menu = result[1] as { width: number; height: number } | null;
         if (!menu) return;
         const info = wx.getWindowInfo();
@@ -484,9 +501,11 @@ Page({
   },
   clearSelection() {
     this.flow.clear();
+    this.examRects = [];
     this.setData({
       toolbar: false,
       selectedText: "",
+      examSelectionKey: "",
     });
     this.publishBlocks();
   },
@@ -569,11 +588,9 @@ Page({
     }
   },
   cachedTranslation(): string {
-    return this.flow.blocks
-      .filter((b) => b.tokens.some((t) => t.selected))
-      .map((b) => b.translation)
-      .filter(Boolean)
-      .join(" ");
+    const selected = this.flow.tokens.filter(t => t.selected);
+    const sentences = new Map(selected.map(t => [t.cid + ":" + t.sid, t]));
+    return [...sentences.values()].map(t => store.chapter(this.bookId, t.cid)?.translations[t.sid] || "").filter(Boolean).join(" ");
   },
   async explain(force = false) {
     if (this.data.busy) return;

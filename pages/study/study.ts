@@ -11,6 +11,7 @@ import {
   canStart,
   closed,
   phaseLabel,
+  sessionSteps,
   unresolved,
 } from "../../core/learning";
 import { Definition, Detail, UIEvent } from "../../core/models";
@@ -32,6 +33,11 @@ type SessionView = Pick<
 Page({
   data: {
     themeStyle: "",
+    headerTitle: "学习",
+    navTop: 24,
+    navHeight: 44,
+    navRight: 110,
+    steps: [] as ReturnType<typeof sessionSteps>,
     sessions: [] as { id: string; title: string; label: string }[],
     sessionIndex: 0,
     sidebarOpen: false,
@@ -141,6 +147,15 @@ Page({
       if (this.alive && ticket === this.wordRequest) this.setData({ wordBusy: false });
     }
   },
+  onLoad() { this.measureHeader(); },
+  onResize() { this.measureHeader(); },
+  measureHeader() {
+    const info = wx.getWindowInfo();
+    const capsule = wx.getMenuButtonBoundingClientRect();
+    const top = info.statusBarHeight || 24;
+    this.setData({ navTop: top, navHeight: capsule.height ? (capsule.top - top) * 2 + capsule.height : 44,
+      navRight: capsule.left > 0 ? info.windowWidth - capsule.left + 12 : 110 });
+  },
   onShow() {
     this.alive = true;
     bind(this, 2);
@@ -180,9 +195,8 @@ Page({
     if (!state.sessions.some((s) => s.id === this.selected))
       this.selected = state.sessions[state.sessions.length - 1]?.id || "";
     const selected = state.sessions.find((s) => s.id === this.selected) || null;
-    const end = selected
-      ? Math.max(0, selected.messages.length - this.data.historyPage * 20)
-      : 0;
+    const messages = selected?.messages.filter(m => !m.notice && !m.articleId) || [];
+    const end = Math.max(0, messages.length - this.data.historyPage * 20);
     const current: SessionView | null = selected
       ? {
           id: selected.id,
@@ -194,7 +208,7 @@ Page({
           generationStep: selected.generationStep,
           assessed: selected.assessed,
           pending: selected.pending,
-          messages: selected.messages.slice(Math.max(0, end - 20), end).map(message => ({
+          messages: messages.slice(Math.max(0, end - 20), end).map(message => ({
             ...message,
             question: message.question ? {
               ...message.question,
@@ -206,6 +220,8 @@ Page({
       : null;
     this.setData({
       current,
+      headerTitle: selected ? selected.kind === "assessment" ? "水平测评" : `第 ${selected.number} 课` : "学习",
+      steps: sessionSteps(selected),
       hasOlder: end > 20,
       sessionIndex: Math.max(0, state.sessions.length - 1 - state.sessions.findIndex((s) => s.id === this.selected)),
       sessions: [...state.sessions]
@@ -347,9 +363,6 @@ Page({
         await learning.continueConversation(sid);
       }
     });
-  },
-  readMessage(e: UIEvent) {
-    navigate("reader", { bookId: AI_BOOK, chapterId: data(e, "chapter") });
   },
   read() {
     const s = this.data.current;

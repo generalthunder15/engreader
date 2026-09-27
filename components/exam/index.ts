@@ -2,11 +2,14 @@ import * as store from "../../services/storage";
 import * as learning from "../../services/learning";
 import { Chapter, UIEvent } from "../../core/models";
 import { Attempt, ExamSection, Grade } from "../../core/learning";
+import { optionLabel } from "../../core/text";
+import { optionColumns } from "../../core/exam-layout";
 import { data, input } from "../../services/ui";
 Component({
-  properties: { bookId: String, chapterId: String },
+  properties: { bookId: String, chapterId: String, selectionKey: String },
   data: {
     title: "",
+    columns: {} as Record<string, number>,
     sections: [] as ExamSection[],
     answers: {} as Record<string, string>,
     grades: {} as Record<string, Grade>,
@@ -30,11 +33,15 @@ Component({
     },
   },
   pageLifetimes: {
+    resize() { this.measureOptions(); },
     show() {
       this.refresh();
     },
   },
   methods: {
+    noop() {},
+    readTap() { this.triggerEvent("readtap"); },
+    selectText(e: WechatMiniprogram.CustomEvent) { this.triggerEvent("selection", e.detail); },
     key() {
       return "exam_draft_" + this.properties.chapterId;
     },
@@ -57,7 +64,7 @@ Component({
       });
       this.setData({
         title: ch.title,
-        sections,
+        sections: sections.map(section => ({ ...section, questions: section.questions.map(q => ({ ...q, options: q.options.map(optionLabel) })) })),
         answers,
         grades,
         submitted: !!attempt,
@@ -66,6 +73,21 @@ Component({
         answered: questions.filter((q) => answers[q.id]?.trim()).length,
         correct: attempt?.grades.filter((g) => g.correct).length || 0,
         sessionId: ch.sessionId || "",
+      }, () => this.measureOptions());
+    },
+    measureOptions() {
+      const query = this.createSelectorQuery();
+      query.selectAll(".option-grid").boundingClientRect();
+      query.selectAll(".option-measure").boundingClientRect();
+      query.exec((result: { width: number; dataset: { id: string } }[][]) => {
+        const scale = wx.getWindowInfo().windowWidth / 750;
+        const columns: Record<string, number> = {};
+        for (const grid of result[0] || []) {
+          if (grid.width <= 0) continue;
+          const widths = (result[1] || []).filter(v => v.dataset.id === grid.dataset.id).map(v => v.width);
+          if (widths.length) columns[grid.dataset.id] = optionColumns(grid.width, widths, 36 * scale, 12 * scale);
+        }
+        this.setData({ columns });
       });
     },
     saveAnswer(e: UIEvent, value: string) {
@@ -104,13 +126,12 @@ Component({
         const ch = this.current();
         if (!ch) throw new Error("章节不存在");
         if (!this.data.submitted) {
-          if (this.data.answered !== this.data.total || !this.data.total)
-            throw new Error("请完成所有题目再提交");
+          if (!this.data.total) throw new Error("试卷没有题目");
           if (ch.sessionId)
             learning.submitExam(ch.sessionId, this.data.answers);
           else
             store.write("exam_attempt_" + ch.id, {
-              answers: { ...this.data.answers },
+              answers: Object.fromEntries((ch.sections || []).flatMap(s => s.questions).map(q => [q.id, this.data.answers[q.id]?.trim() || ""])),
               submittedAt: Date.now(),
               grades: [],
             });
@@ -150,6 +171,7 @@ Component({
       }
     },
     study() {
+      if (!this.data.sessionId) { wx.switchTab({ url: "/pages/study/study" }); return; }
       store.write("open_learning_session", this.data.sessionId);
       wx.switchTab({ url: "/pages/study/study" });
     },

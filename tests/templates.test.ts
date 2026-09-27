@@ -7,12 +7,12 @@ import ts from "typescript";
 test('reader preserves explicit word spaces without formatting each token onto a new line', () => {
   const template = readFileSync('pages/reader/reader.wxml', 'utf8');
   const paragraph = template.match(/<view class="english">([\s\S]*?)<\/view>/)?.[1] || '';
-  assert.ok(paragraph.includes("{{token.sp ? ' ' : ''}}"), 'word spacing must survive formatting');
+  assert.ok(paragraph.includes("{{token.after}}"), 'word spacing must survive formatting');
   assert.match(paragraph, />{{token\.w}}<\/text>/);
   assert.doesNotMatch(paragraph, /\r?\n/);
   const style = readFileSync('pages/reader/reader.wxss', 'utf8');
   const rule = style.match(/\.english\s*\{([^}]+)\}/)?.[1] || '';
-  assert.match(rule, /white-space:\s*normal/);
+  assert.match(rule, /white-space:\s*pre-wrap/);
 });
 
 test("all template handlers exist in TypeScript pages and components", () => {

@@ -117,3 +117,12 @@
   font-size: 26rpx;
   margin-top: 24rpx;
 }
+
+.option-grid { display: grid; gap: 12rpx; margin-top: 16rpx; position: relative; }
+.option { display: block; min-width: 0; margin: 0; padding: 18rpx 16rpx; box-sizing: border-box; overflow-wrap: anywhere; }
+.option-measure { position: absolute; left: 0; top: 0; width: max-content; white-space: nowrap; visibility: hidden; pointer-events: none; font-size: 27rpx; line-height: 1.6; }
+.exam-actions { display: flex; gap: 18rpx; margin-top: 28rpx; }
+.exam-actions button { flex: 1; width: 0; min-width: 0; margin: 0; }
+.submit.submitted, .submit.submitted[disabled] { background: var(--line, #e3eae6); color: var(--muted, #758780); opacity: 1; }
+.grading-status { margin-top: 20rpx; color: var(--muted); font-size: 24rpx; line-height: 1.7; }
+.retry { margin-top: 14rpx; font-size: 25rpx; border-radius: 20rpx; }
