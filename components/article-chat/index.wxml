@@ -1,16 +1,18 @@
 <view wx:if="{{!open}}" class="article-fab" style="left:{{x}}px;top:{{y}}px" bindtouchstart="touchStart" catchtouchmove="touchMove" bindtouchend="touchEnd" bindtouchcancel="touchEnd" catchtap="openChat" aria-role="button" aria-label="{{sessionId ? '随时向 AI 提问' : '向 AI 询问当前章节'}}"><app-icon name="chat" size="40" /><text>{{sessionId ? '随时问' : '问文章'}}</text></view>
 <block wx:if="{{open}}">
-  <view class="mask" catchtap="close" catchtouchmove="noop"></view>
-  <view class="sheet article-chat">
-    <view class="sheet-head"><text>{{sessionId ? '随时提问' : '文章答疑'}}</text><button class="icon-button" bindtap="close" aria-label="关闭文章答疑"><app-icon name="close" /></button></view>
-    <view class="chapter-name">{{title}}</view>
-    <scroll-view scroll-y class="article-messages" scroll-top="{{scrollTop}}">
-      <view wx:if="{{!messages.length}}" class="sub">{{sessionId ? '可以结合当前对话随时提问，不影响本课进度，也不会写入长期记忆。' : '可以问本章的词句含义、语法或文章思路。'}}</view>
-      <view wx:for="{{messages}}" wx:key="index" class="article-message {{item.role === 'user' ? 'user-message' : ''}}"><view class="caption">{{item.role === 'user' ? '我' : (sessionId ? '学习助手' : '阅读助手')}}</view><text>{{item.content}}</text></view>
-      <view wx:if="{{busy}}" class="loading">正在思考…</view>
+  <view class="chat-dismiss" catchtap="close" catchtouchmove="noop"></view>
+  <view class="article-chat {{sessionId ? 'study-chat' : ''}}" style="{{keyboardHeight ? 'bottom:' + keyboardHeight + 'px;' : (sessionId ? 'bottom:calc(140rpx + env(safe-area-inset-bottom));' : 'bottom:calc(20rpx + env(safe-area-inset-bottom));')}}">
+    <scroll-view scroll-y class="article-messages" style="height:{{bubbleHeight}}px" scroll-top="{{scrollTop}}">
+      <view class="chat-bubbles">
+        <view wx:if="{{!messages.length}}" class="article-message hint-bubble"><view class="chapter-name">{{title}}</view><text>{{sessionId ? '随时提问，不影响学习进度，也不写入长期记忆。' : '可以问本章的词句、语法或文章思路。'}}</text></view>
+        <view wx:for="{{messages}}" wx:key="index" class="article-message {{item.role === 'user' ? 'user-message' : ''}}"><text user-select>{{item.content}}</text></view>
+        <view wx:if="{{busy}}" class="article-message hint-bubble">正在思考…</view>
+        <view wx:if="{{error}}" class="article-message error">{{error}}</view>
+      </view>
     </scroll-view>
-    <view wx:if="{{error}}" class="error">{{error}}</view>
-    <textarea class="field article-question" value="{{text}}" bindinput="input" maxlength="2000" show-confirm-bar="{{false}}" disabled="{{busy}}" placeholder="{{sessionId ? '顺便问一下…' : '针对本章写下你的问题…'}}" />
-    <button class="primary full" bindtap="send" disabled="{{busy || !text}}">{{error ? '重试发送' : '发送'}}</button>
+    <view class="chat-input-bar">
+      <input class="article-question" value="{{text}}" bindinput="input" bindconfirm="send" bindfocus="inputFocus" bindblur="inputBlur" bindkeyboardheightchange="keyboardChange" adjust-position="{{false}}" confirm-type="send" maxlength="2000" disabled="{{busy}}" placeholder="{{sessionId ? '顺便问一下…' : '问问这篇文章…'}}" />
+      <button class="chat-send" bindtap="send" disabled="{{busy || !text}}">{{error ? '重试' : '发送'}}</button>
+    </view>
   </view>
 </block>

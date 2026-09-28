@@ -910,12 +910,14 @@ test("side questions read the current session but never mutate course or archive
   const state = learning.load();
   const s = state.sessions.find(s => s.id === sid)!;
   s.introduction = "每天学习二十分钟";
+  s.messages.push({ id: "aside-context", role: "assistant", content: "这是界面中的完整解析", createdAt: Date.now() });
   s.pending = { ...question(), id: "pending", type: "choice", direction: "en-zh" } as Exercise;
   store.write(learning.KEY, state);
   const before = JSON.stringify(learning.load());
   const archiveBefore = JSON.stringify(archiveInput(s));
   memoryResponder = (_prompt, context) => {
-    assert.equal(context.shortTerm.introduction, s.introduction);
+    assert.equal(context.shortTerm, undefined);
+    assert.ok(context.conversation.some((m: any) => m.content === "这是界面中的完整解析"));
     assert.equal(context.currentQuestion.id, "pending");
     assert.equal(context.currentQuestion.answer, undefined);
     return "旁支回答，不写入记忆";

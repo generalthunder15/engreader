@@ -9,6 +9,7 @@ Component({
   observers: { sessionId() { this.close(); } },
   pageLifetimes: { hide() { this.close(); } },
   data: {
+    keyboardHeight: 0, inputFocused: false, bubbleHeight: 80,
     open: false, title: "", text: "", error: "", busy: false,
     messages: [] as Message[], x: 0, y: 200, scrollTop: 0,
     startX: 0, startY: 0, originX: 0, originY: 0, moved: false,
@@ -17,10 +18,14 @@ Component({
   },
   lifetimes: {
     attached() {
+      wx.onKeyboardHeightChange(this.globalKeyboardChange);
       const w = wx.getWindowInfo();
       this.setData({ x: w.windowWidth - 60, y: Math.max(100, w.windowHeight - 160) });
     },
-    detached() { this.data.alive = false; this.data.ticket++; },
+    detached() {
+      wx.offKeyboardHeightChange(this.globalKeyboardChange);
+      this.data.alive = false; this.data.ticket++;
+    },
   },
   methods: {
     touchStart(e: WechatMiniprogram.TouchEvent) {
@@ -47,7 +52,7 @@ Component({
         const id = "aside:" + s.id;
         this.data.ticket++;
         this.setData({ open: true, busy: false, activeId: id, title: s.title, source: "",
-          messages: [], text: "", error: "", scrollTop: 1000000 });
+          messages: [], text: "", error: "", scrollTop: 1000000 }, () => this.measureBubbles());
         return;
       }
       const c = chapter(this.data.bookId, this.data.chapterId);
@@ -55,11 +60,32 @@ Component({
       const id = this.data.bookId + ":" + c.id;
       this.data.ticket++;
       this.setData({ open: true, busy: false, activeId: id, title: c.title, source: c.rawText,
-        messages: this.data.histories[id] || [], text: "", error: "", scrollTop: 1000000 });
+        messages: this.data.histories[id] || [], text: "", error: "", scrollTop: 1000000 }, () => this.measureBubbles());
     },
     close() {
       this.data.ticket++;
-      this.setData({ open: false, busy: false, messages: [], text: "", error: "", source: "", title: "", activeId: "" });
+      this.setData({ open: false, busy: false, keyboardHeight: 0, inputFocused: false, messages: [], text: "", error: "", source: "", title: "", activeId: "" });
+    },
+    inputFocus() { this.setData({ inputFocused: true }); },
+    inputBlur() {
+      this.setData({ inputFocused: false, keyboardHeight: 0 }, () => this.measureBubbles());
+    },
+    globalKeyboardChange(e: { height: number }) {
+      if (!this.data.alive || !this.data.open) return;
+      if (e.height > 0 && !this.data.inputFocused) return;
+      this.setData({ keyboardHeight: Math.max(0, e.height) }, () => this.measureBubbles());
+    },
+    keyboardChange(e: WechatMiniprogram.CustomEvent<{ height: number }>) {
+      this.globalKeyboardChange(e.detail);
+    },
+    measureBubbles() {
+      if (!this.data.open) return;
+      this.createSelectorQuery().select(".chat-bubbles").boundingClientRect().exec((rows) => {
+        if (!this.data.open || !rows[0]) return;
+        const w = wx.getWindowInfo();
+        const available = w.windowHeight - this.data.keyboardHeight - (w.statusBarHeight || 24) - 160;
+        this.setData({ bubbleHeight: Math.min(rows[0].height, Math.max(60, Math.min(w.windowHeight * .42, available))) });
+      });
     },
     input(e: WechatMiniprogram.Input) { this.setData({ text: e.detail.value }); },
     noop() {},
@@ -68,8 +94,11 @@ Component({
       if (!question || this.data.busy) return;
       const ticket = ++this.data.ticket;
       const id = this.data.activeId;
-      const history = this.data.messages;
-      this.setData({ busy: true, error: "" });
+      const last = this.data.messages[this.data.messages.length - 1];
+      const retry = !!this.data.error && last?.role === "user" && last.content === question;
+      const history = retry ? this.data.messages.slice(0, -1) : this.data.messages;
+      const outgoing: Message[] = [...history, { role: "user", content: question }];
+      this.setData({ messages: outgoing, text: "", busy: true, error: "", scrollTop: this.data.scrollTop + 1000000 }, () => this.measureBubbles());
       try {
         const reply = this.data.sessionId
           ? await askAside(this.data.sessionId, question, history)
@@ -79,13 +108,13 @@ Component({
           ...history.slice(-12), { role: "user", content: question },
         ], false, false);
         if (!this.data.alive || ticket !== this.data.ticket) return;
-        const messages: Message[] = [...history, { role: "user", content: question }, { role: "assistant", content: reply }];
+        const messages: Message[] = [...outgoing, { role: "assistant", content: reply }];
         if (!this.data.sessionId) this.data.histories[id] = messages;
         this.setData({ messages, text: "", scrollTop: this.data.scrollTop + 1000000 });
       } catch (error) {
-        if (this.data.alive && ticket === this.data.ticket) this.setData({ error: error instanceof Error ? error.message : "请求失败，请重试" });
+        if (this.data.alive && ticket === this.data.ticket) this.setData({ text: question, error: error instanceof Error ? error.message : "请求失败，请重试" });
       } finally {
-        if (this.data.alive && ticket === this.data.ticket) this.setData({ busy: false });
+        if (this.data.alive && ticket === this.data.ticket) this.setData({ busy: false }, () => this.measureBubbles());
       }
     },
   },
