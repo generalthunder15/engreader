@@ -12,3 +12,5 @@
 .chat-input-bar { display: flex; align-items: center; gap: 12rpx; padding: 12rpx 16rpx; border-radius: 28rpx; background: var(--card); border: 1rpx solid var(--line); box-shadow: 0 6rpx 28rpx rgba(0,0,0,.12); }
 .article-question { flex: 1; min-width: 0; height: 64rpx; min-height: 0; padding: 0 12rpx; margin: 0; font-size: 28rpx; background: var(--bg); border-radius: 16rpx; }
 .chat-input-bar .chat-send { flex: 0 0 auto; width: auto; margin: 0; padding: 0 18rpx; height: 60rpx; line-height: 60rpx; font-size: 26rpx; border-radius: 16rpx; background: var(--primary); color: var(--on-primary); }
+
+.markdown-scroll { width: 100%; white-space: normal; }

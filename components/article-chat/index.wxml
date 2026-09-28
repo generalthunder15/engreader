@@ -5,8 +5,8 @@
     <scroll-view scroll-y class="article-messages" style="height:{{bubbleHeight}}px" scroll-top="{{scrollTop}}">
       <view class="chat-bubbles">
         <view wx:if="{{!messages.length}}" class="article-message hint-bubble"><view class="chapter-name">{{title}}</view><text>{{sessionId ? '随时提问，不影响学习进度，也不写入长期记忆。' : '可以问本章的词句、语法或文章思路。'}}</text></view>
-        <view wx:for="{{messages}}" wx:key="index" class="article-message {{item.role === 'user' ? 'user-message' : ''}}"><text user-select>{{item.content}}</text></view>
-        <view wx:if="{{busy}}" class="article-message hint-bubble">正在思考…</view>
+        <view wx:for="{{messages}}" wx:key="index" class="article-message {{item.role === 'user' ? 'user-message' : ''}}"><scroll-view wx:if="{{item.role === 'assistant'}}" scroll-x class="markdown-scroll"><rich-text nodes="{{item.html}}" user-select /></scroll-view><text wx:else user-select>{{item.content}}</text></view>
+        <view wx:if="{{busy}}" class="article-message hint-bubble">正在回复…</view>
         <view wx:if="{{error}}" class="article-message error">{{error}}</view>
       </view>
     </scroll-view>
