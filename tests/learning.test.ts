@@ -904,3 +904,28 @@ test("archiving an active session cannot call the model or change shared memory"
   assert.equal(called, false);
   assert.equal(learning.load().memory.markdown, "");
 });
+
+test("side questions read the current session but never mutate course or archive memory", async () => {
+  const sid = learning.createAssessment();
+  const state = learning.load();
+  const s = state.sessions.find(s => s.id === sid)!;
+  s.introduction = "每天学习二十分钟";
+  s.pending = { ...question(), id: "pending", type: "choice", direction: "en-zh" } as Exercise;
+  store.write(learning.KEY, state);
+  const before = JSON.stringify(learning.load());
+  const archiveBefore = JSON.stringify(archiveInput(s));
+  memoryResponder = (_prompt, context) => {
+    assert.equal(context.shortTerm.introduction, s.introduction);
+    assert.equal(context.currentQuestion.id, "pending");
+    assert.equal(context.currentQuestion.answer, undefined);
+    return "旁支回答，不写入记忆";
+  };
+  assert.equal(await learning.askAside(sid, "为什么用过去式？", [
+    { role: "user", content: "上一个旁支问题" },
+    { role: "assistant", content: "上一个旁支回答" },
+  ]), "旁支回答，不写入记忆");
+  assert.equal(sentMessages.at(-1).content, "为什么用过去式？");
+  assert.equal(sentMessages.at(-2).content, "上一个旁支回答");
+  assert.equal(JSON.stringify(learning.load()), before);
+  assert.equal(JSON.stringify(archiveInput(learning.session(sid))), archiveBefore);
+});

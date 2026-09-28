@@ -1,7 +1,8 @@
 {
   "navigationBarTitleText": "学习教练",
   "usingComponents": {
-    "word-text": "/components/word-text/index"
+    "word-text": "/components/word-text/index",
+    "article-chat": "/components/article-chat/index"
   },
   "navigationStyle": "custom"
 }

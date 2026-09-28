@@ -160,6 +160,7 @@
       这段对话已归档，可以随时回来查看。
     </view>
   </block>
+  <article-chat wx:if="{{current}}" hidden="{{sidebarOpen || wordPanel}}" session-id="{{current.id}}" />
   <view wx:if="{{selectedWord && !wordPanel}}" class="selection-bar {{wordMenuSide}}" style="{{wordMenuStyle}}">
     <view class="selection-arrow" style="left:{{wordArrow}}px"></view>
     <view class="selection-actions">
