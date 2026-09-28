@@ -1,3 +1,4 @@
+import { PAPER } from "./learning-flow";
 import { migrateMemory } from "./learning-memory";
 import type { LearningRound } from "./learning-memory";
 import { Message, record, strings } from "./models";
@@ -101,7 +102,7 @@ export const emptyLearning = (): Learning => ({
   sessions: [],
   memory: { markdown: "", revision: 0, updatedAt: 0, archivedSessions: [] },
 });
-export const closed = (s: Session): boolean =>
+export const closed = (s: Pick<Session, "phase">): boolean =>
   s.phase === "complete" || s.phase === "archived";
 export const unresolved = (s: Session): string[] => {
   const originals = s.sections.flatMap((section) => section.questions);
@@ -422,8 +423,8 @@ export function validateLearningBackup(
     if (["exam", "grading", "remediation", "complete"].includes(s.phase)) {
       const exam = record(data[`chapter_${AI_BOOK}_${s.examId}`]);
       if (
-        s.generationStep !== 21 ||
-        s.sections.flatMap((v) => v.questions).length !== 19 ||
+        s.generationStep !== PAPER.readyStep ||
+        s.sections.flatMap((v) => v.questions).length !== PAPER.totalQuestions ||
         exam.sessionId !== s.id ||
         JSON.stringify(exam.sections) !== JSON.stringify(s.sections)
       )

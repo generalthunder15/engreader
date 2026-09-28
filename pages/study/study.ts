@@ -8,7 +8,6 @@ import { explain, detail, ask } from "../../services/ai";
 import {
   AI_BOOK,
   Session,
-  canStart,
   closed,
   phaseLabel,
   sessionSteps,
@@ -206,12 +205,11 @@ Page({
   },
   refresh(scrollToBottom = false, rendered?: () => void) {
     this.closeWord();
-    const state = learning.load();
+    const state = learning.catalog();
     if (!state.sessions.some((s) => s.id === this.selected))
       this.selected = state.sessions[state.sessions.length - 1]?.id || "";
-    const selected = state.sessions.find((s) => s.id === this.selected) || null;
-    const messages = selected?.messages.filter(m => !m.notice && !m.articleId) || [];
-    const start = Math.max(0, messages.length - this.data.historyCount);
+    const selected = this.selected ? learning.session(this.selected, false) : null;
+    const history = selected ? learning.recentMessages(selected.id, this.data.historyCount) : { messages: [], hasOlder: false };
     const current: SessionView | null = selected
       ? {
           id: selected.id,
@@ -223,7 +221,7 @@ Page({
           generationStep: selected.generationStep,
           assessed: selected.assessed,
           pending: selected.pending,
-          messages: messages.slice(start).map(message => ({
+          messages: history.messages.map(message => ({
             ...message,
             question: message.question ? {
               ...message.question,
@@ -237,12 +235,12 @@ Page({
       current,
       headerTitle: selected ? selected.kind === "assessment" ? "水平测评" : `第 ${selected.number} 课` : "学习",
       steps: sessionSteps(selected),
-      hasOlder: start > 0,
+      hasOlder: history.hasOlder,
       sessionIndex: Math.max(0, state.sessions.length - 1 - state.sessions.findIndex((s) => s.id === this.selected)),
       sessions: [...state.sessions]
         .reverse()
         .map((s) => ({ id: s.id, title: s.title, label: phaseLabel[s.phase] })),
-      canNew: canStart(state),
+      canNew: learning.canCreateLesson(),
       hasAssessment: state.sessions.some((s) => s.kind === "assessment"),
       label: current ? phaseLabel[current.phase] : "",
       readonly: !!selected && closed(selected),

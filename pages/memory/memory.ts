@@ -1,6 +1,6 @@
 import { UIEvent } from "../../core/models";
 import { closed } from "../../core/learning";
-import { load, updateMemory, archiveMemory } from "../../services/learning";
+import { catalog, updateMemory, archiveMemory } from "../../services/learning";
 import { bind } from "../../services/theme";
 import { input, toast, fail, data } from "../../services/ui";
 Page({
@@ -18,7 +18,7 @@ Page({
     this.refresh();
   },
   refresh() {
-    const state = load();
+    const state = catalog();
     this.setData({
       markdown: state.memory.markdown,
       updated: state.memory.updatedAt

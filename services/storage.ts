@@ -1,3 +1,5 @@
+import * as learningRepository from "./learning-repository";
+import { recoverTransaction } from "./local-storage";
 import {
   Book,
   Chapter,
@@ -16,67 +18,8 @@ import {
   discardLegacySessions,
 } from "../core/learning";
 
-export function read<T>(key: string, fallback: T): T {
-  const value: unknown = wx.getStorageSync(key);
-  return value === "" || value === null || value === undefined
-    ? fallback
-    : (value as T);
-}
-export function write(key: string, value: unknown): void {
-  try {
-    wx.setStorageSync(key, value);
-  } catch {
-    clearCache();
-    try {
-      wx.setStorageSync(key, value);
-    } catch {
-      throw new Error("保存失败：本地空间不足，请先备份并清理缓存");
-    }
-  }
-}
-export function clearCache(): void {
-  wx.getStorageInfoSync()
-    .keys.filter((k) => k === "ai_cache" || /^(ai2_|dict_|tts_)/.test(k))
-    .forEach((k) => wx.removeStorageSync(k));
-  try {
-    const fs = wx.getFileSystemManager();
-    fs.readdirSync(wx.env.USER_DATA_PATH)
-      .filter((k) => /^tts_/.test(k))
-      .forEach((k) => fs.unlinkSync(wx.env.USER_DATA_PATH + "/" + k));
-  } catch {
-    /* 无音频缓存 */
-  }
-}
-/** Commit related keys together; restore the previous values if a write fails. */
-export function transaction(
-  values: Record<string, unknown>,
-  removed: string[] = [],
-): void {
-  const keys = [...new Set([...Object.keys(values), ...removed])];
-  const existing = new Set(wx.getStorageInfoSync().keys);
-  const previous = new Map(keys.map((k) => [k, wx.getStorageSync(k)]));
-  try {
-    Object.entries(values).forEach(([key, value]) =>
-      wx.setStorageSync(key, value),
-    );
-    removed.forEach((k) => wx.removeStorageSync(k));
-  } catch {
-    let restored = true;
-    for (const key of keys) {
-      try {
-        if (existing.has(key)) wx.setStorageSync(key, previous.get(key));
-        else wx.removeStorageSync(key);
-      } catch {
-        restored = false;
-      }
-    }
-    throw new Error(
-      restored
-        ? "保存未完成，原数据已恢复。请清理空间后重试"
-        : "保存失败且部分数据未能恢复，请保留备份并检查本地空间",
-    );
-  }
-}
+import { read, write, transaction } from "./local-storage";
+export { read, write, transaction, clearCache } from "./local-storage";
 export const defaults: Settings = {
   baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
   model: "deepseek-v4-flash",
@@ -295,12 +238,15 @@ export function exportBackup(): {
   exportedAt: string;
   data: Record<string, unknown>;
 } {
+  recoverTransaction();
+  const learning = read("learning_v1", null) || read(learningRepository.INDEX, null) ? learningRepository.load() : null;
   const data: Record<string, unknown> = {};
   wx.getStorageInfoSync()
-    .keys.filter((k) => k !== "study_state" && !/^tts_/.test(k))
+    .keys.filter((k) => k !== "study_state" && k !== "storage_transaction_pending" && !k.startsWith("learning_v2_") && !/^tts_/.test(k))
     .forEach((k) => {
       data[k] = wx.getStorageSync(k);
     });
+  if (learning) data.learning_v1 = learning;
   if (data.learning_v1)
     data.learning_v1 = discardLegacySessions(
       data.learning_v1 as import("../core/learning").Learning,
@@ -311,6 +257,8 @@ export function importBackup(input: unknown): number {
   const backup = record(input);
   const data = { ...record(backup.data) };
   delete data.study_state;
+  delete data.storage_transaction_pending;
+  for (const key of Object.keys(data)) if (key.startsWith("learning_v2_")) delete data[key];
   if (data.learning_v1)
     data.learning_v1 = discardLegacySessions(
       data.learning_v1 as import("../core/learning").Learning,
@@ -355,7 +303,7 @@ export function importBackup(input: unknown): number {
   if ("learning_v1" in data) validateLearningBackup(data.learning_v1, data);
   transaction(
     data,
-    "learning_v1" in data ? ["study_state"] : ["study_state", "learning_v1"],
+    [...wx.getStorageInfoSync().keys.filter(k => k.startsWith("learning_v2_")), ...("learning_v1" in data ? ["study_state"] : ["study_state", "learning_v1"])],
   );
   return Object.keys(data).length;
 }
